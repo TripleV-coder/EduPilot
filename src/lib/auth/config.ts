@@ -26,6 +26,12 @@ import { isSessionRevoked, revokeSession } from "./session-revocation";
 import { InvalidTwoFactorSignin, SchoolSuspendedSignin, withSigninErrorMapping } from "./login-failure";
 import { isBlockedBySchoolSuspension } from "./school-suspension";
 import { resolveAuthRedirect } from "@/lib/security/safe-redirect";
+import {
+  LONG_SESSION_SECONDS,
+  isSessionExpiredByInactivity,
+  parseRememberFlag,
+  rememberAllowed,
+} from "./session-lifetime";
 
 /**
  * Extended user type for authentication.
@@ -59,6 +65,8 @@ export interface AuthUser {
   isTwoFactorAuthenticated: boolean;
   /** Compte créé par un tiers : mot de passe provisoire à remplacer (M1). */
   mustChangePassword: boolean;
+  /** « Rester connecté » coché (et permis pour ce rôle) : session de 30 jours. */
+  rememberMe: boolean;
   permissions?: Permission[]; // Union of permissions
   avatar?: string | null;
 }
@@ -75,6 +83,7 @@ const loginSchema = z.object({
     .regex(/^[^\s@]+@[^\s@]+$/, "Email invalide"),
   password: z.string().min(1, "Le mot de passe est requis"),
   twoFactorCode: z.string().optional(),
+  remember: z.unknown().optional(),
 });
 
 export { invalidateUserStatusCache };
@@ -86,7 +95,9 @@ export const authConfig: NextAuthConfig = {
   trustHost: process.env.AUTH_TRUST_HOST === "true" || process.env.NODE_ENV !== "production",
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 hours
+    // 30 jours au plus ; sans « Rester connecté », 24 h d'inactivité suffisent
+    // à fermer la session (callback jwt, lib/auth/session-lifetime).
+    maxAge: LONG_SESSION_SECONDS,
   },
   pages: {
     signIn: "/login",
@@ -99,6 +110,7 @@ export const authConfig: NextAuthConfig = {
         email: { label: "Email", type: "email" },
         password: { label: "Mot de passe", type: "password" },
         twoFactorCode: { label: "Code 2FA", type: "text" },
+        remember: { label: "Rester connecté", type: "checkbox" },
       },
       // M10 : une panne de base devient `code=service_unavailable`, jamais un
       // faux « identifiants invalides » (voir ./login-failure).
@@ -227,6 +239,8 @@ export const authConfig: NextAuthConfig = {
         // Connexion réussie - réinitialiser compteur
         await resetFailedLoginAttempts(user.id);
 
+        const rememberMe = parseRememberFlag(credentials?.remember) && rememberAllowed(user.role);
+
         // Audit log pour succès
         await prisma.auditLog.create({
           data: {
@@ -234,6 +248,7 @@ export const authConfig: NextAuthConfig = {
             action: 'LOGIN_SUCCESS',
             entity: 'user',
             entityId: user.id,
+            newValues: { rememberMe },
           },
         });
 
@@ -267,6 +282,7 @@ export const authConfig: NextAuthConfig = {
           isTwoFactorEnabled: user.isTwoFactorEnabled,
           isTwoFactorAuthenticated,
           mustChangePassword: user.mustChangePassword === true,
+          rememberMe,
           permissions: getRolePermissions(effectiveRoles),
           avatar: user.avatar,
         };
@@ -304,6 +320,8 @@ export const authConfig: NextAuthConfig = {
         token.isTwoFactorAuthenticated = authUser.isTwoFactorAuthenticated;
         token.mustChangePassword = authUser.mustChangePassword;
         token.avatar = authUser.avatar;
+        token.remember = authUser.rememberMe === true;
+        token.lastSeenAt = Math.floor(Date.now() / 1000);
         // Identifiant de session stable (le jti d'Auth.js change à chaque
         // réémission) : la déconnexion le révoque côté serveur.
         token.sid = globalThis.crypto.randomUUID();
@@ -430,6 +448,13 @@ export const authConfig: NextAuthConfig = {
       // État du compte relu à chaque requête : désactivation, mot de passe,
       // rôle et droits d'établissement s'appliquent dès la requête suivante.
       if (token.id && trigger !== "signIn") {
+        // Sans « Rester connecté » : 24 h sans activité ferment la session
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        if (isSessionExpiredByInactivity(token, nowSeconds)) {
+          token.invalidated = true;
+          return token;
+        }
+
         const userStatus = await getUserStatus(token.id as string);
 
         // Compte supprimé définitivement : aucun droit ne survit dans le jeton
@@ -464,6 +489,8 @@ export const authConfig: NextAuthConfig = {
         token.role = userStatus.role;
         token.roles = effectiveRoles;
         token.permissions = getRolePermissions(effectiveRoles);
+        // Devenu super-administrateur : la session longue ne le suit pas
+        if (token.remember === true && !rememberAllowed(userStatus.role)) token.remember = false;
 
         // Droits d'établissement relus en base : un rattachement retiré ne
         // survit pas dans le jeton, et l'école active retirée est remplacée.
@@ -483,6 +510,9 @@ export const authConfig: NextAuthConfig = {
             });
           }
         }
+
+        // Session toujours valide : l'activité de cette requête est notée
+        token.lastSeenAt = nowSeconds;
       }
 
       return token;

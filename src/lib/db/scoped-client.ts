@@ -1,6 +1,12 @@
 import type { PrismaClient } from "@prisma/client";
 import { getDbContext, rlsSettings, type DbContext } from "./db-context";
-import { emitModelWrite, isWriteOperation } from "./write-events";
+import {
+    emitModelWrite,
+    emitRecordsCreated,
+    hasRecordsCreatedListeners,
+    isCreateOperation,
+    isWriteOperation,
+} from "./write-events";
 
 /**
  * Pose le contexte de la requête pour la transaction courante uniquement
@@ -57,6 +63,10 @@ export function createScopedClient(base: PrismaClient): PrismaClient {
                 }
                 // Écriture réussie : les caches qui dépendent de ce modèle s'invalident
                 if (model && isWriteOperation(operation)) emitModelWrite(model);
+                // Créations : signal détaillé (notifications push)
+                if (model && isCreateOperation(operation) && hasRecordsCreatedListeners()) {
+                    emitRecordsCreated({ model, operation, args, result, inTransaction });
+                }
                 return result;
             },
         },

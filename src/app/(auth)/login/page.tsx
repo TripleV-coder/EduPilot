@@ -19,6 +19,7 @@ import { getLoginErrorMessage } from "@/lib/auth/login-errors";
 const loginSchema = z.object({
   email: z.string().email("Email invalide"),
   password: z.string().min(1, "Mot de passe requis"),
+  remember: z.boolean().optional(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -88,6 +89,7 @@ function LoginForm() {
       const result = await signIn("credentials", {
         email: data.email,
         password: data.password,
+        remember: data.remember ? "true" : "false",
         redirect: false,
       });
 
@@ -205,6 +207,25 @@ function LoginForm() {
               {errors.password.message}
             </p>
           )}
+        </div>
+
+        {/* Rester connecté : 30 jours au lieu de 24 h sans activité */}
+        <div className="flex items-start gap-3">
+          <input
+            id="remember"
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-[hsl(var(--primary))]"
+            aria-describedby="remember-hint"
+            {...register("remember")}
+          />
+          <div>
+            <Label htmlFor="remember" className="font-medium text-foreground">
+              Rester connecté sur cet appareil
+            </Label>
+            <p id="remember-hint" className="text-xs text-muted-foreground">
+              30 jours sans redemander le mot de passe. À ne pas cocher sur un ordinateur partagé.
+            </p>
+          </div>
         </div>
 
         {/* Submit */}

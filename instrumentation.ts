@@ -54,6 +54,12 @@ export async function register() {
       jobs.startJobWorker();
     }
 
+    // Notifications push (Lot F) : toute notification créée part aussi vers les
+    // appareils abonnés de son destinataire, via la file ci-dessus. Écouteur
+    // inscrit dans tous les processus web (là où les notifications naissent).
+    const { registerPushDispatch } = await import("./src/lib/push/dispatch");
+    registerPushDispatch();
+
     // Surveillance des erreurs — facultative, et chargée en dernier.
     //
     // Sentry entraîne avec lui l'instrumentation OpenTelemetry, dont les

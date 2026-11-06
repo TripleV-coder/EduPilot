@@ -93,5 +93,9 @@ declare module "next-auth/jwt" {
     isTwoFactorAuthenticated: boolean;
     mustChangePassword?: boolean;
     avatar?: string | null;
+    /** « Rester connecté » : session de 30 jours (lib/auth/session-lifetime). */
+    remember?: boolean;
+    /** Dernière activité (secondes) : sans « Rester connecté », 24 h d'inactivité ferment la session. */
+    lastSeenAt?: number;
   }
 }

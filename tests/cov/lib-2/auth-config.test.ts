@@ -119,8 +119,8 @@ beforeEach(() => {
 });
 
 describe("authConfig — options générales", () => {
-  it("utilise des sessions JWT de 24 h et redirige les erreurs vers /login", () => {
-    expect(authConfig.session).toEqual({ strategy: "jwt", maxAge: 86400 });
+  it("jeton JWT de 30 jours au plus (« Rester connecté ») et erreurs redirigées vers /login", () => {
+    expect(authConfig.session).toEqual({ strategy: "jwt", maxAge: 30 * 24 * 60 * 60 });
     expect(authConfig.pages).toEqual({ signIn: "/login", error: "/login" });
   });
 });
@@ -272,6 +272,45 @@ describe("authorize — succès", () => {
   });
 });
 
+describe("« Rester connecté » (30 jours)", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("la case cochée donne une session longue, journalisée ; jamais pour le super-administrateur", async () => {
+    findUnique.mockResolvedValueOnce(dbUser() as never);
+    vi.mocked(bcrypt.compare).mockResolvedValueOnce(true as never);
+    expect((await authorize({ ...CREDS, remember: "true" }))?.rememberMe).toBe(true);
+    expect(auditCreate.mock.calls.at(-1)?.[0]).toMatchObject({ data: { action: "LOGIN_SUCCESS", newValues: { rememberMe: true } } });
+
+    findUnique.mockResolvedValueOnce(dbUser() as never);
+    vi.mocked(bcrypt.compare).mockResolvedValueOnce(true as never);
+    expect((await authorize({ ...CREDS, remember: "false" }))?.rememberMe).toBe(false);
+
+    findUnique.mockResolvedValueOnce(dbUser({ role: "SUPER_ADMIN" }) as never);
+    vi.mocked(bcrypt.compare).mockResolvedValueOnce(true as never);
+    expect((await authorize({ ...CREDS, remember: "true" }))?.rememberMe).toBe(false);
+  });
+
+  it("sans la case : 24 h sans activité ferment la session, sans même lire la base", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-06T12:00:00Z"));
+    const now = Math.floor(Date.now() / 1000);
+    const token = await jwt({ token: { id: "idle-1", role: "PARENT", remember: false, lastSeenAt: now - 25 * 3600 } });
+    expect(token.invalidated).toBe(true);
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it("avec la case : 10 jours d'absence ne ferment pas la session ; l'activité est notée", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-06T12:00:00Z"));
+    const now = Math.floor(Date.now() / 1000);
+    findUnique.mockResolvedValueOnce({ isActive: true, passwordChangedAt: null, roleChangedAt: null, role: "PARENT", roles: [], schoolId: "school-1" } as never);
+    const token = await jwt({ token: { id: "long-1", role: "PARENT", remember: true, lastSeenAt: now - 10 * 86400 } });
+    expect(token.invalidated).toBeUndefined();
+    expect(token.lastSeenAt).toBe(now);
+    expect(token.remember).toBe(true);
+  });
+});
+
 describe("callback jwt — connexion initiale", () => {
   it("recopie toutes les propriétés de l'utilisateur dans le jeton sans vérification de statut au signIn", async () => {
     const user = {
@@ -282,8 +321,9 @@ describe("callback jwt — connexion initiale", () => {
       mustChangePassword: false, avatar: null,
     };
     const token = await jwt({ token: {}, user, trigger: "signIn" });
-    // + identifiant de session stable, révocable à la déconnexion (sécurité HTTP)
-    expect(token).toEqual({ ...user, sid: expect.any(String) });
+    // + identifiant de session stable, révocable à la déconnexion (sécurité HTTP),
+    // + durée de session : « Rester connecté » non coché, dernière activité maintenant
+    expect(token).toEqual({ ...user, sid: expect.any(String), remember: false, lastSeenAt: expect.any(Number) });
     expect(findUnique).not.toHaveBeenCalled();
   });
 

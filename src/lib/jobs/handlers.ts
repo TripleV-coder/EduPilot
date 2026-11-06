@@ -2,6 +2,7 @@ import { sendEmail } from "@/lib/email";
 import { queueSMS } from "@/lib/notifications/sms-service";
 import { sendWhatsAppText } from "@/lib/notifications/whatsapp-service";
 import { sendVoiceCall } from "@/lib/notifications/voice-service";
+import { deliverPushItems } from "@/lib/push/deliver";
 import prisma from "@/lib/prisma";
 import { CIRCUITS, getCircuitBreaker } from "@/lib/resilience/circuit-breaker";
 import { PermanentJobError } from "./queue";
@@ -56,5 +57,9 @@ export const JOB_HANDLERS: JobHandlers = {
         }
         const reason = result.error ?? "Appel vocal non passé";
         throw result.permanent ? new PermanentJobError(reason) : new Error(reason);
+    },
+    "push.send": async (payload) => {
+        // Meilleur effort : les échecs d'appareil sont gérés abonnement par abonnement
+        await deliverPushItems(payload.items);
     },
 };

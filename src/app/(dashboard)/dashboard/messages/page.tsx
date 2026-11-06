@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -16,6 +16,7 @@ import {
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError, PageLoading } from "@/components/layout/page-states";
+import { FetchError, defaultHttpErrorMessage } from "@/lib/http-error";
 import { SubLabel } from "@/components/edu-homes/_shared";
 
 type UserStub = {
@@ -119,7 +120,7 @@ function MessagesPageContent() {
 
     const [messages, setMessages] = useState<RawMessage[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<Error | null>(null);
     const [search, setSearch] = useState("");
     const [activeOtherId, setActiveOtherId] = useState<string | null>(null);
     const [draft, setDraft] = useState("");
@@ -131,7 +132,10 @@ function MessagesPageContent() {
     const [newContent, setNewContent] = useState("");
     const threadRef = useRef<HTMLDivElement>(null);
 
-    const refresh = async () => {
+    // Signature de la liste : une relève sans nouveauté ne redessine rien
+    const signatureRef = useRef("");
+
+    const refresh = useCallback(async () => {
         try {
             const [inboxRes, sentRes] = await Promise.all([
                 fetch("/api/messages?type=inbox&limit=100"),
@@ -141,6 +145,13 @@ function MessagesPageContent() {
                 inboxRes.json().catch(() => ({})),
                 sentRes.json().catch(() => ({})),
             ]);
+            // Une réponse en erreur n'est plus lue comme « aucun message »
+            const failed = !inboxRes.ok ? { res: inboxRes, body: inbox } : !sentRes.ok ? { res: sentRes, body: sent } : null;
+            if (failed) {
+                const message = typeof failed.body?.error === "string" ? failed.body.error : defaultHttpErrorMessage(failed.res.status);
+                setError(new FetchError(failed.res.status, message));
+                return;
+            }
             const all: RawMessage[] = [
                 ...(inbox.messages ?? inbox.data ?? []),
                 ...(sent.messages ?? sent.data ?? []),
@@ -148,17 +159,42 @@ function MessagesPageContent() {
             // Dedup by id (a sent message could appear in both via threading)
             const map = new Map<string, RawMessage>();
             for (const m of all) map.set(m.id, m);
-            setMessages(Array.from(map.values()));
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
+            const next = Array.from(map.values());
+            const signature = next.map((m) => `${m.id}:${m.isRead ? 1 : 0}`).sort().join("|");
+            setError(null);
+            if (signature === signatureRef.current) return;
+            signatureRef.current = signature;
+            setMessages(next);
+        } catch {
+            setError(new Error("Connexion impossible : les messages n'ont pas pu être actualisés."));
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        refresh();
-    }, []);
+        void refresh();
+    }, [refresh]);
+
+    // Les nouveaux messages arrivent sans recharger la page : relève toutes les
+    // 20 s tant que l'onglet est visible, et dès qu'il redevient visible ou
+    // que la connexion revient.
+    useEffect(() => {
+        const visible = () => document.visibilityState === "visible";
+        const timer = window.setInterval(() => {
+            if (visible()) void refresh();
+        }, 20_000);
+        const onVisible = () => {
+            if (visible()) void refresh();
+        };
+        document.addEventListener("visibilitychange", onVisible);
+        window.addEventListener("online", onVisible);
+        return () => {
+            window.clearInterval(timer);
+            document.removeEventListener("visibilitychange", onVisible);
+            window.removeEventListener("online", onVisible);
+        };
+    }, [refresh]);
 
     const conversations = useMemo<Conversation[]>(() => {
         if (!myId) return [];
@@ -249,11 +285,11 @@ function MessagesPageContent() {
                 }).catch(() => null)
             )
         ).then(() => {
-            setMessages((prev) =>
-                prev.map((m) =>
-                    unreadIds.includes(m.id) ? { ...m, isRead: true } : m
-                )
-            );
+            setMessages((prev) => {
+                const next = prev.map((m) => (unreadIds.includes(m.id) ? { ...m, isRead: true } : m));
+                signatureRef.current = next.map((m) => `${m.id}:${m.isRead ? 1 : 0}`).sort().join("|");
+                return next;
+            });
         });
     }, [active, myId]);
 
@@ -290,7 +326,7 @@ function MessagesPageContent() {
             setDraft("");
             await refresh();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
+            setError(err instanceof Error ? err : new Error("Erreur inconnue"));
         } finally {
             setSending(false);
         }
@@ -307,7 +343,7 @@ function MessagesPageContent() {
             setRecipients(list);
             setRecipientId(list[0]?.id ?? "");
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
+            setError(err instanceof Error ? err : new Error("Erreur inconnue"));
         }
     };
 
@@ -334,7 +370,7 @@ function MessagesPageContent() {
             setActiveOtherId(recipientId);
             await refresh();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
+            setError(err instanceof Error ? err : new Error("Erreur inconnue"));
         } finally {
             setSending(false);
         }
@@ -378,7 +414,7 @@ function MessagesPageContent() {
                 />
 
                 {error ? (
-                    <PageError error={error} message={error} onRetry={() => void refresh()} />
+                    <PageError error={error} message={error.message} onRetry={() => void refresh()} />
                 ) : null}
 
                 {composing ? (

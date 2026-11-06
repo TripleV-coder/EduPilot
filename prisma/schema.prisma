@@ -301,6 +301,7 @@ model User {
   psyAppointmentsAsPsy              PsyAppointment[]            @relation("PsyAppointmentPsy")
   psyAppointmentsAsStudent          PsyAppointment[]            @relation("PsyAppointmentStudent")
   climatePulseParticipations        ClimatePulseParticipation[]
+  pushSubscriptions                 PushSubscription[]
   voiceCampaignsAuthored            VoiceCampaign[]             @relation("VoiceCampaignAuthor")
   staffAttendances                  StaffAttendance[]           @relation("StaffAttendanceUser")
   staffAttendancesRecorded          StaffAttendance[]           @relation("StaffAttendanceRecorder")
@@ -2889,6 +2890,28 @@ model ClimatePulseWeek {
   @@unique([schoolId, weekLabel])
   @@index([schoolId, weekStart])
   @@map("climate_pulse_weeks")
+}
+
+/// Abonnement aux notifications push d'un navigateur (Web Push, VAPID).
+/// `endpoint` désigne l'appareil : un même navigateur ne sert qu'un compte
+/// à la fois (le dernier connecté qui l'active). Supprimé à la déconnexion,
+/// quand le service push répond 404/410, ou après 5 échecs consécutifs.
+model PushSubscription {
+  id            String    @id @default(cuid())
+  userId        String
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  failureCount  Int       @default(0)
+  lastSuccessAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 /// Qui a déjà répondu au pulse d'une semaine — jamais CE qu'il a répondu :

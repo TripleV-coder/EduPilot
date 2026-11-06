@@ -1,4 +1,5 @@
 import type { SMSType } from "@/lib/notifications/sms-service";
+import type { PushItem } from "@/lib/push/message";
 
 /** Charge utile de chaque type de tâche. Ajouter un type ici puis son traitement dans `handlers.ts`. */
 export interface JobPayloads {
@@ -7,6 +8,8 @@ export interface JobPayloads {
     /** Diffusion WhatsApp : `logId` = ligne CommunicationLog mise à jour à l'envoi. */
     "whatsapp.send": { to: string; text: string; schoolId: string; logId: string };
     "voice.send": { to: string; lang: string; text: string; audioUrl: string | null; campaignId: string; schoolId: string };
+    /** Notifications push web vers les appareils abonnés (lib/push). */
+    "push.send": { items: PushItem[] };
 }
 
 export type JobType = keyof JobPayloads;
