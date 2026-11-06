@@ -55,8 +55,10 @@ export const metadata: Metadata = {
         icon: [
             { url: "/favicon.svg", type: "image/svg+xml" },
         ],
+        // iOS n'accepte qu'un PNG pour l'icône d'écran d'accueil (application
+        // installée = condition des notifications push sur iPhone)
         apple: [
-            { url: "/apple-touch-icon.svg", type: "image/svg+xml", sizes: "180x180" },
+            { url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" },
         ],
         shortcut: "/favicon.svg",
     },

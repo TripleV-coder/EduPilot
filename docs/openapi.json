@@ -8541,37 +8541,6 @@
         }
       ]
     },
-    "/api/courses/lessons/complete": {
-      "post": {
-        "summary": "POST /api/courses/lessons/complete",
-        "description": "Session requise.",
-        "tags": [
-          "courses"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
     "/api/courses/progress": {
       "get": {
         "summary": "GET /api/courses/progress",
@@ -9814,56 +9783,6 @@
           }
         }
       }
-    },
-    "/api/exams/sessions/{id}/submit": {
-      "post": {
-        "summary": "POST /api/exams/sessions/{id}/submit",
-        "description": "Session requise. Rôles : STUDENT.",
-        "tags": [
-          "exams"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      },
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ]
     },
     "/api/explorer/overview": {
       "get": {
@@ -15000,40 +14919,6 @@
         }
       }
     },
-    "/api/parents/dashboard": {
-      "get": {
-        "summary": "GET /api/parents/dashboard",
-        "description": "Session requise. Rôles : PARENT.",
-        "tags": [
-          "parents"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
     "/api/parents/link-child": {
       "post": {
         "summary": "POST /api/parents/link-child",
@@ -16991,71 +16876,6 @@
         }
       }
     },
-    "/api/root/auth": {
-      "post": {
-        "summary": "POST /api/root/auth",
-        "description": "Session requise.",
-        "tags": [
-          "root"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/root/dashboard": {
-      "get": {
-        "summary": "GET /api/root/dashboard",
-        "description": "Session requise. Rôles : SUPER_ADMIN.",
-        "tags": [
-          "root"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
     "/api/root/data-requests": {
       "get": {
         "summary": "GET /api/root/data-requests",
@@ -17466,40 +17286,6 @@
           },
           "413": {
             "$ref": "#/components/responses/PayloadTooLarge"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/root/session": {
-      "get": {
-        "summary": "GET /api/root/session",
-        "description": "Session requise. Rôles : SUPER_ADMIN.",
-        "tags": [
-          "root"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"

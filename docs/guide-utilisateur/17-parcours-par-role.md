@@ -343,7 +343,7 @@ L'accueil de l'établissement, **orienté finance** : chiffres clés, et actions
 | Vue d'ensemble | l'accueil orienté finance |
 | Élèves | retrouver un élève et sa famille |
 | Finance | frais, encaissements, plans de paiement, bourses, relances, rapprochement, exports |
-| Portefeuille | solde des comptes Mobile Money et bancaires de l'école |
+| Portefeuille | comptes déclarés par l'école (banque, Mobile Money, caisse) et soldes calculés sur les encaissements validés |
 | Comptabilité OHADA | les écritures en partie double |
 | Paramètres | son compte |
 

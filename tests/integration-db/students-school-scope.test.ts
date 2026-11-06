@@ -13,7 +13,7 @@ import { actAs, callRoute, sessionFor, uniqueCode } from "./helpers";
 import { seedTenantGraph, type TenantGraph } from "./fixtures/tenant-graph";
 import { GET as listStudents } from "@/app/api/students/route";
 import { GET as getStudent, PATCH as patchStudent, DELETE as deleteStudent } from "@/app/api/students/[id]/route";
-import { GET as rootDashboard } from "@/app/api/root/dashboard/route";
+import { GET as rootSummary } from "@/app/api/root/analytics/summary/route";
 
 /**
  * Élèves et super-administrateur (2026-10-18) — `GET /api/students` ne
@@ -133,9 +133,9 @@ describe("Liste des élèves — super-admin", () => {
 });
 
 describe("Vue explicitement globale (console racine)", () => {
-    it("tableau de bord racine : effectif de toutes les écoles, sans liste nominative", async () => {
+    it("accueil de la console racine : effectifs de toutes les écoles, sans liste nominative", async () => {
         actAs(root(null));
-        const res = await callRoute(rootDashboard, { path: "/api/root/dashboard" });
+        const res = await callRoute(rootSummary, { path: "/api/root/analytics/summary" });
         expect(res.status).toBe(200);
         expect(text(res.body)).not.toContain(matriculeA);
         expect(text(res.body)).not.toContain(matriculeB);

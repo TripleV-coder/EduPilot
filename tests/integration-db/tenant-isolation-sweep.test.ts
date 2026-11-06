@@ -77,7 +77,6 @@ const ROUTES: SweptRoute[] = [
   { route: "exams/[id]", load: () => import("@/app/api/exams/[id]/route"), params: id("examTemplate"), target: t("examTemplate", "examTemplate") },
   { route: "exams/[id]/start", load: () => import("@/app/api/exams/[id]/start/route"), params: id("examTemplate"), target: t("examTemplate", "examTemplate") },
   { route: "exams/[id]/submit", load: () => import("@/app/api/exams/[id]/submit/route"), params: id("examTemplate"), target: t("examTemplate", "examTemplate"), body: () => ({ answers: [] }) },
-  { route: "exams/sessions/[id]/submit", load: () => import("@/app/api/exams/sessions/[id]/submit/route"), params: id("examSession"), target: t("examSession", "examSession"), body: () => ({ answers: [] }) },
   { route: "finance/payments/[id]", load: () => import("@/app/api/finance/payments/[id]/route"), params: id("payment"), target: t("payment", "payment"), body: () => ({ status: "CANCELLED" }) },
   { route: "grades/[id]", load: () => import("@/app/api/grades/[id]/route"), params: id("grade"), target: t("grade", "grade"), body: () => ({ value: 20 }) },
   { route: "homework/[id]", load: () => import("@/app/api/homework/[id]/route"), params: id("homework"), target: t("homework", "homework"), body: () => ({ title: "Piraté" }) },

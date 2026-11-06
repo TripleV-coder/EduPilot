@@ -5,6 +5,12 @@
 ## 2.1 Se connecter
 On se connecte avec son adresse e-mail et son mot de passe. À la première connexion, ou si l'établissement l'exige, l'application demande de **changer le mot de passe** avant d'aller plus loin.
 
+### Rester connecté ✅
+La case **« Rester connecté sur cet appareil »** garde la session ouverte **30 jours**, prolongés à chaque visite. Sans la case, la session se ferme après **24 heures sans activité**. À ne pas cocher sur un ordinateur partagé. Le super-administrateur de la plateforme n'a jamais de session longue. Se déconnecter, changer de mot de passe ou voir son compte désactivé ferme toujours la session.
+
+### Lien d'activation ✅
+La direction peut envoyer à un compte **pas encore activé** un **lien d'activation** (liste des comptes, statut « À activer »). Le lien, valable **72 heures** et à usage unique, permet de choisir directement son mot de passe, sans mot de passe provisoire. Il part par e-mail ; s'il ne peut pas partir, la direction le voit et peut le transmettre elle-même (SMS, WhatsApp). Un nouveau lien annule le précédent ; un compte déjà activé n'en reçoit plus.
+
 ### La double vérification (recommandée)
 Dans *Paramètres → Sécurité & accès*, on peut activer la **double vérification**. En plus du mot de passe, un code à 6 chiffres est alors demandé à chaque connexion ; il est donné par une application de codes sur le téléphone. Des **codes de secours** sont fournis à l'activation : gardez-les en lieu sûr.
 
@@ -29,6 +35,8 @@ Les modifications du profil sont **enregistrées au fur et à mesure**, sans bou
 ---
 
 ## 2.3 L'écran d'accueil
+Le menu reste court ; **« Tous les services »** regroupe toutes les pages permises au rôle (bibliothèque, transport, discipline, documents…), selon les modules activés par l'école et les cycles qu'elle offre.
+
 Chaque rôle a son propre accueil :
 - **direction** : effectifs, finances, appel du jour, alertes ;
 - **enseignant** : mes classes, ma journée, notes à saisir ;

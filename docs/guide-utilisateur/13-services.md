@@ -6,7 +6,7 @@
 *Cantine & restauration* : menus du jour, tickets repas, solde de tickets de l'élève. On achète des tickets **par lots de 1 à 200** (10 par défaut), qui s'ajoutent au solde. Un ticket est valable 30 jours par défaut, une durée réglable dans les paramètres de l'établissement.
 
 ## 13.2 Transport scolaire ✅ (module à activer)
-*Transport scolaire* : circuits, arrêts, véhicules, élèves inscrits sur chaque circuit.
+*Transport scolaire* : circuits, arrêts, véhicules, élèves inscrits sur chaque circuit. Bouton **« Élèves »** d'une ligne : inscrire un élève de l'école (aller, retour ou les deux) ou le retirer ; un élève d'une autre école est refusé.
 
 ## 13.3 Bibliothèque ✅ (module à activer)
 *Bibliothèque & fonds* : catalogue des ouvrages, emprunts et retours. L'élève voit ses emprunts en cours.

@@ -52,16 +52,21 @@ d'échecs de connexion).
 | TD-012 | Deux familles de primitives d'interface (`ui/` shadcn et `edu/` maison) | 15j | 3 | 1 | 0,2 | 🟡 Ouvert — **assumé**, à traiter par la refonte |
 | TD-013 | Deux jeux de jetons de style décrivant la même charte | 4j | 2 | 1 | 0,5 | 🟡 Ouvert — **assumé**, à traiter par la refonte |
 | TD-014 | 92 routes d'API sans aucun test unitaire | 8j | 3 | 3 | 1,1 | 🟡 Ouvert |
-| TD-015 | Accueil publique : 913 Ko de JS, animations au défilement (framer-motion) | 2j | 2 | 1 | 1,0 | 🟡 Ouvert |
-| TD-016 | Deux systèmes de notification (sonner + Radix toast) | 2j | 1 | 1 | 0,5 | 🟡 Ouvert — **assumé**, design gelé |
+| TD-015 | Accueil publique : 913 Ko de JS, animations au défilement (framer-motion) | 2j | 2 | 1 | 1,0 | ✅ **Corrigé 2026-11-06** (lot G : framer-motion retiré du projet, entrées CSS, une seule requête de chiffres) |
+| TD-016 | Deux systèmes de notification (sonner + Radix toast) | 2j | 1 | 1 | 0,5 | ✅ **Corrigé 2026-11-06** (lot G : sonner seul, `useToast` adaptateur) |
 | TD-017 | « Facturation en masse » sans modèle de données : la page envoie `{classLevelId, feeId, academicYearId}`, l'API attend `{paymentIds}` → toujours 400 | 3j | 3 | 2 | 2,0 | ✅ Corrigé 2026-09-19 (avis de paiement) |
 | TD-018 | Clôture d'année scolaire non implémentée (statut `CLOSED` jamais écrit, aucune API) | 3j | 3 | 2 | 2,0 | ✅ Corrigé 2026-09-19 |
-| TD-019 | Contributions aux cagnottes déclaratives : un parent enregistre une contribution « payée » sans aucune vérification | 2j | 3 | 3 | 1,5 | 🔴 Ouvert — **décision produit** |
-| TD-020 | Analyse IA d'un élève : un enseignant est limité à son école, pas à ses classes (les analyses de classe, elles, le sont) | 0,5j | 3 | 2 | 2,0 | 🔴 Ouvert — **décision produit** |
-| TD-021 | Attestation de bonne conduite émise sans consulter les incidents ; signatures « autorisation parentale » et « contrat » sans modèle ni écran | 1j | 2 | 2 | 1,0 | 🟡 Ouvert — **décision produit** |
-| TD-022 | Rôle STAFF : les API élèves, annonces et IA le refusent ; son menu est réduit à accueil, vie scolaire, paramètres | 2j | 2 | 2 | 1,0 | 🟡 Ouvert — **décision produit** |
-| TD-023 | Durée d'examen non contrôlée côté serveur sur le parcours de la page (session créée à la soumission, pas au démarrage) | 1j | 3 | 2 | 1,5 | 🟡 Ouvert |
-| TD-024 | Pages qui lancent leurs requêtes avant leur PageGuard (403 inutiles quand le rôle est refusé) ; motif « sous-identifiant qui remplace la contrainte » à relire route par route (corrigé dans le cahier de notes) | 3j | 2 | 2 | 0,7 | 🟡 Ouvert |
+| TD-019 | Contributions aux cagnottes déclaratives : un parent enregistre une contribution « payée » sans aucune vérification | 2j | 3 | 3 | 1,5 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-020 | Analyse IA d'un élève : un enseignant est limité à son école, pas à ses classes (les analyses de classe, elles, le sont) | 0,5j | 3 | 2 | 2,0 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-021 | Attestation de bonne conduite émise sans consulter les incidents ; signatures « autorisation parentale » et « contrat » sans modèle ni écran | 1j | 2 | 2 | 1,0 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-022 | Rôle STAFF : les API élèves, annonces et IA le refusent ; son menu est réduit à accueil, vie scolaire, paramètres | 2j | 2 | 2 | 1,0 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-023 | Durée d'examen non contrôlée côté serveur sur le parcours de la page (session créée à la soumission, pas au démarrage) | 1j | 3 | 2 | 1,5 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-024 | Pages qui lancent leurs requêtes avant leur PageGuard (403 inutiles quand le rôle est refusé) ; motif « sous-identifiant qui remplace la contrainte » à relire route par route (corrigé dans le cahier de notes) | 3j | 2 | 2 | 0,7 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-026 | Routes d'API sans écran : création de modules de cours (`/api/modules*`), import d'emplois du temps / aperçu / modèles d'import (`/api/import/{schedules,preview,templates}`), sous-routes médicales `/api/medical-records/[id]/*` | 3j | 2 | 2 | 1,3 | 🟡 Ouvert — à brancher sur un écran ou retirer |
+| TD-027 | WhatsApp : « envoyé » = accepté par Meta ; ni remise ni lecture suivies (webhook de statuts non codé, `WHATSAPP_VERIFY_TOKEN` retiré de .env.example) | 1j | 2 | 1 | 2,0 | 🟡 Ouvert |
+| TD-028 | Tables `benchmark_snapshots` / `benchmark_snapshot_indicators` conservées sans usage (module retiré le 2026-11-06) | 0,5j | 1 | 1 | 2,0 | 🟡 Ouvert — supprimer après confirmation qu'aucune donnée n'est à garder |
+| TD-029 | Push web : réglage par appareil seulement (tout ou rien), pas de choix par type de notification | 1j | 2 | 1 | 2,0 | 🟡 Ouvert |
+| TD-030 | Icônes d'installation en SVG seulement (`manifest.json`, `apple-touch-icon.svg`) : iOS exige un PNG pour l'icône d'écran d'accueil — or le push sur iPhone passe par l'application installée | 0,5j | 3 | 2 | 6,0 | ✅ **Corrigé 2026-11-06** (PNG 192/512/maskable + apple-touch-icon.png, tirés du logo) |
 
 ---
 
@@ -182,7 +187,7 @@ route non testée hérite quand même des garanties.
 
 ---
 
-## TD-015 — Accueil publique lente sur mobile *(ouvert)*
+## TD-015 — Accueil publique lente sur mobile *(corrigé 2026-11-06)*
 
 Mesure du 2026-09-18, machine au repos, build de production, Lighthouse 12
 mobile (4G lente + CPU ÷4) : **perf 0,61**, LCP 5,4 s, TBT 686 ms, 531 Ko
@@ -204,7 +209,7 @@ initial).
 
 ---
 
-## TD-016 — Deux systèmes de notification *(ouvert, assumé)*
+## TD-016 — Deux systèmes de notification *(corrigé 2026-11-06)*
 
 `sonner` (26 fichiers) et le toast Radix via `useToast` (35 fichiers)
 coexistent, tous deux montés dans la mise en page racine. Les unifier changerait

@@ -22,10 +22,8 @@ import * as fedapay from "@/app/api/integrations/fedapay/route";
 import * as momo from "@/app/api/integrations/momo/route";
 import * as whatsapp from "@/app/api/integrations/whatsapp/route";
 import * as meSubjects from "@/app/api/me/subjects/route";
-import * as parentsDashboard from "@/app/api/parents/dashboard/route";
 import * as publicSchool from "@/app/api/public/schools/[code]/route";
 import * as rootSummary from "@/app/api/root/analytics/summary/route";
-import * as rootSession from "@/app/api/root/session/route";
 import * as rootSystemMap from "@/app/api/root/system-map/route";
 import * as settingsConfigs from "@/app/api/settings/configs/route";
 import * as setupAlias from "@/app/api/setup/route";
@@ -99,9 +97,7 @@ beforeAll(async () => {
         { name: "integrations/whatsapp GET", handler: whatsapp.GET, path: "/api/integrations/whatsapp", allowed: "DIRECTOR", denied: ["PARENT", "STUDENT", "TEACHER", "ACCOUNTANT"] },
         // Direction admise (pages corrections et nouveau cours) : liste vide pour elle
         { name: "me/subjects GET", handler: meSubjects.GET, path: "/api/me/subjects", allowed: "TEACHER", denied: ["PARENT", "STUDENT", "ACCOUNTANT", "STAFF"] },
-        { name: "parents/dashboard GET", handler: parentsDashboard.GET, path: "/api/parents/dashboard", denied: ["TEACHER", "DIRECTOR", "STUDENT"] },
         { name: "root/analytics/summary GET", handler: rootSummary.GET, path: "/api/root/analytics/summary", denied: ["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] },
-        { name: "root/session GET", handler: rootSession.GET, path: "/api/root/session", denied: ["SCHOOL_ADMIN", "DIRECTOR"] },
         { name: "root/system-map GET", handler: rootSystemMap.GET, path: "/api/root/system-map", denied: ["SCHOOL_ADMIN", "DIRECTOR"] },
         { name: "settings/configs GET", handler: settingsConfigs.GET, path: "/api/settings/configs", allowed: "SCHOOL_ADMIN", denied: ["DIRECTOR", "TEACHER", "PARENT"] },
         { name: "students/[id]/balances GET", handler: balances.GET, path: `/api/students/${studentId}/balances`, params: { id: studentId }, allowed: "ACCOUNTANT", denied: ["TEACHER", "PARENT", "STUDENT", "STAFF"] },

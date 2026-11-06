@@ -112,7 +112,6 @@ L'administrateur de l'école choisit les **modules** utilisés dans *Paramètres
 | Rendez-vous | Prise de rendez-vous entre familles et équipe. |
 | Documents et attestations | Pièces déposées par les familles, certificats, attestations. |
 | Bien-être et suivi psychologique | Signalements de harcèlement, entretiens. **Données sensibles : à n'activer qu'avec une personne formée.** |
-| Comparaison entre établissements | Position de l'école face aux autres du réseau. Des chiffres agrégés sortent de l'établissement. |
 | Notifications vocales et WhatsApp | Messages vocaux et WhatsApp aux familles. **Les numéros sont transmis à un prestataire.** |
 
 ## Les cycles de l'établissement

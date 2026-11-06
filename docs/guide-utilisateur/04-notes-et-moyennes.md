@@ -163,7 +163,7 @@ Le calcul se fait pour la moyenne générale et pour chaque matière.
 ### Élève transféré en cours d'année
 Pour un élève arrivé au 2ᵉ trimestre, la moyenne obtenue dans son **établissement d'origine** (lue sur son bulletin de transfert) est prise pour la période qu'il n'a pas suivie chez vous.
 - ✅ Le calcul est prêt.
-- 🔧 L'écran pour saisir ces moyennes est en cours de finalisation.
+- ✅ La direction saisit ces moyennes sur la fiche de l'élève (onglet *Scolarité*, carte « Moyennes d'origine ») : période, moyenne sur 20, établissement d'origine. Une saisie se corrige ou s'efface ; elle est refusée quand l'année est clôturée ou le conseil de classe validé. Les moyennes annuelles et les rangs sont recalculés aussitôt.
 
 ---
 

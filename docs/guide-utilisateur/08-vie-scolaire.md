@@ -59,10 +59,14 @@ Ce même agenda servira à la prise de rendez-vous des **réclamations de notes*
 ## 8.5 Cellule d'écoute et bien-être ✅ (module sensible)
 - Les dossiers ne sont lus que par la **cellule d'écoute** (direction).
 - Un **signalement anonyme** ne garde **aucun lien** avec le compte de la personne qui l'a fait.
+- Élèves, parents et enseignants écrivent à la cellule depuis **« Tous les services › Parler à la cellule d'écoute »** (ou depuis l'accueil élève).
+- **Agenda d'écoute** : la direction planifie et annule les rendez-vous (anonymes par défaut : un libellé comme « Anonyme · 3ᵉ A » plutôt qu'un nom).
+- **Climat scolaire** : chaque semaine, les élèves répondent sur leur accueil à 5 questions (une minute, anonyme). Seuls les totaux de la semaine sont gardés ; une semaine n'est affichée qu'à partir de **5 réponses**, pour qu'aucune réponse individuelle ne puisse être devinée.
+- 🔧 Le repérage du décrochage n'est pas une « IA » : il s'appuie sur les absences et l'évolution des notes (*Élèves à risque*, *Décrochage*).
 - À n'activer qu'avec une personne formée.
 
 ## 8.6 Infirmerie et dossiers médicaux ✅ (module sensible)
 Fiches de santé, antécédents, allergies, vaccinations, contacts d'urgence. Le parent et l'élève consultent leur propre fiche. À n'activer qu'avec une infirmerie. Les dossiers médicaux des élèves partis sont supprimés selon la durée fixée par l'école (chapitre 15).
 
 ## 8.7 Calendrier et événements ✅
-*Calendrier* : vacances, jours fériés, dates clés, conseils de classe. *Agenda & événements* : sorties, fêtes, réunions, avec inscription des élèves.
+*Calendrier* : vacances, jours fériés, dates clés, conseils de classe. *Agenda & événements* : sorties, fêtes, réunions, avec inscription des élèves. L'élève s'inscrit lui-même ; le parent inscrit son enfant et voit qui est inscrit. Une inscription s'annule tant que l'événement n'a pas commencé.

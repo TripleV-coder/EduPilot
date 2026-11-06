@@ -35,7 +35,27 @@ UPSTASH_REDIS_REST_TOKEN="AYxxxx..."
 # Backup API : désactivée par défaut
 ALLOW_BACKUP_API="false"
 ALLOW_BACKUP_API_IN_PRODUCTION="false"
+
+# Notifications push web (recommandé : parents) — paire générée UNE fois :
+#   npx web-push generate-vapid-keys
+# Changer la paire oblige chaque appareil à se réabonner.
+VAPID_PUBLIC_KEY="B..."
+VAPID_PRIVATE_KEY="..."
+VAPID_SUBJECT="mailto:support@votredomaine.com"
+
+# WhatsApp Business (Meta Cloud API) — facultatif ; le modèle doit être
+# APPROUVÉ par Meta avec un paramètre {{1}} (le texte de l'école)
+WHATSAPP_PHONE_ID="..."
+WHATSAPP_ACCESS_TOKEN="..."
+WHATSAPP_TEMPLATE_NAME="annonce_ecole"
+WHATSAPP_TEMPLATE_LANG="fr"
+
+# Passerelle d'appels vocaux — facultative
+VOICE_WEBHOOK_URL="https://voix.fournisseur.example/call"
+VOICE_API_KEY="..."
 ```
+
+> Sans `VAPID_*`, `WHATSAPP_*` ou `VOICE_WEBHOOK_URL`, les écrans concernés le disent et refusent l'envoi (503 explicite) : rien n'est simulé.
 
 ---
 
@@ -299,19 +319,21 @@ curl https://edupilot.com/api/health
 
 ### Configuration
 - [ ] Toutes les variables d'environnement production saisies
+- [ ] Clés VAPID générées (notifications push) ; notification d'essai reçue depuis *Paramètres › Notifications* sur un téléphone Android et un iPhone (application ajoutée à l'écran d'accueil)
+- [ ] WhatsApp : modèle approuvé par Meta, diffusion d'essai vers un numéro interne
 - [ ] `NEXTAUTH_SECRET` généré et unique (pas celui de dev)
 - [ ] `DATABASE_URL` pointe vers DB production
 - [ ] Email provider configuré et testé
 - [ ] Rate limiting Redis configuré
 
 ### Code
-- [ ] `yarn build` réussit sans erreur
-- [ ] `yarn test` : 240 tests passent
-- [ ] `yarn type-check` : pas d'erreur TypeScript
+- [ ] `npm run build` réussit sans erreur
+- [ ] `npm test` (unitaires) et `npm run test:integration` (PostgreSQL éphémère, jamais la base de dev) : tout passe
+- [ ] `npx tsc --noEmit` et `npm run lint` : zéro erreur
 - [ ] Version git taggée (ex: v1.1.0)
 
 ### Base de Données
-- [ ] Migrations appliquées (`prisma migrate deploy`)
+- [ ] Migrations appliquées (`prisma migrate deploy`) — dont, en novembre 2026 : badges par défaut, pulse climat (compteurs anonymes), retrait du module « benchmark », abonnements push
 - [ ] Backup automatique configuré (cron job)
 - [ ] Index DB créés pour performance
 - [ ] Données de référence (plans, etc.) insérées

@@ -118,7 +118,14 @@ Pour un départ d'élève, un trop-perçu, une activité annulée…
 - Chaque décision est inscrite au journal d'audit (auteur, date, motif).
 
 ## 9.10 Portefeuille de l'école ✅
-*Wallet école* : solde consolidé des comptes Mobile Money et bancaires de l'école. Aucune vérification d'identité fictive n'y est simulée.
+*Wallet école* : l'école **déclare ses comptes** (banque, MTN MoMo, Moov Money, Celtiis Cash, caisse, paiements en ligne) avec leur solde d'ouverture. Le solde affiché est **calculé**, jamais inventé :
+
+> solde = solde d'ouverture + encaissements **validés** du canal depuis la déclaration du compte + mouvements saisis (entrées − sorties) − décaissements exécutés
+
+- Plusieurs comptes d'un même canal : seul le plus ancien reçoit les encaissements, pour ne jamais les compter deux fois.
+- Seuls les 4 derniers chiffres d'un numéro de compte sont gardés.
+- Un compte qui a des mouvements saisis ou des décaissements ne se supprime pas (son historique reste consultable).
+- 🔧 Aucune connexion directe aux banques ni aux opérateurs : les soldes réels des comptes peuvent différer (frais, virements faits hors EduPilot).
 
 ## 9.11 Comptabilité OHADA ✅
 *Comptabilité OHADA* :
