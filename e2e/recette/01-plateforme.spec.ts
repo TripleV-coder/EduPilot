@@ -403,7 +403,6 @@ test("05 · console root : chaque écran de pilotage", async ({ browser }) => {
             ["/dashboard/admin/logs", "Journaux d'administration"],
             ["/dashboard/admin/security", "Sécurité"],
             ["/dashboard/admin/rgpd", "RGPD"],
-            ["/dashboard/benchmark", "Comparatif des établissements"],
         ] as const) {
             await step(root, titre, async () => explorePage(root, route));
         }

@@ -7,7 +7,6 @@ import { useSession } from "next-auth/react";
 import { Badge, Card, Icon, type IconName } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { roleSatisfies } from "@/lib/rbac/permissions";
-import { pick, useUiLang } from "@/lib/i18n/ui-lang";
 
 interface SettingItem {
     icon: IconName;
@@ -223,7 +222,6 @@ const ADMIN_SETTINGS: SettingItem[] = [
 ];
 
 export default function SettingsPage() {
-    const lang = useUiLang();
     const { data: session } = useSession();
     const [search, setSearch] = useState("");
 
@@ -240,7 +238,7 @@ export default function SettingsPage() {
     return (
         <PageShell>
             <PageHeader
-                title={pick(lang, "Paramètres", "Settings")}
+                title="Paramètres"
                 description="Préférences de ton compte et configuration de l'établissement."
             />
 
@@ -274,7 +272,7 @@ export default function SettingsPage() {
             {/* Personnel */}
             <Section
                 eyebrow="Compte"
-                title={pick(lang, "Paramètres personnels", "Personal settings")}
+                title="Paramètres personnels"
                 empty={search ? personalFiltered.length === 0 : false}
             >
                 <SettingsGrid items={personalFiltered} />
@@ -324,7 +322,6 @@ function Section({
     empty?: boolean;
     children: React.ReactNode;
 }) {
-    const lang = useUiLang();
     return (
         <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
@@ -363,7 +360,7 @@ function Section({
                                 color: "var(--eduflow-text-secondary)",
                             }}
                         >
-                            {pick(lang, "Aucun paramètre ne correspond à la recherche dans cette section.", "No setting matches the search in this section.")}
+                            {"Aucun paramètre ne correspond à la recherche dans cette section."}
                         </p>
                     </div>
                 </Card>

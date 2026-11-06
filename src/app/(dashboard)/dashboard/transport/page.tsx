@@ -1,6 +1,7 @@
 "use client";
 
 import { ResourceActions } from "@/components/shared/resource-actions";
+import { LineStudentsDialog } from "@/components/transport/line-students-dialog";
 import { useEffect, useState } from "react";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -67,6 +68,7 @@ function TransportPageContent() {
     const [lineLabel, setLineLabel] = useState("");
     const [savingLine, setSavingLine] = useState(false);
 
+    const [studentsLine, setStudentsLine] = useState<{ id: string; number: string } | null>(null);
     // Rechargement après modification ou suppression d'une ligne
     const reloadLines = async () => {
         const res = await fetch("/api/transport/lines");
@@ -430,6 +432,9 @@ function TransportPageContent() {
                                                 <Badge variant={l.statusVariant} size="sm" dot>
                                                     {l.status}
                                                 </Badge>
+                                                <Button variant="secondary" size="sm" onClick={() => setStudentsLine({ id: l.id, number: l.number })}>
+                                                    Élèves ({l.studentCount})
+                                                </Button>
                                                 <ResourceActions
                                                     endpoint={`/api/transport/lines/${l.id}`}
                                                     resourceLabel={`La ligne ${l.number}`}
@@ -490,6 +495,15 @@ function TransportPageContent() {
                             </Card>
                         </div>
                     </>
+                ) : null}
+                {studentsLine ? (
+                    <LineStudentsDialog
+                        lineId={studentsLine.id}
+                        lineNumber={studentsLine.number}
+                        open={studentsLine !== null}
+                        onOpenChange={(open) => (open ? null : setStudentsLine(null))}
+                        onChanged={() => void reloadLines()}
+                    />
                 ) : null}
             </PageShell>
 

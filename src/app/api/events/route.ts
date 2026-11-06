@@ -6,6 +6,7 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { familyStudents } from "@/lib/events/family";
 import { getListWindow } from "@/lib/api/list-window";
 
 const createEventSchema = z.object({
@@ -61,7 +62,20 @@ export const GET = createApiHandler(async (request, context) => {
       list.needsTotal ? prisma.schoolEvent.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    return NextResponse.json(list.page(events, (event) => event.startDate, total));
+    // Élève ou parent : qui de la famille est inscrit à chaque évènement
+    const viewerStudents = await familyStudents(session.user);
+    if (viewerStudents.length > 0 && events.length > 0) {
+      const registrations = await prisma.eventParticipation.findMany({
+        where: { eventId: { in: events.map((e) => e.id) }, studentId: { in: viewerStudents.map((v) => v.id) } },
+        select: { eventId: true, studentId: true },
+      });
+      const byEvent = new Map<string, string[]>();
+      for (const r of registrations) byEvent.set(r.eventId, [...(byEvent.get(r.eventId) ?? []), r.studentId]);
+      const withRegistrations = events.map((e) => ({ ...e, myRegistrations: byEvent.get(e.id) ?? [] }));
+      return NextResponse.json({ ...list.page(withRegistrations, (event) => event.startDate, total), viewerStudents });
+    }
+
+    return NextResponse.json({ ...list.page(events, (event) => event.startDate, total), viewerStudents });
   
     } catch (error) {
     logger.error(" fetching events:", error as Error);

@@ -40,7 +40,6 @@ export type ModuleId =
     | "appointments"
     | "documents"
     | "wellbeing"
-    | "benchmark"
     | "voice-notifications";
 
 export interface ModuleDefinition {
@@ -261,19 +260,11 @@ export const MODULES: ReadonlyArray<ModuleDefinition> = [
         pagePrefixes: ["wellbeing"],
     },
     {
-        id: "benchmark",
-        label: "Comparaison entre établissements",
-        description: "Position de l'école face aux autres du réseau. Des indicateurs agrégés sortent de l'établissement.",
-        defaultEnabled: false,
-        apiPrefixes: ["benchmark"],
-        pagePrefixes: ["benchmark"],
-    },
-    {
         id: "voice-notifications",
         label: "Notifications vocales et WhatsApp",
         description: "Messages vocaux et WhatsApp aux familles. Les numéros sont transmis à un prestataire.",
         defaultEnabled: false,
-        apiPrefixes: ["voice-notifs"],
+        apiPrefixes: ["voice-notifs", "whatsapp"],
         pagePrefixes: ["voice-notifs", "whatsapp"],
     },
 ];

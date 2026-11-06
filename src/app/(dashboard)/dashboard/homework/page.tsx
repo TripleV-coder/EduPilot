@@ -12,7 +12,6 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { Permission } from "@/lib/rbac/permissions";
 import { t } from "@/lib/i18n";
-import { pick, useUiLang } from "@/lib/i18n/ui-lang";
 import { formatDateShort } from "@/lib/utils/formatters";
 
 import { Badge, Button, Card, Icon } from "@/components/edu";
@@ -49,7 +48,6 @@ export default function HomeworkPage() {
 }
 
 function HomeworkPageContent() {
-    const lang = useUiLang();
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearch = useDebounce(searchTerm, 500);
     const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
@@ -143,11 +141,11 @@ function HomeworkPageContent() {
         <>
             <PageShell>
                 <PageHeader
-                    title={pick(lang, "Devoirs", "Homework")}
+                    title="Devoirs"
                     description={`${homeworks.length} devoirs · ${upcoming} cette semaine · ${overdue} en retard`}
                     breadcrumbs={[
-                        { label: pick(lang, "Tableau de bord", "Dashboard"), href: "/dashboard" },
-                        { label: pick(lang, "Devoirs", "Homework") },
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Devoirs" },
                     ]}
                     actions={
                         canManage ? (
@@ -216,13 +214,13 @@ function HomeworkPageContent() {
                 {!isLoading && !error && homeworks.length === 0 ? (
                     <PageEmpty
                         icon="book"
-                        title={pick(lang, "Aucun devoir trouvé", "No homework found")}
+                        title="Aucun devoir trouvé"
                         description={
                             activeFiltersCount > 0
-                                ? pick(lang, "Aucun devoir ne correspond aux filtres actuels. Élargissez la recherche ou réinitialisez les filtres.", "No homework matches the current filters.")
+                                ? "Aucun devoir ne correspond aux filtres actuels. Élargissez la recherche ou réinitialisez les filtres."
                                 : canManage
                                   ? "Créez le premier devoir pour démarrer le suivi des soumissions."
-                                  : pick(lang, "Aucun devoir donné pour l'instant.", "No homework assigned yet.")
+                                  : "Aucun devoir donné pour l'instant."
                         }
                         actions={
                             activeFiltersCount > 0

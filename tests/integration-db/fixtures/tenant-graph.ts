@@ -111,6 +111,9 @@ export async function seedTenantGraph(prefix: string) {
   const book = await prisma.book.create({ data: { schoolId, title: "Le Petit Prince", author: "Saint-Exupéry" } });
   const transportLine = await prisma.transportLine.create({ data: { schoolId, number: "L1", label: "Ganhi → Campus" } });
   const scanPoint = await prisma.scanPoint.create({ data: { schoolId, name: "Portail" } });
+  // Lot E (2026-11-06) : portefeuille déclaré, agenda de la cellule d'écoute
+  const walletAccount = await prisma.walletAccount.create({ data: { schoolId, name: "Ecobank", kind: "BANK", accountRef: "BJ0000000001" } });
+  const psyAppointment = await prisma.psyAppointment.create({ data: { schoolId, startAt: day("2026-12-01"), kind: "Suivi régulier" } });
   return {
     schoolId,
     adminId: admin.id,
@@ -131,6 +134,7 @@ export async function seedTenantGraph(prefix: string) {
       teacherUser: teacherUser.id, availability: availability.id, wellbeingReport: wellbeingReport.id,
       evaluation: evaluation.id, year: year.id, classLevel: classLevel.id, schedule: schedule.id,
       calendarEvent: calendarEvent.id, book: book.id, transportLine: transportLine.id, scanPoint: scanPoint.id,
+      walletAccount: walletAccount.id, psyAppointment: psyAppointment.id, parentUser: parentUser.id,
     },
   };
 }

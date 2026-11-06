@@ -4,6 +4,9 @@ import type { SMSType } from "@/lib/notifications/sms-service";
 export interface JobPayloads {
     "email.send": { to: string; subject: string; html: string; text?: string };
     "sms.send": { phoneNumber: string; message: string; smsType: SMSType; schoolId: string };
+    /** Diffusion WhatsApp : `logId` = ligne CommunicationLog mise à jour à l'envoi. */
+    "whatsapp.send": { to: string; text: string; schoolId: string; logId: string };
+    "voice.send": { to: string; lang: string; text: string; audioUrl: string | null; campaignId: string; schoolId: string };
 }
 
 export type JobType = keyof JobPayloads;

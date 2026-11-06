@@ -12,6 +12,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 import { PageGuard } from "@/components/guard/page-guard";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
+import { ActivationLinkDialog, type ActivationTarget } from "@/components/users/activation-link-dialog";
 import { Permission } from "@/lib/rbac/permissions";
 import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { t } from "@/lib/i18n";
@@ -35,6 +36,8 @@ type User = {
     lastName: string;
     role: string;
     isActive: boolean;
+    /** Compte créé par un tiers, mot de passe définitif pas encore choisi. */
+    mustChangePassword?: boolean;
     createdAt: string;
     schoolId: string | null;
     school?: { name: string } | null;
@@ -112,6 +115,7 @@ function UsersPageContent() {
         name: string;
         email: string;
     } | null>(null);
+    const [activationTarget, setActivationTarget] = useState<ActivationTarget | null>(null);
 
     const searchParams = new URLSearchParams();
     if (debouncedSearch) searchParams.set("search", debouncedSearch);
@@ -207,7 +211,7 @@ function UsersPageContent() {
             u.email,
             roleLabels[u.role] || formatUserRoleLabel(u.role),
             u.school?.name || "Global",
-            u.isActive ? "Actif" : "Inactif",
+            u.isActive ? (u.mustChangePassword ? "À activer" : "Actif") : "Inactif",
             format(new Date(u.createdAt), "dd/MM/yyyy", { locale: fr }),
         ]);
         const csv = [headers, ...rows]
@@ -328,11 +332,17 @@ function UsersPageContent() {
                                         roleLabels[user.role] || formatUserRoleLabel(user.role),
                                         user.email,
                                         user.school?.name,
-                                        user.isActive ? null : "inactif",
+                                        user.isActive ? (user.mustChangePassword ? "à activer" : null) : "inactif",
                                     ]
                                         .filter(Boolean)
                                         .join(" · ")}
                                     actions={[
+                                        ...(user.isActive && user.mustChangePassword
+                                            ? [{
+                                                label: "Envoyer un lien d'activation",
+                                                onSelect: () => setActivationTarget({ id: user.id, name, email: user.email }),
+                                            }]
+                                            : []),
                                         {
                                             label: "Supprimer le compte",
                                             danger: true,
@@ -361,7 +371,7 @@ function UsersPageContent() {
                                         <Th>École</Th>
                                         <Th width={120}>Inscrit</Th>
                                         <Th width={100}>Statut</Th>
-                                        <Th width={80} center>
+                                        <Th width={120} center>
                                             Actions
                                         </Th>
                                     </tr>
@@ -440,7 +450,11 @@ function UsersPageContent() {
                                                     </span>
                                                 </Td>
                                                 <Td>
-                                                    {user.isActive ? (
+                                                    {user.isActive && user.mustChangePassword ? (
+                                                        <Badge variant="warning" size="sm">
+                                                            À activer
+                                                        </Badge>
+                                                    ) : user.isActive ? (
                                                         <Badge variant="success" size="sm" dot>
                                                             Actif
                                                         </Badge>
@@ -451,6 +465,19 @@ function UsersPageContent() {
                                                     )}
                                                 </Td>
                                                 <Td center>
+                                                    <div className="flex items-center justify-center gap-1">
+                                                    {user.isActive && user.mustChangePassword ? (
+                                                        <Button
+                                                            aria-label={`Envoyer un lien d'activation à ${fullName}`}
+                                                            title="Envoyer un lien d'activation"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            icon="sms"
+                                                            onClick={() =>
+                                                                setActivationTarget({ id: user.id, name: fullName, email: user.email })
+                                                            }
+                                                        />
+                                                    ) : null}
                                                     <Button aria-label={`Supprimer ${fullName}`}
                                                         variant="ghost"
                                                         size="sm"
@@ -465,6 +492,7 @@ function UsersPageContent() {
                                                         }
                                                     >
                                                     </Button>
+                                                    </div>
                                                 </Td>
                                             </tr>
                                         );
@@ -475,6 +503,11 @@ function UsersPageContent() {
                     </Card>
                 ) : null}
             </PageShell>
+
+            <ActivationLinkDialog
+                target={activationTarget}
+                onOpenChange={(open) => (open ? null : setActivationTarget(null))}
+            />
 
             <ConfirmActionDialog
                 open={deleteDialogOpen}

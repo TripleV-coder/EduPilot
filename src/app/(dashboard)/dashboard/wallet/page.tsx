@@ -10,6 +10,16 @@ import { fetcher } from "@/lib/fetcher";
 import { Badge, Button, Card, Icon } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError, PageLoading } from "@/components/layout/page-states";
+import { toast } from "sonner";
+import { ResourceActions } from "@/components/shared/resource-actions";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Banknote, Landmark, Repeat, Smartphone, type LucideIcon } from "lucide-react";
 
 type AccountKind = "BANK" | "MTN" | "MOOV" | "CELTIIS" | "CASH" | "OTHER";
@@ -27,8 +37,26 @@ type AccountRow = {
     name: string;
     kind: AccountKind;
     accountRef: string | null;
+    /** Solde calculé (ouverture + encaissements validés + mouvements − décaissements). */
     balanceFcfa: string;
+    openingBalanceFcfa?: string;
+    collectedFcfa?: string;
+    manualNetFcfa?: string;
+    disbursedFcfa?: string;
+    receivesPayments?: boolean;
+    declaredAt?: string;
     colorHex: string | null;
+};
+
+type ReceiptRow = {
+    id: string;
+    amountFcfa: number;
+    method: string;
+    online: boolean;
+    reference: string | null;
+    occurredAt: string;
+    studentName: string;
+    feeName: string | null;
 };
 
 type TxRow = {
@@ -61,6 +89,7 @@ type WalletOverview = {
     accounts: AccountRow[];
     transactions: TxRow[];
     scheduledDisbursements: DisbursementRow[];
+    recentReceipts?: ReceiptRow[];
 };
 
 const KIND_LABEL: Record<AccountKind, string> = {
@@ -174,17 +203,12 @@ export default function WalletPage() {
 }
 
 function WalletPageContent() {
-    const { data, error, isLoading } = useSWR<WalletOverview>(
+    const { data, error, isLoading, mutate } = useSWR<WalletOverview>(
         "/api/wallet/overview",
         fetcher,
         { revalidateOnFocus: false, refreshInterval: 60_000 },
     );
-    const { data: momoStatus } = useSWR<{ configured: boolean; requiredEnvVars: string[] }>(
-        "/api/integrations/momo",
-        fetcher,
-        { revalidateOnFocus: false },
-    );
-    const momoConfigured = momoStatus?.configured ?? false;
+    const [declareOpen, setDeclareOpen] = React.useState(false);
 
     const transactions = data?.transactions ?? [];
     const scheduledDisbursements = data?.scheduledDisbursements ?? [];
@@ -244,33 +268,23 @@ function WalletPageContent() {
     return (
         <PageShell>
             <PageHeader
-                title="Wallet école · Mobile Money & banques"
-                description="Soldes des comptes Mobile Money et bancaires de l'établissement"
+                title="Portefeuille de l'école"
+                description="Comptes déclarés par l'école et soldes calculés sur les encaissements validés"
                 breadcrumbs={[...walletBreadcrumbs]}
+                actions={<Button icon="plus" onClick={() => setDeclareOpen(true)}>Déclarer un compte</Button>}
             />
+            <DeclareAccountDialog open={declareOpen} onOpenChange={setDeclareOpen} onCreated={() => void mutate()} />
 
-            {!momoConfigured && (
-                <Card
-                    padding={14}
-                    style={{
-                        border: "1px solid var(--eduflow-brand-200)",
-                        background: "var(--brand-50)",
-                    }}
-                >
-                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <Icon name="sparkle" size={18} color="var(--brand-700)" style={{ flexShrink: 0 }} />
-                        <p style={{ margin: 0, fontSize: 13, color: "var(--brand-800)", lineHeight: 1.5 }}>
-                            <strong>Mobile Money non activé</strong> — Les décaissements et le rapprochement
-                            automatique Mobile Money seront disponibles dès que l&apos;équipe EduPilot aura activé
-                            la connexion MTN MoMo pour votre établissement. Contactez le support pour en faire la
-                            demande.
-                        </p>
-                    </div>
-                </Card>
-            )}
+            <Card padding={14} style={{ border: "1px solid var(--eduflow-border-subtle)", background: "var(--eduflow-surface-sunken)" }}>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--eduflow-text-secondary)", lineHeight: 1.55 }}>
+                    <strong>Comment le solde est calculé</strong> — solde d&apos;ouverture que vous déclarez, plus les
+                    paiements validés dans EduPilot pour le canal du compte depuis sa déclaration (remboursements
+                    déduits). EduPilot n&apos;est relié à aucune banque ni opérateur : rapprochez ce solde de vos relevés.
+                </p>
+            </Card>
 
             {!hasAccounts ? (
-                <EmptyWalletState />
+                <EmptyWalletState onDeclare={() => setDeclareOpen(true)} />
             ) : (
                 <>
                     <WalletHero
@@ -278,7 +292,6 @@ function WalletPageContent() {
                         availableBalance={availableBalance}
                         pendingDisbursementsAmount={pendingDisbursementsAmount}
                         inflows24h={inflows24h}
-                        momoConfigured={momoConfigured}
                         accounts={data.accounts}
                     />
 
@@ -286,11 +299,17 @@ function WalletPageContent() {
                         style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 14 }}
                         className="wallet-grid"
                     >
-                        <TransactionsCard transactions={data.transactions} />
+                        {data.transactions.length > 0 ? (
+                            <TransactionsCard transactions={data.transactions} />
+                        ) : (
+                            <ReceiptsCard receipts={data.recentReceipts ?? []} />
+                        )}
 
                         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                            <DisbursementsCard disbursements={data.scheduledDisbursements} />
-                            <FeesSavingsCard />
+                            <AccountsManageCard accounts={data.accounts} onChanged={() => void mutate()} />
+                            {data.scheduledDisbursements.length > 0 ? (
+                                <DisbursementsCard disbursements={data.scheduledDisbursements} />
+                            ) : null}
                         </div>
                     </div>
                 </>
@@ -310,7 +329,7 @@ function WalletPageContent() {
     );
 }
 
-function EmptyWalletState() {
+function EmptyWalletState({ onDeclare }: { onDeclare: () => void }) {
     return (
         <Card
             padding={40}
@@ -340,7 +359,7 @@ function EmptyWalletState() {
                 className="eduflow-display"
                 style={{ fontSize: 16, margin: "0 0 8px", color: "var(--eduflow-text-primary)" }}
             >
-                Aucun compte Wallet configuré
+                Aucun compte déclaré
             </h2>
             <p
                 style={{
@@ -351,22 +370,12 @@ function EmptyWalletState() {
                     margin: 0,
                 }}
             >
-                Connectez un compte Mobile Money (MTN, Moov, Celtiis) ou bancaire (Ecobank, BoA)
-                pour démarrer le rapprochement automatique des paiements de scolarité.
-                Les webhooks signés MoMo activent ensuite la réconciliation temps réel.
+                Déclarez les comptes de l&apos;école (banque, Mobile Money, caisse) avec leur solde
+                d&apos;ouverture : les paiements validés dans EduPilot s&apos;y ajoutent automatiquement.
             </p>
-            <a
-                href="/dashboard/settings"
-                style={{
-                    marginTop: 22,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--brand-700)",
-                    textDecoration: "none",
-                }}
-            >
-                Configurer dans les paramètres
-            </a>
+            <div style={{ marginTop: 22 }}>
+                <Button icon="plus" onClick={onDeclare}>Déclarer un compte</Button>
+            </div>
         </Card>
     );
 }
@@ -377,14 +386,12 @@ function WalletHero({
     pendingDisbursementsAmount,
     inflows24h,
     accounts,
-    momoConfigured,
 }: {
     totalBalanceN: number;
     availableBalance: number;
     pendingDisbursementsAmount: number;
     inflows24h: number;
     accounts: AccountRow[];
-    momoConfigured: boolean;
 }) {
     return (
         <Card
@@ -475,37 +482,6 @@ function WalletHero({
                                 color="#60A5FA"
                             />
                         </div>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <Button
-                            size="sm"
-                            style={{
-                                background: "rgba(255,255,255,0.15)",
-                                color: "#fff",
-                                backdropFilter: "blur(8px)",
-                            }}
-                            icon="sms"
-                            disabled
-                            title="Recouvrement SMS — requiert l'aggregator SMS configuré"
-                        >
-                            Envoyer SMS recouv.
-                        </Button>
-                        <Button
-                            size="sm"
-                            style={{
-                                background: "#fff",
-                                color: "var(--brand-800)",
-                            }}
-                            icon="money"
-                            disabled={!momoConfigured}
-                            title={
-                                momoConfigured
-                                    ? "Créer un décaissement Mobile Money"
-                                    : "Mobile Money pas encore activé pour l'établissement"
-                            }
-                        >
-                            Décaisser
-                        </Button>
                     </div>
                 </div>
 
@@ -790,36 +766,160 @@ function DisbursementsCard({ disbursements }: { disbursements: DisbursementRow[]
     );
 }
 
-function FeesSavingsCard() {
+const ACCOUNT_KIND_OPTIONS: { value: AccountKind; label: string }[] = [
+    { value: "BANK", label: "Banque (virements, chèques)" },
+    { value: "MTN", label: "MTN Mobile Money" },
+    { value: "MOOV", label: "Moov Money" },
+    { value: "CELTIIS", label: "Celtiis Cash" },
+    { value: "CASH", label: "Caisse (espèces)" },
+    { value: "OTHER", label: "Paiements en ligne" },
+];
+
+function fcfa(value: string | number | undefined) {
+    return `${new Intl.NumberFormat("fr-FR").format(Math.round(Number(value ?? 0)))} FCFA`;
+}
+
+/** Déclarer un compte de l'école (POST /api/wallet/accounts). */
+function DeclareAccountDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: () => void }) {
+    const [name, setName] = React.useState("");
+    const [kind, setKind] = React.useState<AccountKind>("CASH");
+    const [accountRef, setAccountRef] = React.useState("");
+    const [opening, setOpening] = React.useState("0");
+    const [busy, setBusy] = React.useState(false);
+    const openingN = Number(opening.replace(/\s/g, ""));
+    const invalid = name.trim().length < 2 || !Number.isInteger(openingN) || openingN < 0;
+
+    const submit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (invalid) return;
+        setBusy(true);
+        try {
+            const res = await fetch("/api/wallet/accounts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: name.trim(), kind, accountRef: accountRef.trim() || null, openingBalanceFcfa: openingN }),
+            });
+            const body = (await res.json().catch(() => ({}))) as { error?: string };
+            if (!res.ok) {
+                toast.error(body.error || "Le compte n'a pas été déclaré.");
+                return;
+            }
+            toast.success("Compte déclaré.");
+            setName("");
+            setAccountRef("");
+            setOpening("0");
+            onOpenChange(false);
+            onCreated();
+        } catch {
+            toast.error("Connexion impossible : le compte n'a pas été déclaré.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const field = { height: 40, width: "100%", borderRadius: 8, border: "1px solid var(--eduflow-border-default)", padding: "0 12px", fontSize: 14 } as const;
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <form onSubmit={submit} className="space-y-3">
+                    <DialogHeader>
+                        <DialogTitle>Déclarer un compte</DialogTitle>
+                        <DialogDescription>Seuls les 4 derniers chiffres du numéro sont conservés.</DialogDescription>
+                    </DialogHeader>
+                    <label className="block text-sm">Nom du compte
+                        <input style={field} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="Ex. Caisse principale" required />
+                    </label>
+                    <label className="block text-sm">Type
+                        <select style={field} value={kind} onChange={(e) => setKind(e.target.value as AccountKind)}>
+                            {ACCOUNT_KIND_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                    </label>
+                    <label className="block text-sm">Numéro de compte ou de téléphone (facultatif)
+                        <input style={field} value={accountRef} onChange={(e) => setAccountRef(e.target.value)} maxLength={40} inputMode="numeric" />
+                    </label>
+                    <label className="block text-sm">Solde d&apos;ouverture (FCFA)
+                        <input style={field} value={opening} onChange={(e) => setOpening(e.target.value.replace(/[^0-9 ]/g, ""))} inputMode="numeric" />
+                    </label>
+                    <DialogFooter>
+                        <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={busy}>Annuler</Button>
+                        <Button type="submit" disabled={invalid} loading={busy}>Déclarer</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/** Comptes déclarés : détail du solde calculé, modification et suppression. */
+function AccountsManageCard({ accounts, onChanged }: { accounts: AccountRow[]; onChanged: () => void }) {
     return (
         <Card>
-            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Frais Mobile Money économisés · 12 mois</p>
-            <div
-                className="eduflow-display tabular"
-                style={{
-                    fontSize: 36,
-                    fontWeight: 800,
-                    color: "var(--success-700)",
-                    marginTop: 6,
-                    fontVariantNumeric: "tabular-nums",
-                }}
-            >
-                −2,4{" "}
-                <span style={{ fontSize: 13, color: "var(--text-tertiary)", fontWeight: 600 }}>
-                    M FCFA
-                </span>
-            </div>
-            <p
-                style={{
-                    fontSize: 12,
-                    color: "var(--text-secondary)",
-                    marginTop: 6,
-                    lineHeight: 1.55,
-                }}
-            >
-                Tarif négocié EduPilot avec MTN : <strong>0,8%</strong> au lieu de 1,5% standard.
-                Économies redirigées vers le fonds bourses.
-            </p>
+            <p className="mb-2 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Comptes déclarés</p>
+            <ul className="space-y-3">
+                {accounts.map((acc) => (
+                    <li key={acc.id} className="rounded-lg border p-3" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <span className="text-sm font-semibold">{acc.name}</span>
+                            <span className="text-sm font-bold tabular-nums">{fcfa(acc.balanceFcfa)}</span>
+                        </div>
+                        <p className="mt-1 text-xs" style={{ color: "var(--eduflow-text-secondary)" }}>
+                            Ouverture {fcfa(acc.openingBalanceFcfa)}
+                            {acc.receivesPayments ? ` · + ${fcfa(acc.collectedFcfa)} encaissés depuis le ${acc.declaredAt ? new Date(acc.declaredAt).toLocaleDateString("fr-FR") : "—"}` : " · encaissements non rattachés (canal déjà suivi par un autre compte, ou sans paiement dans EduPilot)"}
+                        </p>
+                        <div className="mt-2">
+                            <ResourceActions
+                                endpoint={`/api/wallet/accounts/${acc.id}`}
+                                resourceLabel={`Le compte « ${acc.name} »`}
+                                fields={[
+                                    { name: "name", label: "Nom", type: "text", required: true, maxLength: 80 },
+                                    { name: "kind", label: "Type", type: "select", options: ACCOUNT_KIND_OPTIONS },
+                                    { name: "accountRef", label: "Numéro (4 derniers chiffres conservés)", type: "text", maxLength: 40 },
+                                    { name: "openingBalanceFcfa", label: "Solde d'ouverture (FCFA)", type: "number", required: true, min: 0, integer: true },
+                                ]}
+                                initial={{ name: acc.name, kind: acc.kind, accountRef: acc.accountRef, openingBalanceFcfa: Number(acc.openingBalanceFcfa ?? 0) }}
+                                onChanged={onChanged}
+                            />
+                        </div>
+                    </li>
+                ))}
+            </ul>
+        </Card>
+    );
+}
+
+const METHOD_LABEL: Record<string, string> = {
+    CASH: "Espèces",
+    MOBILE_MONEY_MTN: "MTN Mobile Money",
+    MOBILE_MONEY_MOOV: "Moov Money",
+    BANK_TRANSFER: "Virement",
+    CHECK: "Chèque",
+    OTHER: "Autre",
+};
+
+/** Derniers paiements validés de l'école : les entrées réelles de la caisse. */
+function ReceiptsCard({ receipts }: { receipts: ReceiptRow[] }) {
+    return (
+        <Card>
+            <p className="mb-2 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Derniers encaissements validés</p>
+            {receipts.length === 0 ? (
+                <p className="text-sm" style={{ color: "var(--eduflow-text-secondary)" }}>Aucun paiement validé pour l&apos;instant.</p>
+            ) : (
+                <ul className="divide-y" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
+                    {receipts.map((r) => (
+                        <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2 text-sm">
+                            <span>
+                                <strong>{r.studentName}</strong>
+                                <span style={{ color: "var(--eduflow-text-secondary)" }}>
+                                    {" "}· {r.feeName ?? "Frais"} · {r.online ? "Paiement en ligne" : METHOD_LABEL[r.method] ?? r.method} · {new Date(r.occurredAt).toLocaleDateString("fr-FR")}
+                                </span>
+                            </span>
+                            <span className={`font-semibold tabular-nums ${r.amountFcfa < 0 ? "text-destructive" : ""}`}>
+                                {r.amountFcfa < 0 ? "Remboursement " : "+ "}{fcfa(Math.abs(r.amountFcfa))}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            )}
         </Card>
     );
 }

@@ -11,40 +11,37 @@ import { z } from "zod";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Button, Icon } from "@/components/edu";
 
-const firstLoginSchema = z
-    .object({
-        currentPassword: z.string().min(1, "Mot de passe temporaire requis"),
-        newPassword: z
-            .string()
-            .min(8, "Minimum 8 caractères")
-            .regex(/[A-Z]/, "Au moins une majuscule")
-            .regex(/[a-z]/, "Au moins une minuscule")
-            .regex(/[0-9]/, "Au moins un chiffre")
-            .regex(/[^A-Za-z0-9]/, "Au moins un caractère spécial"),
-        confirmPassword: z.string(),
-    })
-    .refine((data) => data.newPassword === data.confirmPassword, {
-        message: "Les mots de passe ne correspondent pas",
-        path: ["confirmPassword"],
-    });
+const newPasswordSchema = z
+    .string()
+    .min(8, "Minimum 8 caractères")
+    .regex(/[A-Z]/, "Au moins une majuscule")
+    .regex(/[a-z]/, "Au moins une minuscule")
+    .regex(/[0-9]/, "Au moins un chiffre")
+    .regex(/[^A-Za-z0-9]/, "Au moins un caractère spécial");
 
-type FirstLoginFormData = z.infer<typeof firstLoginSchema>;
+// Lien émis par la direction : pas de mot de passe provisoire à saisir.
+function firstLoginSchema(requiresTempPassword: boolean) {
+    return z
+        .object({
+            currentPassword: requiresTempPassword
+                ? z.string().min(1, "Mot de passe temporaire requis")
+                : z.string().optional(),
+            newPassword: newPasswordSchema,
+            confirmPassword: z.string(),
+        })
+        .refine((data) => data.newPassword === data.confirmPassword, {
+            message: "Les mots de passe ne correspondent pas",
+            path: ["confirmPassword"],
+        });
+}
+
+type FirstLoginFormData = z.infer<ReturnType<typeof firstLoginSchema>>;
 
 function FirstLoginForm() {
     const searchParams = useSearchParams();
     const token = searchParams?.get("token");
-    const { mode, isLoading, error, isSuccess, submit } = useFirstLogin({ token });
-
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<FirstLoginFormData>({
-        resolver: zodResolver(firstLoginSchema),
-    });
-
-    const onSubmit = (data: FirstLoginFormData) =>
-        submit({ currentPassword: data.currentPassword, newPassword: data.newPassword });
+    const { mode, isLoading, error, isSuccess, submit, requiresTempPassword, invalidMessage, firstName } =
+        useFirstLogin({ token });
 
     if (mode === "loading") {
         return <FirstLoginSpinner />;
@@ -74,7 +71,7 @@ function FirstLoginForm() {
                                 marginBottom: 4,
                             }}
                         >
-                            Lien invalide
+                            {invalidMessage ? "Lien inutilisable" : "Lien invalide"}
                         </div>
                         <p
                             style={{
@@ -84,8 +81,8 @@ function FirstLoginForm() {
                                 lineHeight: 1.5,
                             }}
                         >
-                            Votre lien de première connexion est manquant ou a expiré.
-                            Contactez votre administrateur pour en obtenir un nouveau.
+                            {invalidMessage ??
+                                "Votre lien de première connexion est manquant ou a expiré. Contactez votre établissement pour en obtenir un nouveau."}
                         </p>
                     </div>
                 </div>
@@ -153,7 +150,53 @@ function FirstLoginForm() {
     }
 
     return (
+        <PasswordForm
+            requiresTempPassword={requiresTempPassword}
+            firstName={firstName}
+            isLoading={isLoading}
+            error={error}
+            onSubmit={(data) =>
+                submit({
+                    ...(requiresTempPassword ? { currentPassword: data.currentPassword } : {}),
+                    newPassword: data.newPassword,
+                })
+            }
+        />
+    );
+}
+
+/**
+ * Formulaire monté une fois le mode connu : son schéma (avec ou sans mot de
+ * passe provisoire) reste fixe pendant toute sa durée de vie.
+ */
+function PasswordForm({
+    requiresTempPassword,
+    firstName,
+    isLoading,
+    error,
+    onSubmit,
+}: {
+    requiresTempPassword: boolean;
+    firstName: string | null;
+    isLoading: boolean;
+    error: string | null;
+    onSubmit: (data: FirstLoginFormData) => void;
+}) {
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm<FirstLoginFormData>({
+        resolver: zodResolver(firstLoginSchema(requiresTempPassword)),
+    });
+
+    return (
         <>
+            {firstName ? (
+                <p style={{ margin: "0 0 16px", fontSize: 14, color: "var(--eduflow-text-secondary)" }}>
+                    Bonjour {firstName}, choisissez le mot de passe de votre compte.
+                </p>
+            ) : null}
             {error ? (
                 <div className=""
                     role="alert"
@@ -178,15 +221,17 @@ function FirstLoginForm() {
                 onSubmit={handleSubmit(onSubmit)}
                 style={{ display: "flex", flexDirection: "column", gap: 16 }}
             >
-                <FieldInput
-                    id="currentPassword"
-                    label="Mot de passe temporaire"
-                    type="password"
-                    autoComplete="current-password"
-                    placeholder="Reçu par email ou SMS"
-                    error={errors.currentPassword?.message}
-                    register={register("currentPassword")}
-                />
+                {requiresTempPassword ? (
+                    <FieldInput
+                        id="currentPassword"
+                        label="Mot de passe temporaire"
+                        type="password"
+                        autoComplete="current-password"
+                        placeholder="Reçu par email ou SMS"
+                        error={errors.currentPassword?.message}
+                        register={register("currentPassword")}
+                    />
+                ) : null}
                 <FieldInput
                     id="newPassword"
                     label="Nouveau mot de passe"

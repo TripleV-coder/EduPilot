@@ -119,6 +119,12 @@ const ROUTES: SweptRoute[] = [
   { route: "teachers/[id]", load: () => import("@/app/api/teachers/[id]/route"), params: id("teacher"), target: t("teacherProfile", "teacher"), body: () => ({ specialization: "Piraté" }) },
   { route: "users/[id]/delete", load: () => import("@/app/api/users/[id]/delete/route"), params: id("teacherUser"), target: t("user", "teacherUser"), body: () => ({ confirmEmail: schoolA.teacherEmail, deleteType: "SOFT" }) },
   { route: "wellbeing/reports/[id]", load: () => import("@/app/api/wellbeing/reports/[id]/route"), params: id("wellbeingReport"), target: t("wellbeingReport", "wellbeingReport"), body: () => ({ status: "RESOLVED" }) },
+  // Lot E (2026-11-06)
+  { route: "wellbeing/appointments/[id]", load: () => import("@/app/api/wellbeing/appointments/[id]/route"), params: id("psyAppointment"), target: t("psyAppointment", "psyAppointment") },
+  { route: "wallet/accounts/[id]", load: () => import("@/app/api/wallet/accounts/[id]/route"), params: id("walletAccount"), target: t("walletAccount", "walletAccount"), body: () => ({ name: "Piraté" }) },
+  { route: "transport/lines/[id]/students", load: () => import("@/app/api/transport/lines/[id]/students/route"), params: id("transportLine"), target: t("transportLine", "transportLine"), body: (i) => ({ studentId: i.student }), query: (i) => `studentId=${i.student}` },
+  { route: "students/[id]/external-averages", load: () => import("@/app/api/students/[id]/external-averages/route"), params: id("student"), target: t("studentProfile", "student"), body: (i) => ({ periodId: i.period, average: 18, originSchool: "Piraté" }) },
+  { route: "users/[id]/activation-link", load: () => import("@/app/api/users/[id]/activation-link/route"), params: id("parentUser"), target: t("user", "parentUser") },
 ];
 
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;

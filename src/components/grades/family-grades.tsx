@@ -12,7 +12,6 @@ import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 import { Block, CARD_COLORS, Figures, MODULE, decimal, initials } from "@/components/edu-homes/home-kit";
 import homeStyles from "@/components/edu-homes/home.module.css";
-import { pick, useUiLang } from "@/lib/i18n/ui-lang";
 import type { StudentAveragesSummary } from "@/lib/academic/class-averages";
 
 type FamilyGrade = {
@@ -49,7 +48,6 @@ const avgColor = (v: number | null, t: SchoolThresholds) =>
    Données : /api/grades (limité côté serveur à l'élève ou à ses enfants). */
 export function FamilyGrades({ role }: { role: "STUDENT" | "PARENT" }) {
     const thresholds = useSchoolThresholds();
-    const lang = useUiLang();
     const isParent = role === "PARENT";
     // Liste des enfants : parent uniquement (l'élève n'y a pas accès, 403)
     const { data: childrenData } = useSWR<unknown>(isParent ? "/api/students?limit=50" : null, fetcher);
@@ -113,9 +111,9 @@ export function FamilyGrades({ role }: { role: "STUDENT" | "PARENT" }) {
     return (
         <PageShell>
             <PageHeader
-                title={isParent ? "Notes de mes enfants" : pick(lang, "Mes notes", "My grades")}
+                title={isParent ? "Notes de mes enfants" : "Mes notes"}
                 description={isParent ? "Les notes et moyennes par matière, période par période." : "Tes notes et tes moyennes par matière."}
-                breadcrumbs={[{ label: pick(lang, "Tableau de bord", "Dashboard"), href: "/dashboard" }, { label: isParent ? "Notes" : pick(lang, "Mes notes", "My grades") }]}
+                breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: isParent ? "Notes" : "Mes notes" }]}
                 actions={
                     bulletinStudentId && bulletinPeriodId && grades.length > 0 ? (
                         <Link
@@ -155,10 +153,10 @@ export function FamilyGrades({ role }: { role: "STUDENT" | "PARENT" }) {
             {loading && !noChild ? <PageLoading label="Chargement des notes…" /> : null}
             {error ? <PageError error={error} message="Impossible de charger les notes." onRetry={() => void mutate()} /> : null}
             {noChild ? (
-                <PageEmpty icon="users" title={pick(lang, "Aucun enfant rattaché", "No linked child")} description="Rattachez votre enfant avec le code remis par l'établissement." />
+                <PageEmpty icon="users" title="Aucun enfant rattaché" description="Rattachez votre enfant avec le code remis par l'établissement." />
             ) : null}
             {!loading && !error && !noChild && grades.length === 0 ? (
-                <PageEmpty icon="pencil" title={pick(lang, "Aucune note pour l'instant", "No grades yet")} description="Les notes apparaissent ici dès que les enseignants les saisissent." />
+                <PageEmpty icon="pencil" title="Aucune note pour l'instant" description="Les notes apparaissent ici dès que les enseignants les saisissent." />
             ) : null}
 
             {!loading && !error && grades.length > 0 ? (

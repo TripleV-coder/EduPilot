@@ -12,6 +12,9 @@ import { Badge, Button, Card, Chip, Icon } from "@/components/edu";
 import { downloadClimateReport } from "@/lib/wellbeing/climate-report";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { AppointmentDialog } from "@/components/wellbeing/appointment-dialog";
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
+import { toast as notify } from "sonner";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError, PageLoading } from "@/components/layout/page-states";
 
@@ -62,6 +65,11 @@ type WellbeingOverview = {
         psyAppointmentsThisWeek: number;
         climateScore: number | null;
         pulseResponses: number;
+    };
+    pulse: {
+        minResponses: number;
+        currentWeekLabel: string;
+        currentWeekResponses: number;
     };
     reports: ReportRow[];
     pulseWeeks: PulseWeekRow[];
@@ -138,7 +146,7 @@ const WELLBEING_BREADCRUMBS = [
 ] as const;
 
 function WellbeingPageContent() {
-    const { data, error, isLoading } = useSWR<WellbeingOverview>(
+    const { data, error, isLoading, mutate } = useSWR<WellbeingOverview>(
         "/api/wellbeing/overview",
         fetcher,
         { revalidateOnFocus: false },
@@ -183,7 +191,11 @@ function WellbeingPageContent() {
                     description="Impossible de charger les données"
                     breadcrumbs={[...WELLBEING_BREADCRUMBS]}
                 />
-                <PageError message="Le service bien-être est momentanément indisponible." />
+                <PageError
+                    error={error}
+                    message="Le service bien-être est momentanément indisponible."
+                    onRetry={() => void mutate()}
+                />
             </PageShell>
         );
     }
@@ -203,9 +215,6 @@ function WellbeingPageContent() {
                 breadcrumbs={[...WELLBEING_BREADCRUMBS]}
                 actions={
                     <>
-                        <Badge variant="success" icon="check">
-                            Conforme protocole MEMP 2024
-                        </Badge>
                         <Button
                             variant="secondary"
                             icon="download"
@@ -221,9 +230,7 @@ function WellbeingPageContent() {
                 }
             />
 
-            {!hasData ? (
-                <EmptyWellbeingState />
-            ) : (
+            {!hasData ? <EmptyWellbeingState /> : null}
                 <>
                     <div
                         style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}
@@ -236,9 +243,9 @@ function WellbeingPageContent() {
                             tone="warning"
                         />
                         <Kpi
-                            label="Audiences cette sem."
+                            label="RDV à venir"
                             value={String(data.kpis.psyAppointmentsThisWeek)}
-                            hint="Total RDV 7 derniers jours"
+                            hint="7 prochains jours"
                             tone="info"
                         />
                         <Kpi
@@ -252,7 +259,7 @@ function WellbeingPageContent() {
                             hint={
                                 data.kpis.pulseResponses > 0
                                     ? `Pulse anonyme · ${data.kpis.pulseResponses} réponses`
-                                    : "Pulse non démarré"
+                                    : `Publié à partir de ${data.pulse.minResponses} réponses`
                             }
                             tone="success"
                         />
@@ -273,17 +280,17 @@ function WellbeingPageContent() {
                             <ClimatePulseCard
                                 weeks={data.pulseWeeks}
                                 stats={data.pulseStats}
+                                pulse={data.pulse}
                             />
                         </div>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                             <SosCard />
-                            <AgendaCard appointments={data.appointments} />
-                            <AiSignalsCard />
+                            <AgendaCard appointments={data.appointments} onChanged={() => void mutate()} />
+                            <RiskSignalsCard />
                         </div>
                     </div>
                 </>
-            )}
 
             </PageShell>
 
@@ -340,8 +347,9 @@ function EmptyWellbeingState() {
                 }}
             >
                 Aucun signalement ni pulse climat enregistré pour le moment. Les enseignants,
-                parents et élèves pourront déposer un signalement (anonyme ou nominatif) qui
-                apparaîtra ici, triés par sévérité P0/P1/P2.
+                parents et élèves déposent un signalement (anonyme ou nominatif) depuis leur
+                espace : il apparaît ici, trié par sévérité P0/P1/P2. Vous pouvez déjà planifier
+                les rendez-vous de la cellule d&apos;écoute ci-dessous.
             </p>
         </Card>
     );
@@ -444,7 +452,7 @@ function ReportsCard({ reports }: { reports: ReportRow[] }) {
                             margin: "2px 0 0",
                         }}
                     >
-                        Chiffrés bout-en-bout · accès psychologue + direction
+                        Accès réservé à la direction de l&apos;établissement
                     </p>
                 </div>
                 <Chip active>Tous · {reports.length}</Chip>
@@ -536,9 +544,11 @@ function ReportsCard({ reports }: { reports: ReportRow[] }) {
 function ClimatePulseCard({
     weeks,
     stats,
+    pulse,
 }: {
     weeks: PulseWeekRow[];
     stats: PulseStatRow[];
+    pulse: WellbeingOverview["pulse"];
 }) {
     return (
         <Card padding={20}>
@@ -551,8 +561,11 @@ function ClimatePulseCard({
                         marginTop: 12,
                     }}
                 >
-                    Aucune semaine enregistrée. Le pulse démarre dès que les élèves répondent
-                    au questionnaire hebdomadaire (5 questions, 60 secondes).
+                    Aucune semaine publiée. Les élèves répondent depuis leur accueil
+                    (5 questions, une minute, anonyme). Une semaine est publiée à partir de{" "}
+                    {pulse.minResponses} réponses : en dessous, une moyenne révélerait des
+                    réponses individuelles. {pulse.currentWeekLabel} : {pulse.currentWeekResponses}{" "}
+                    réponse{pulse.currentWeekResponses > 1 ? "s" : ""}.
                 </p>
             ) : (
                 <>
@@ -672,74 +685,72 @@ function SosCard() {
                 border: 0,
             }}
         >
-            <div
-                style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    opacity: 0.8,
-                }}
-            >
-                Bouton SOS · accès élève
+            <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>
+                Accès élèves, parents et enseignants
             </div>
             <div
                 className="eduflow-display"
-                style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    marginTop: 6,
-                    lineHeight: 1.2,
-                }}
+                style={{ fontSize: 22, fontWeight: 700, marginTop: 6, lineHeight: 1.2 }}
             >
                 « Je veux parler à quelqu&apos;un »
             </div>
-            <p
-                style={{
-                    fontSize: 12,
-                    opacity: 0.9,
-                    marginTop: 10,
-                    lineHeight: 1.6,
-                }}
-            >
-                Bouton permanent dans l&apos;app élève · ouvre un canal direct chiffré avec
-                le psychologue. Anonyme par défaut, le jeune décide à quel moment se nommer.
-            </p>
-            <p
-                style={{
-                    fontSize: 11,
-                    opacity: 0.7,
-                    marginTop: 14,
-                    lineHeight: 1.6,
-                }}
-            >
-                Activation : nécessite le rôle PSY assigné et le chiffrement bout-en-bout
-                provisionné.
+            <p style={{ fontSize: 13, opacity: 0.92, marginTop: 10, lineHeight: 1.6 }}>
+                Depuis son accueil ou « Tous les services », chacun peut écrire à la cellule
+                d&apos;écoute, anonymement s&apos;il le souhaite. Le signalement arrive dans la
+                liste ci-contre, trié par gravité.
             </p>
         </Card>
     );
 }
 
-function AgendaCard({ appointments }: { appointments: AppointmentRow[] }) {
+function AgendaCard({ appointments, onChanged }: { appointments: AppointmentRow[]; onChanged: () => void }) {
+    const [creating, setCreating] = useState(false);
+    const [cancelling, setCancelling] = useState<AppointmentRow | null>(null);
+    const [busy, setBusy] = useState(false);
+
+    const cancel = async () => {
+        if (!cancelling) return;
+        setBusy(true);
+        try {
+            const res = await fetch(`/api/wellbeing/appointments/${cancelling.id}`, { method: "DELETE" });
+            const body = (await res.json().catch(() => ({}))) as { error?: string };
+            if (!res.ok) {
+                notify.error(body.error || "Le rendez-vous n'a pas été annulé.");
+                return;
+            }
+            notify.success("Rendez-vous annulé.");
+            setCancelling(null);
+            onChanged();
+        } catch {
+            notify.error("Connexion impossible : le rendez-vous n'a pas été annulé.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
     return (
         <Card padding={0}>
             <div
                 style={{
                     padding: "14px 18px",
                     borderBottom: "1px solid var(--border-subtle)",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 12,
                 }}
             >
-                <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
-                    Agenda psychologue · 7 prochains jours
-                </h2>
-                <p
-                    style={{
-                        fontSize: 11,
-                        color: "var(--text-tertiary)",
-                        margin: "2px 0 0",
-                    }}
-                >
-                    {appointments.length} créneau{appointments.length > 1 ? "x" : ""} réservé
-                    {appointments.length > 1 ? "s" : ""}
-                </p>
+                <div>
+                    <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
+                        Agenda de la cellule d&apos;écoute
+                    </h2>
+                    <p style={{ fontSize: 12, color: "var(--text-tertiary)", margin: "2px 0 0" }}>
+                        7 prochains jours · {appointments.length} rendez-vous
+                    </p>
+                </div>
+                <Button size="sm" icon="plus" onClick={() => setCreating(true)}>
+                    Planifier
+                </Button>
             </div>
             {appointments.length === 0 ? (
                 <div
@@ -750,10 +761,10 @@ function AgendaCard({ appointments }: { appointments: AppointmentRow[] }) {
                         color: "var(--eduflow-text-tertiary)",
                     }}
                 >
-                    Aucun rendez-vous planifié.
+                    Aucun rendez-vous dans les 7 prochains jours.
                 </div>
             ) : (
-                appointments.slice(0, 6).map((r, i) => {
+                appointments.slice(0, 8).map((r, i) => {
                     const date = new Date(r.startAt);
                     const variant = appointmentVariant(r);
                     return (
@@ -761,112 +772,102 @@ function AgendaCard({ appointments }: { appointments: AppointmentRow[] }) {
                             key={r.id}
                             style={{
                                 display: "grid",
-                                gridTemplateColumns: "40px 1fr auto",
+                                gridTemplateColumns: "44px 1fr auto auto",
                                 gap: 12,
                                 padding: "10px 18px",
-                                borderTop:
-                                    i > 0 ? "1px solid var(--border-subtle)" : 0,
+                                borderTop: i > 0 ? "1px solid var(--border-subtle)" : 0,
                                 alignItems: "center",
                             }}
                         >
                             <div style={{ textAlign: "center" }}>
-                                <div
-                                    style={{
-                                        fontSize: 11,
-                                        color: "var(--text-tertiary)",
-                                        fontWeight: 700,
-                                    }}
-                                >
+                                <div style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 700 }}>
                                     {FR_DAY.format(date).replace(".", "")}
                                 </div>
                                 <div
                                     className="tabular"
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: 700,
-                                        fontVariantNumeric: "tabular-nums",
-                                    }}
+                                    style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}
                                 >
                                     {FR_TIME.format(date)}
                                 </div>
                             </div>
-                            <div>
-                                <div style={{ fontSize: 12, fontWeight: 600 }}>
-                                    {r.anonymousLabel ?? "Élève"}
+                            <div className="min-w-0">
+                                <div style={{ fontSize: 13, fontWeight: 600 }}>
+                                    {r.anonymousLabel ?? "Anonyme"}
                                 </div>
-                                <div
-                                    style={{
-                                        fontSize: 11,
-                                        color: "var(--text-tertiary)",
-                                    }}
-                                >
-                                    {r.kind}
+                                <div style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
+                                    {r.kind} · {r.durationMinutes} min
                                 </div>
                             </div>
-                            <Badge
-                                variant={variant}
-                                size="sm"
-                                dot={variant === "danger"}
-                            >
-                                {variant === "danger" ? "P0" : "OK"}
+                            <Badge variant={variant} size="sm" dot={variant === "danger"}>
+                                {r.isUrgent ? "Urgent" : "Planifié"}
                             </Badge>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                icon="x"
+                                aria-label={`Annuler le rendez-vous de ${FR_TIME.format(date)}`}
+                                onClick={() => setCancelling(r)}
+                            />
                         </div>
                     );
                 })
             )}
+
+            <AppointmentDialog
+                open={creating}
+                onOpenChange={setCreating}
+                onCreated={() => {
+                    setCreating(false);
+                    onChanged();
+                }}
+            />
+            <ConfirmActionDialog
+                open={cancelling !== null}
+                onOpenChange={(open) => (open ? null : setCancelling(null))}
+                title="Annuler ce rendez-vous ?"
+                description={
+                    cancelling
+                        ? `${cancelling.anonymousLabel ?? "Anonyme"} · ${cancelling.kind} · ${FR_DAY.format(new Date(cancelling.startAt))} ${FR_TIME.format(new Date(cancelling.startAt))}`
+                        : undefined
+                }
+                confirmLabel="Annuler le rendez-vous"
+                cancelLabel="Garder"
+                variant="destructive"
+                isConfirmLoading={busy}
+                onConfirm={cancel}
+            />
         </Card>
     );
 }
 
-function AiSignalsCard() {
+/**
+ * Le repérage du décrochage repose sur le moteur de risque de l'établissement
+ * (absences, évolution des notes — assessRisk), pas sur un modèle d'IA.
+ */
+function RiskSignalsCard() {
     return (
         <Card
             padding={16}
-            style={{
-                background: "var(--brand-50)",
-                border: "1px solid var(--brand-200)",
-            }}
+            style={{ background: "var(--brand-50)", border: "1px solid var(--brand-200)" }}
         >
             <div style={{ display: "flex", gap: 10 }}>
-                <Icon
-                    name="sparkle"
-                    size={18}
-                    color="var(--brand-700)"
-                    style={{ marginTop: 2 }}
-                />
+                <Icon name="danger" size={18} color="var(--brand-700)" style={{ marginTop: 2 }} />
                 <div>
-                    <div
-                        style={{
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color: "var(--brand-900)",
-                        }}
-                    >
-                        Détection IA · signaux faibles
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--brand-900)" }}>
+                        Signaux de décrochage
                     </div>
-                    <p
-                        style={{
-                            fontSize: 12,
-                            color: "var(--brand-800)",
-                            margin: "4px 0 0",
-                            lineHeight: 1.55,
-                        }}
-                    >
-                        Croisement absences, chute des notes et commentaires enseignants pour déclencher une alerte
-                        si pattern de décrochage. Modèle entraîné sur 8 000 trajectoires
-                        anonymisées.
+                    <p style={{ fontSize: 13, color: "var(--brand-800)", margin: "4px 0 0", lineHeight: 1.55 }}>
+                        Les absences et l&apos;évolution des notes sont croisées selon les seuils réglés
+                        par l&apos;établissement. Les élèves repérés sont listés dans :
                     </p>
-                    <p
-                        style={{
-                            fontSize: 11,
-                            color: "var(--brand-700)",
-                            marginTop: 8,
-                            fontWeight: 600,
-                        }}
-                    >
-                        Module IA à activer côté infrastructure : les rapports {`AUTO_IA`} apparaissent
-                        ici une fois branché.
-                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                        <Link href="/dashboard/alerts/risks">
+                            <Button size="sm" variant="secondary">Élèves à risque</Button>
+                        </Link>
+                        <Link href="/dashboard/risks/dropout">
+                            <Button size="sm" variant="secondary">Décrochage</Button>
+                        </Link>
+                    </div>
                 </div>
             </div>
         </Card>

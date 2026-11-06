@@ -21,6 +21,7 @@ import {
   UserCircle, CreditCard
 } from "lucide-react";
 import { StudentGradesTab } from "@/components/students/student-grades-tab";
+import { ExternalAveragesCard } from "@/components/students/external-averages-card";
 import { StudentAttendanceTab } from "@/components/students/student-attendance-tab";
 import { StudentPerformanceDashboard } from "@/components/students/student-performance-dashboard";
 import { StudentAiPrediction } from "@/components/students/student-ai-prediction";
@@ -382,6 +383,7 @@ function StudentDetailPageContent() {
                     </Card>
                   )}
                   <StudentGradesTab studentId={id} />
+                  {canSignBulletin ? <ExternalAveragesCard studentId={id} /> : null}
                   <SignatureBlock
                     docType="REPORT_CARD"
                     docId={id}

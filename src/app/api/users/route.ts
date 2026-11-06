@@ -85,6 +85,8 @@ export const GET = createApiHandler(
           role: true,
           roles: true,
           isActive: true,
+          // Compte pas encore activé : la direction peut (ré)émettre le lien.
+          mustChangePassword: true,
           schoolId: true,
           createdAt: true,
           school: {

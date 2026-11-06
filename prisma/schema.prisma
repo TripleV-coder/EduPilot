@@ -68,95 +68,96 @@ model OrganizationMembership {
 }
 
 model School {
-  id                     String                    @id @default(cuid())
-  organizationId         String?
-  name                   String
-  code                   String                    @unique
-  type                   SchoolType                @default(PRIVATE)
-  level                  SchoolLevel
-  offeredLevels          SchoolLevel[]             @default([])
+  id                         String                      @id @default(cuid())
+  organizationId             String?
+  name                       String
+  code                       String                      @unique
+  type                       SchoolType                  @default(PRIVATE)
+  level                      SchoolLevel
+  offeredLevels              SchoolLevel[]               @default([])
   // Lot 6 (minimisation) : modules actifs de l'école. Défaut = socle
   // (lib/modules/catalog). Les écoles existantes reçoivent tout le catalogue
   // par la migration 20260917100000_school_enabled_modules.
-  enabledModules         String[]                  @default(["students", "classes", "grades", "attendance", "schedule", "messaging", "finance"])
-  siteType               SiteType                  @default(MAIN)
-  address                String?
-  city                   String?
-  phone                  String?
-  email                  String?
-  emailDomain            String?
-  logo                   String?
-  motto                  String?
-  mempCode               String?
-  primaryColor           String?
+  enabledModules             String[]                    @default(["students", "classes", "grades", "attendance", "schedule", "messaging", "finance"])
+  siteType                   SiteType                    @default(MAIN)
+  address                    String?
+  city                       String?
+  phone                      String?
+  email                      String?
+  emailDomain                String?
+  logo                       String?
+  motto                      String?
+  mempCode                   String?
+  primaryColor               String?
   // Vitrine publique (annuaire + fiche établissement) — champs exposés sans auth.
-  isPublic               Boolean                   @default(false)
-  coverImage             String?
-  publicDescription      String?
-  region                 String?
-  publicPhone            String?
-  isActive               Boolean                   @default(true)
-  createdAt              DateTime                  @default(now())
-  updatedAt              DateTime                  @updatedAt
-  planId                 String?
-  parentSchoolId         String?
-  subscriptionStatus     SubscriptionStatus?       @default(TRIAL)
-  academicConfig         AcademicConfig?
-  academicYears          AcademicYear[]
-  announcements          Announcement[]
-  auditLogs              AuditLog[]
-  books                  Book[]
-  canteenMenus           CanteenMenu[]
-  classLevels            ClassLevel[]
-  communicationLogs      CommunicationLog[]
-  communicationTemplates CommunicationTemplate[]
-  classes                Class[]
-  configOptions          ConfigOption[]
-  dataRetentionPolicies  DataRetentionPolicy[]
-  evaluationTypes        EvaluationType[]
-  fees                   Fee[]
-  paymentAccounts        SchoolPaymentAccount[]
-  importTemplates        ImportTemplate[]
-  leaderboard            Leaderboard[]
-  mealTickets            MealTicket[]
-  publicHolidays         PublicHoliday[]
-  resources              Resource[]
-  schoolCalendarEvents   SchoolCalendarEvent[]
-  schoolEvents           SchoolEvent[]
-  schoolHolidays         SchoolHoliday[]
-  parentSchool           School?                   @relation("SchoolHierarchy", fields: [parentSchoolId], references: [id], onDelete: SetNull)
-  childSchools           School[]                  @relation("SchoolHierarchy")
-  organization           Organization?             @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  plan                   SubscriptionPlan?         @relation(fields: [planId], references: [id])
-  studentProfiles        StudentProfile[]
-  subjectCategories      SubjectCategory[]
-  subjects               Subject[]
-  teacherAssignments     TeacherSchoolAssignment[]
-  teacherInvitations     TeacherInvitation[]
-  teacherProfiles        TeacherProfile[]
-  users                  User[]
-  walletAccounts         WalletAccount[]
-  walletTransactions     WalletTransaction[]
-  scheduledDisbursements ScheduledDisbursement[]
-  cagnottes              Cagnotte[]
-  wellbeingReports       WellbeingReport[]
-  psyAppointments        PsyAppointment[]
-  climatePulseWeeks      ClimatePulseWeek[]
-  fiscalYears            FiscalYear[]
-  ohadaAccounts          OhadaAccount[]
-  journalEntries         JournalEntry[]
-  voiceCampaigns         VoiceCampaign[]
-  alumni                 Alumni[]
-  scanPoints             ScanPoint[]
-  scanLogs               ScanLog[]
-  badges                 Badge[]
-  benchmarkSnapshots     BenchmarkSnapshot[]
-  transportLines         TransportLine[]
-  transportBuses         Bus[]
-  staffAttendances       StaffAttendance[]
-  leaveRequests          LeaveRequest[]
-  payrollEntries         PayrollEntry[]
-  documentSignatures     DocumentSignature[]
+  isPublic                   Boolean                     @default(false)
+  coverImage                 String?
+  publicDescription          String?
+  region                     String?
+  publicPhone                String?
+  isActive                   Boolean                     @default(true)
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+  planId                     String?
+  parentSchoolId             String?
+  subscriptionStatus         SubscriptionStatus?         @default(TRIAL)
+  academicConfig             AcademicConfig?
+  academicYears              AcademicYear[]
+  announcements              Announcement[]
+  auditLogs                  AuditLog[]
+  books                      Book[]
+  canteenMenus               CanteenMenu[]
+  classLevels                ClassLevel[]
+  communicationLogs          CommunicationLog[]
+  communicationTemplates     CommunicationTemplate[]
+  classes                    Class[]
+  configOptions              ConfigOption[]
+  dataRetentionPolicies      DataRetentionPolicy[]
+  evaluationTypes            EvaluationType[]
+  fees                       Fee[]
+  paymentAccounts            SchoolPaymentAccount[]
+  importTemplates            ImportTemplate[]
+  leaderboard                Leaderboard[]
+  mealTickets                MealTicket[]
+  publicHolidays             PublicHoliday[]
+  resources                  Resource[]
+  schoolCalendarEvents       SchoolCalendarEvent[]
+  schoolEvents               SchoolEvent[]
+  schoolHolidays             SchoolHoliday[]
+  parentSchool               School?                     @relation("SchoolHierarchy", fields: [parentSchoolId], references: [id], onDelete: SetNull)
+  childSchools               School[]                    @relation("SchoolHierarchy")
+  organization               Organization?               @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  plan                       SubscriptionPlan?           @relation(fields: [planId], references: [id])
+  studentProfiles            StudentProfile[]
+  subjectCategories          SubjectCategory[]
+  subjects                   Subject[]
+  teacherAssignments         TeacherSchoolAssignment[]
+  teacherInvitations         TeacherInvitation[]
+  teacherProfiles            TeacherProfile[]
+  users                      User[]
+  walletAccounts             WalletAccount[]
+  walletTransactions         WalletTransaction[]
+  scheduledDisbursements     ScheduledDisbursement[]
+  cagnottes                  Cagnotte[]
+  wellbeingReports           WellbeingReport[]
+  psyAppointments            PsyAppointment[]
+  climatePulseWeeks          ClimatePulseWeek[]
+  climatePulseParticipations ClimatePulseParticipation[]
+  fiscalYears                FiscalYear[]
+  ohadaAccounts              OhadaAccount[]
+  journalEntries             JournalEntry[]
+  voiceCampaigns             VoiceCampaign[]
+  alumni                     Alumni[]
+  scanPoints                 ScanPoint[]
+  scanLogs                   ScanLog[]
+  badges                     Badge[]
+  benchmarkSnapshots         BenchmarkSnapshot[]
+  transportLines             TransportLine[]
+  transportBuses             Bus[]
+  staffAttendances           StaffAttendance[]
+  leaveRequests              LeaveRequest[]
+  payrollEntries             PayrollEntry[]
+  documentSignatures         DocumentSignature[]
 
   clubs Club[]
 
@@ -299,6 +300,7 @@ model User {
   wellbeingReportsAbout             WellbeingReport[]           @relation("WellbeingReportedAbout")
   psyAppointmentsAsPsy              PsyAppointment[]            @relation("PsyAppointmentPsy")
   psyAppointmentsAsStudent          PsyAppointment[]            @relation("PsyAppointmentStudent")
+  climatePulseParticipations        ClimatePulseParticipation[]
   voiceCampaignsAuthored            VoiceCampaign[]             @relation("VoiceCampaignAuthor")
   staffAttendances                  StaffAttendance[]           @relation("StaffAttendanceUser")
   staffAttendancesRecorded          StaffAttendance[]           @relation("StaffAttendanceRecorder")
@@ -2873,6 +2875,13 @@ model ClimatePulseWeek {
   pctFriend        Float? // % "j'ai un ami proche"
   pctAdultListens  Float? // % "un adulte m'écoute"
   pctHarassWitness Float? // % "témoin harcèlement"
+  // Compteurs bruts (réponses anonymes agrégées) : les moyennes et % ci-dessus
+  // en sont recalculés à chaque réponse (lib/wellbeing/pulse).
+  scoreSum         Float    @default(0)
+  safetyYes        Int      @default(0)
+  friendYes        Int      @default(0)
+  adultYes         Int      @default(0)
+  harassYes        Int      @default(0)
   createdAt        DateTime @default(now())
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -2880,6 +2889,23 @@ model ClimatePulseWeek {
   @@unique([schoolId, weekLabel])
   @@index([schoolId, weekStart])
   @@map("climate_pulse_weeks")
+}
+
+/// Qui a déjà répondu au pulse d'une semaine — jamais CE qu'il a répondu :
+/// les réponses ne sont conservées qu'agrégées dans ClimatePulseWeek.
+model ClimatePulseParticipation {
+  id        String   @id @default(cuid())
+  schoolId  String
+  userId    String
+  weekStart DateTime
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([schoolId, weekStart])
+  @@map("climate_pulse_participations")
 }
 
 // ─── Comptabilité OHADA / SYSCOHADA révisé ────────────────────────────────

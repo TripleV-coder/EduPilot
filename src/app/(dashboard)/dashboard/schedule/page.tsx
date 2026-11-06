@@ -13,7 +13,6 @@ import { WeeklyTimetableGrid } from "@/components/schedule/weekly-timetable-grid
 import { ScheduleSlotManager, type ManagedSlot } from "@/components/schedule/schedule-slot-manager";
 
 import { Button, Card, Icon, type IconName } from "@/components/edu";
-import { pick, useUiLang } from "@/lib/i18n/ui-lang";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError } from "@/components/layout/page-states";
 
@@ -33,7 +32,6 @@ interface ScheduleItem {
 }
 
 export default function SchedulePage() {
-    const lang = useUiLang();
     useSchool();
     const [viewType, setViewType] = useState<"weekly" | "daily">("weekly");
     const [filterType, setFilterType] = useState<"class" | "teacher">("class");
@@ -89,15 +87,15 @@ export default function SchedulePage() {
         >
             <PageShell>
                 <PageHeader
-                    title={pick(lang, "Emploi du temps", "Timetable")}
+                    title="Emploi du temps"
                     description={
                         canCreate
                             ? "Planifiez et visualisez l'occupation des salles et des enseignants."
                             : "Les cours de la semaine, heure par heure."
                     }
                     breadcrumbs={[
-                        { label: pick(lang, "Tableau de bord", "Dashboard"), href: "/dashboard" },
-                        { label: pick(lang, "Emploi du temps", "Timetable") },
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Emploi du temps" },
                     ]}
                     actions={
                         canCreate ? (

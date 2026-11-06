@@ -352,3 +352,95 @@ export async function sendWelcomeEmail(params: WelcomeEmailParams): Promise<bool
 
   return sendEmail({ to: email, subject, html });
 }
+
+interface ActivationEmailParams {
+  email: string;
+  firstName: string;
+  schoolName: string | null;
+  activationUrl: string;
+  expiresInHours: number;
+}
+
+/** Échappe le texte saisi (nom, établissement) avant de l'insérer dans le HTML. */
+function escapeEmailHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Lien d'activation envoyé par la direction : le titulaire choisit son mot de
+ * passe définitif sans mot de passe provisoire (voir lib/auth/activation-link).
+ */
+export async function sendActivationEmail(params: ActivationEmailParams): Promise<boolean> {
+  const { email, firstName, schoolName, activationUrl, expiresInHours } = params;
+  const name = escapeEmailHtml(firstName);
+  const school = schoolName ? escapeEmailHtml(schoolName) : null;
+  const subject = "Activez votre compte EduPilot";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activez votre compte</title>
+</head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 28px;">🎓 EduPilot</h1>
+    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Système de Gestion Scolaire</p>
+  </div>
+
+  <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
+    <h2 style="color: #333; margin-top: 0;">Bonjour ${name},</h2>
+
+    <p>${school ? `L'établissement <strong>${school}</strong> vous a créé un compte EduPilot.` : "Un compte EduPilot vous a été créé."}</p>
+
+    <p>Cliquez sur le bouton ci-dessous pour choisir votre mot de passe et activer votre compte :</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${activationUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;">
+        Activer mon compte
+      </a>
+    </div>
+
+    <p style="color: #666; font-size: 14px;">
+      <strong>Important :</strong> ce lien est valable <strong>${expiresInHours} heures</strong> et ne sert qu'une fois.
+      Passé ce délai, demandez un nouveau lien à votre établissement.
+    </p>
+
+    <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+
+    <p style="color: #999; font-size: 12px; margin-bottom: 0;">
+      Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>
+      <a href="${activationUrl}" style="color: #667eea; word-break: break-all;">${activationUrl}</a>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>© ${new Date().getFullYear()} EduPilot. Tous droits réservés.</p>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  const text = `
+Bonjour ${firstName},
+
+${schoolName ? `L'établissement ${schoolName} vous a créé un compte EduPilot.` : "Un compte EduPilot vous a été créé."}
+
+Choisissez votre mot de passe et activez votre compte avec ce lien :
+${activationUrl}
+
+Ce lien est valable ${expiresInHours} heures et ne sert qu'une fois.
+
+---
+© ${new Date().getFullYear()} EduPilot. Tous droits réservés.
+  `.trim();
+
+  return sendEmail({ to: email, subject, html, text });
+}

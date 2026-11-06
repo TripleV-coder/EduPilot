@@ -1,5 +1,8 @@
 import { sendEmail } from "@/lib/email";
 import { queueSMS } from "@/lib/notifications/sms-service";
+import { sendWhatsAppText } from "@/lib/notifications/whatsapp-service";
+import { sendVoiceCall } from "@/lib/notifications/voice-service";
+import prisma from "@/lib/prisma";
 import { CIRCUITS, getCircuitBreaker } from "@/lib/resilience/circuit-breaker";
 import { PermanentJobError } from "./queue";
 import type { JobHandlers } from "./types";
@@ -24,6 +27,34 @@ export const JOB_HANDLERS: JobHandlers = {
         });
         if (result.success) return;
         const reason = result.error ?? "SMS non envoyé";
+        throw result.permanent ? new PermanentJobError(reason) : new Error(reason);
+    },
+    "whatsapp.send": async (payload) => {
+        const result = await sendWhatsAppText(payload.to, payload.text);
+        await prisma.communicationLog.update({
+            where: { id: payload.logId },
+            data: result.success
+                ? { status: "SENT", error: null, metadata: { messageId: result.messageId ?? null } }
+                : { status: result.permanent ? "FAILED" : "RETRYING", error: result.error ?? null },
+        });
+        if (result.success) return;
+        const reason = result.error ?? "WhatsApp non envoyé";
+        throw result.permanent ? new PermanentJobError(reason) : new Error(reason);
+    },
+    "voice.send": async (payload) => {
+        const result = await sendVoiceCall({
+            to: payload.to,
+            lang: payload.lang,
+            text: payload.text,
+            audioUrl: payload.audioUrl,
+            campaignId: payload.campaignId,
+        });
+        if (result.success) {
+            // Appel confié à la passerelle : compté comme atteint
+            await prisma.voiceCampaign.update({ where: { id: payload.campaignId }, data: { reachedCount: { increment: 1 } } });
+            return;
+        }
+        const reason = result.error ?? "Appel vocal non passé";
         throw result.permanent ? new PermanentJobError(reason) : new Error(reason);
     },
 };

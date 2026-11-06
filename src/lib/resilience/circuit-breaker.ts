@@ -23,6 +23,8 @@ import { logger } from "@/lib/utils/logger";
 /** Services en aval protégés. Les métriques exposent l'état de chacun. */
 export const CIRCUITS = {
     sms: "sms",
+    whatsapp: "whatsapp",
+    voice: "voice",
     email: "email",
     momo: "payment-momo",
     flutterwave: "payment-flutterwave",
