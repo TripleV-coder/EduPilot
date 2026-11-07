@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { SECRET_OVERRIDES } from "@/lib/security/derived-secrets";
 
 /**
  * M6 — `.env.example` doit décrire exactement la configuration que le code
@@ -14,6 +15,9 @@ const ROOT = path.resolve(__dirname, "../../..");
 // NODE_APP_INSTANCE : posée par PM2 pour chaque processus du cluster.
 // NEXT_MANUAL_SIG_HANDLE : posée (et non lue) par scripts/server/graceful-shutdown.cjs.
 const FRAMEWORK_VARIABLES = new Set(["NODE_ENV", "NEXT_PHASE", "NEXT_RUNTIME", "NODE_APP_INSTANCE", "NEXT_MANUAL_SIG_HANDLE"]);
+
+/** Variables posées par l'hébergeur sans serveur (lib/system/platform.ts) : rien à configurer. */
+const PLATFORM_VARIABLES = new Set(["VERCEL", "VERCEL_URL", "VERCEL_PROJECT_PRODUCTION_URL", "NETLIFY", "AWS_LAMBDA_FUNCTION_NAME"]);
 
 const READ_PATTERNS = [
     /process\.env\.([A-Z][A-Z0-9_]+)/g,
@@ -52,7 +56,9 @@ function variablesReadByCode(): Set<string> {
             for (const match of content.matchAll(pattern)) names.add(match[1]);
         }
     }
-    for (const name of FRAMEWORK_VARIABLES) names.delete(name);
+    // Clés techniques lues par nom via la table de dérivation (lib/security/derived-secrets.ts)
+    for (const name of Object.values(SECRET_OVERRIDES)) names.add(name);
+    for (const name of [...FRAMEWORK_VARIABLES, ...PLATFORM_VARIABLES]) names.delete(name);
     return names;
 }
 

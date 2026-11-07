@@ -8,21 +8,15 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
     user: { update: vi.fn() },
+    storedFile: { create: vi.fn() },
   },
-}));
-vi.mock("fs/promises", () => ({
-  writeFile: vi.fn().mockResolvedValue(undefined),
-  mkdir: vi.fn().mockResolvedValue(undefined),
-  readFile: vi.fn().mockResolvedValue("[]"),
-  appendFile: vi.fn().mockResolvedValue(undefined),
-}));
-vi.mock("fs", () => ({
-  existsSync: vi.fn().mockReturnValue(true),
 }));
 
 import prisma from "@/lib/prisma";
-import { writeFile } from "fs/promises";
 import { POST } from "@/app/api/upload/route";
+
+/** Le fichier est enregistré en base : on renvoie ce que Prisma aurait inséré. */
+const writeFile = prisma.storedFile.create;
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
@@ -56,6 +50,11 @@ function makeUploadRequest(file: unknown, type = "document") {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(prisma.storedFile.create).mockImplementation((async (args: { data: Record<string, unknown> }) => ({
+    ...args.data,
+    schoolId: args.data.schoolId ?? null,
+    createdAt: new Date(),
+  })) as never);
 });
 
 describe("POST /api/upload — validation magic bytes", () => {
@@ -168,5 +167,25 @@ describe("POST /api/upload — validation magic bytes", () => {
 
     expect(response.status).toBe(201);
     expect(body.url).toMatch(/^\/api\/uploads\/general\//);
+  });
+
+  it("enregistre le contenu et les métadonnées en base, avec une extension assainie", async () => {
+    const session = makeSession("TEACHER");
+    vi.mocked(auth).mockResolvedValue(session);
+    const file = makeFile({ name: "bulletin final.p<n>g", type: "image/png", bytes: PNG_MAGIC });
+
+    const response = await POST(makeUploadRequest(file, "justification"));
+    expect(response.status).toBe(201);
+
+    const { data } = vi.mocked(prisma.storedFile.create).mock.calls[0][0] as { data: Record<string, unknown> };
+    expect(data).toMatchObject({
+      type: "justification",
+      originalFilename: "bulletin final.p<n>g",
+      mimeType: "image/png",
+      size: PNG_MAGIC.length,
+      uploaderId: session.user!.id,
+    });
+    expect(Array.from(data.data as Uint8Array)).toEqual(PNG_MAGIC);
+    expect(data.storedFilename).toMatch(/^[a-zA-Z0-9._-]+$/);
   });
 });

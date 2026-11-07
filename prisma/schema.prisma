@@ -302,6 +302,7 @@ model User {
   psyAppointmentsAsStudent          PsyAppointment[]            @relation("PsyAppointmentStudent")
   climatePulseParticipations        ClimatePulseParticipation[]
   pushSubscriptions                 PushSubscription[]
+  storedFiles                       StoredFile[]
   voiceCampaignsAuthored            VoiceCampaign[]             @relation("VoiceCampaignAuthor")
   staffAttendances                  StaffAttendance[]           @relation("StaffAttendanceUser")
   staffAttendancesRecorded          StaffAttendance[]           @relation("StaffAttendanceRecorder")
@@ -3572,4 +3573,38 @@ enum PaymentAccountStatus {
   /// Remplacé ou désactivé : plus aucun nouveau paiement ; ses paiements passés
   /// restent rapprochables
   REVOKED
+}
+
+/// Fichiers envoyés (avatars, justificatifs, documents), stockés en base :
+/// aucun disque persistant requis (hébergement sans serveur), sauvegardés avec
+/// la base. Limite 5 Mo par fichier (route /api/upload).
+model StoredFile {
+  id               String   @id @default(cuid())
+  /// avatar | document | justification | general
+  type             String
+  storedFilename   String   @unique
+  originalFilename String
+  mimeType         String
+  size             Int
+  data             Bytes
+  uploaderId       String
+  schoolId         String?
+  createdAt        DateTime @default(now())
+
+  uploader User @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  @@index([uploaderId])
+  @@index([schoolId])
+  @@map("stored_files")
+}
+
+/// Compteurs de limite de débit partagés entre instances (hébergement sans
+/// serveur, sans Redis) : fenêtre fixe, une ligne par clé.
+model RateLimitCounter {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+  @@map("rate_limit_counters")
 }

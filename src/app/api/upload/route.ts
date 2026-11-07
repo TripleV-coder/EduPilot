@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { writeFile, mkdir, readFile, appendFile } from "fs/promises";
-import { existsSync } from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
+import { listUploadsBy, saveUploadedFile, UPLOAD_TYPES, type UploadType } from "@/lib/storage/stored-files";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
-const UPLOAD_DIR = path.join(process.cwd(), "uploads");
-const UPLOAD_MANIFEST_PATH = path.join(UPLOAD_DIR, ".upload-manifest.json");
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 const ALLOWED_DOCUMENT_TYPES = [
@@ -40,19 +37,6 @@ const MAGIC_BYTES: Record<string, { offset: number; bytes: number[] }[]> = {
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [{ offset: 0, bytes: [0x50, 0x4B, 0x03, 0x04] }],
 };
 
-type UploadManifestEntry = {
-  id: string;
-  uploaderId: string;
-  schoolId: string | null;
-  type: string;
-  originalFilename: string;
-  storedFilename: string;
-  url: string;
-  mimeType: string;
-  size: number;
-  createdAt: string;
-};
-
 function validateMagicBytes(buffer: Buffer, claimedType: string): boolean {
   const signatures = MAGIC_BYTES[claimedType];
   if (!signatures) return false;
@@ -63,43 +47,6 @@ function validateMagicBytes(buffer: Buffer, claimedType: string): boolean {
     if (!match) return false;
   }
   return true;
-}
-
-const UPLOAD_MANIFEST_PATH_JSONL = path.join(UPLOAD_DIR, ".upload-manifest.jsonl");
-
-async function readUploadManifest(): Promise<UploadManifestEntry[]> {
-  let entries: UploadManifestEntry[] = [];
-
-  if (existsSync(UPLOAD_MANIFEST_PATH)) {
-    try {
-      const content = await readFile(UPLOAD_MANIFEST_PATH, "utf8");
-      entries = JSON.parse(content) as UploadManifestEntry[];
-    } catch (error) {
-      // Manifeste illisible/corrompu : on continue avec la liste vide,
-      // mais jamais silencieusement.
-      logger.warn("Upload manifest JSON illisible — ignoré", {
-        module: "api/upload",
-        path: UPLOAD_MANIFEST_PATH,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  if (existsSync(UPLOAD_MANIFEST_PATH_JSONL)) {
-    try {
-      const content = await readFile(UPLOAD_MANIFEST_PATH_JSONL, "utf8");
-      const lines = content.split('\n').filter(line => line.trim() !== '');
-      entries = entries.concat(lines.map(line => JSON.parse(line)));
-    } catch (error) {
-      logger.warn("Upload manifest JSONL illisible — ignoré", {
-        module: "api/upload",
-        path: UPLOAD_MANIFEST_PATH_JSONL,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  return entries;
 }
 
 /**
@@ -148,20 +95,12 @@ export const POST = createApiHandler(async (request, context) => {
       );
     }
 
-    // Sanitize type parameter to prevent path traversal
-    const ALLOWED_UPLOAD_TYPES = ["avatar", "document", "justification", "general"];
-    const sanitizedType = type && ALLOWED_UPLOAD_TYPES.includes(type) ? type : "general";
+    // Type limité à une liste fermée (jamais utilisé tel quel)
+    const sanitizedType: UploadType = (UPLOAD_TYPES as readonly string[]).includes(type) ? (type as UploadType) : "general";
 
-    // Create upload directory if doesn't exist
-    const typeDir = path.join(UPLOAD_DIR, sanitizedType);
-    if (!existsSync(typeDir)) {
-      await mkdir(typeDir, { recursive: true });
-    }
-
-    // Generate unique filename
-    const ext = path.extname(file.name);
+    // Nom unique ; l'extension est réduite à des caractères sûrs
+    const ext = path.extname(file.name).replace(/[^a-zA-Z0-9.]/g, "").slice(0, 10);
     const filename = `${nanoid()}_${Date.now()}${ext}`;
-    const filepath = path.join(typeDir, filename);
 
     // Convert file to buffer
     const bytes = await file.arrayBuffer();
@@ -175,35 +114,24 @@ export const POST = createApiHandler(async (request, context) => {
       );
     }
 
-    // Write file
-    await writeFile(filepath, buffer);
+    const saved = await saveUploadedFile({
+      type: sanitizedType,
+      storedFilename: filename,
+      originalFilename: file.name,
+      mimeType: file.type,
+      data: buffer,
+      uploaderId: session.user.id,
+      schoolId: getActiveSchoolId(session) ?? null,
+    });
+    const publicUrl = saved.url;
 
-    // Return private URL (served via authenticated API route)
-    const publicUrl = `/api/uploads/${sanitizedType}/${filename}`;
-
-    // If avatar, update user profile
-    if (type === "avatar") {
+    // Avatar : rattaché au profil
+    if (sanitizedType === "avatar") {
       await prisma.user.update({
         where: { id: session.user.id },
         data: { avatar: publicUrl },
       });
     }
-
-    const entry: UploadManifestEntry = {
-      id: nanoid(),
-      uploaderId: session.user.id,
-      schoolId: getActiveSchoolId(session) ?? null,
-      type: sanitizedType,
-      originalFilename: file.name,
-      storedFilename: filename,
-      url: publicUrl,
-      mimeType: file.type,
-      size: file.size,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Atomic append to prevent read-modify-write race conditions under high concurrency
-    await appendFile(UPLOAD_MANIFEST_PATH_JSONL, JSON.stringify(entry) + '\n', "utf8");
 
     return NextResponse.json(
       {
@@ -235,10 +163,7 @@ export const GET = createApiHandler(async (request, context) => {
     try {
         const session = context.session;
 
-    const manifestEntries = await readUploadManifest();
-    const files = manifestEntries
-      .filter((entry) => entry.uploaderId === session.user.id)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const files = await listUploadsBy(session.user.id);
 
     return NextResponse.json({
       files,
