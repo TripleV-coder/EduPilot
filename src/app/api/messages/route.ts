@@ -240,8 +240,7 @@ export const POST = createApiHandler(async (request, context) => {
       },
     });
 
-    // Notification destinataire — createNotification publie aussi sur Redis
-    // (publisher singleton, livraison SSE immédiate si REDIS_URL configuré)
+    // Notification destinataire (relevée en base par le flux SSE)
     await createNotification({
       userId: validatedData.recipientId,
       type: "MESSAGE",

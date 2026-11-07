@@ -80,26 +80,16 @@ export const GET = createApiHandler(
         where: { status: "PENDING" },
       });
 
-      // État du cache Redis
-      let cacheStatus: { connected: boolean; hitRate: number; memory: string | null } = { connected: false, hitRate: 0, memory: null };
-      try {
-        const { getRedisClient } = await import("@/lib/cache/redis");
-        const client = getRedisClient();
-        if (client) {
-          try {
-            const pong = await client.ping();
-            cacheStatus = {
-              connected: Boolean(pong),
-              hitRate: 0,
-              memory: null,
-            };
-          } catch {
-            cacheStatus.connected = false;
-          }
-        }
-      } catch {
-        // Redis non disponible
-      }
+      // Cache mémoire (taux mesuré) et état partagé PostgreSQL (limites,
+      // coupe-circuits) : « connecté » tant que son coupe-circuit est fermé.
+      const { getCacheStats } = await import("@/lib/cache/service");
+      const { storeCircuit } = await import("@/lib/shared-state/pg");
+      const measuredCache = getCacheStats();
+      const cacheStatus: { connected: boolean; hitRate: number; memory: string | null } = {
+        connected: !storeCircuit.isOpen(),
+        hitRate: measuredCache.hitRate,
+        memory: `${measuredCache.entries} entrée(s) · ${(measuredCache.bytes / (1024 * 1024)).toFixed(1)} Mo`,
+      };
 
       // État du système (maintenance mode)
       const maintenanceSetting = await prisma.systemSetting.findUnique({
@@ -226,7 +216,7 @@ export const GET = createApiHandler(
             ? [
               {
                 level: "warning",
-                message: "Cache Redis non connecté",
+                message: "État partagé (PostgreSQL) injoignable : limites en mémoire locale",
                 timestamp: now.toISOString(),
               },
             ]

@@ -83,9 +83,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/docker-entrypoint.
 # Lanceur multi-processus (WEB_CONCURRENCY), analyse de capacité 2026-10-01.
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/cluster.cjs ./cluster.cjs
 
-# Fichiers téléversés : à monter sur un volume (docker-compose : uploads_data),
-# sinon ils disparaissent à chaque recréation du conteneur.
-RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
+# Fichiers envoyés : stockés dans PostgreSQL (table stored_files), aucun
+# volume à monter.
 
 # Schéma et migrations, appliquées au démarrage par l'entrypoint.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma

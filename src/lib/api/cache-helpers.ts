@@ -3,7 +3,7 @@
  * Provides caching layer for frequently accessed data
  */
 
-import { getCacheService } from "@/lib/cache/redis";
+import { getCacheService } from "@/lib/cache/service";
 const cache = getCacheService();
 import { NextResponse } from "next/server";
 

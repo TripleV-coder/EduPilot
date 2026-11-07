@@ -17,8 +17,6 @@ const BASE: Record<string, string> = {
     NEXTAUTH_URL: "https://ecole.example",
     TOTP_ENCRYPTION_KEY: "0".repeat(64),
     EMAIL_FROM: "noreply@ecole.example",
-    UPSTASH_REDIS_REST_URL: "https://redis.example",
-    UPSTASH_REDIS_REST_TOKEN: "jeton",
     EDUPILOT_PEER_TOKEN: "a".repeat(64),
     SIGNATURE_SALT: "b".repeat(32),
 };
@@ -72,11 +70,9 @@ describe("validateEnv — production", () => {
         expect(() => validateEnv()).toThrow(/DATABASE_URL.*postgresql/s);
     });
 
-    it("démarre sans Upstash : instance unique, repli mémoire (décision du 2026-09-12)", () => {
+    it("démarre sans aucun magasin externe : état partagé dans PostgreSQL (2026-11-07)", () => {
         vi.stubEnv("EMAIL_PROVIDER", "resend");
         vi.stubEnv("EMAIL_API_KEY", "cle");
-        vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
-        vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
         expect(() => validateEnv()).not.toThrow();
     });
 

@@ -19,7 +19,7 @@ export const POST = createApiHandler(
       const body = await request.json();
       const { email } = forgotPasswordSchema.parse(body);
 
-      // Rate limiting via Redis
+      // Limite de débit (état partagé PostgreSQL)
       const identifier = getClientIdentifier(request);
       const result = await checkRateLimit(authLimiter, identifier);
 

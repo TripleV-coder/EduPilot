@@ -1,20 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
-import type Redis from "ioredis";
+import { describe, expect, it } from "vitest";
 import {
-    CONSUME_LUA,
     MemoryTokenBuckets,
-    TAKE_UP_TO_LUA,
-    consumeRedis,
+    SYNC_INTERVAL_MS,
+    SharedTokenBuckets,
     consumeTokens,
     perMinute,
-    takeRedis,
+    type BucketSpec,
 } from "@/lib/resilience/token-bucket";
 
 /**
  * Seaux à jetons : rafale bornée par la capacité, recharge continue, délai
  * exact avant le prochain jeton, et vérification compte + IP sans débit partiel.
- * L'implémentation mémoire est le miroir du script Lua ; le passage par Redis
- * est vérifié sur un faux client (arguments envoyés, lecture de la réponse).
+ * Le magasin partagé (`SharedTokenBuckets`) est vérifié contre un modèle
+ * exact de la fonction SQL `edupilot_sync_token_buckets` (seau commun à plusieurs
+ * processus) : aller-retours économisés, plafond global, écart borné.
  */
 
 function clock(start = 1_000_000) {
@@ -103,70 +102,143 @@ describe("MemoryTokenBuckets.takeUpTo", () => {
     });
 });
 
-describe("passage par Redis (script Lua)", () => {
-    function fakeClient(reply: unknown) {
-        const commands: Record<string, ReturnType<typeof vi.fn>> = {};
-        const client = {
-            defineCommand: vi.fn((name: string) => {
-                commands[name] = vi.fn().mockResolvedValue(reply);
-                (client as Record<string, unknown>)[name] = commands[name];
-            }),
-        };
-        return { client: client as unknown as Redis, commands, defineCommand: client.defineCommand };
-    }
+/** Modèle exact de `edupilot_sync_token_buckets` : un seau commun, compteur d'appels. */
+function sharedStore(now: () => number) {
+    const buckets = new Map<string, { tokens: number; at: number }>();
+    const store = {
+        calls: 0,
+        debit: async (spec: BucketSpec, pending: number) => {
+            store.calls += 1;
+            const t = now();
+            const state = buckets.get(spec.key) ?? { tokens: spec.capacity, at: t };
+            const level = Math.min(spec.capacity, state.tokens + Math.max(0, t - state.at) * spec.refillPerMs) - pending;
+            buckets.set(spec.key, { tokens: level, at: t });
+            return { level };
+        },
+        level: (key: string) => buckets.get(key)?.tokens,
+    };
+    return store;
+}
 
-    it("envoie clés, coût et (capacité, débit) par seau ; lit refus, restants et attente", async () => {
-        const { client, commands } = fakeClient([2, 0, 600]);
-        const specs = [perMinute("tb:user:a", 100), perMinute("tb:ip:1.2.3.4", 1000)];
+describe("SharedTokenBuckets (magasin PostgreSQL)", () => {
+    // 6 000 / min : lot de synchronisation = 5 % = 300 jetons, remplissage négligeable à l'échelle du test
+    const big = (key = "tb:user:a") => perMinute(key, 6_000);
 
-        const result = await consumeRedis(client, specs);
+    it("accorde localement : bien moins d'un aller-retour par requête (Redis : un par requête)", async () => {
+        const time = clock();
+        const store = sharedStore(time.now);
+        const buckets = new SharedTokenBuckets(store.debit, time.now);
 
-        expect(commands.edupilotConsumeTokens).toHaveBeenCalledWith(
-            2,
-            "tb:user:a",
-            "tb:ip:1.2.3.4",
-            1,
-            100,
-            100 / 60_000,
-            1000,
-            1000 / 60_000,
-        );
-        expect(result).toEqual({ allowed: false, remaining: 0, retryAfterMs: 600, deniedIndex: 1 });
+        for (let i = 0; i < 1_000; i++) {
+            expect((await buckets.consume([big()])).allowed).toBe(true);
+            time.advance(1);
+        }
+        // 1 000 requêtes en 1 s : synchronisation tous les 300 jetons accordés
+        expect(store.calls).toBeLessThanOrEqual(5);
     });
 
-    it("réponse « autorisé » : deniedIndex -1", async () => {
-        const { client } = fakeClient([0, 41, 0]);
-        expect(await consumeRedis(client, [perMinute("tb:ip:x", 100)])).toEqual({
-            allowed: true,
-            remaining: 41,
-            retryAfterMs: 0,
-            deniedIndex: -1,
-        });
+    it("un seul processus : plafond exact (rafale = capacité, puis refus)", async () => {
+        const time = clock();
+        const store = sharedStore(time.now);
+        const buckets = new SharedTokenBuckets(store.debit, time.now);
+        const spec = perMinute("tb:ip:1.2.3.4", 100);
+
+        const outcomes = [];
+        for (let i = 0; i < 150; i++) outcomes.push((await buckets.consume([spec])).allowed);
+        expect(outcomes.filter(Boolean)).toHaveLength(100);
+        expect(outcomes.slice(0, 100).every(Boolean)).toBe(true);
     });
 
-    it("déclare les scripts une seule fois par client (ensuite EVALSHA)", async () => {
-        const { client, defineCommand } = fakeClient([0, 1, 0]);
-        await consumeRedis(client, [perMinute("tb:ip:x", 10)]);
-        await consumeRedis(client, [perMinute("tb:ip:x", 10)]);
-        expect(defineCommand).toHaveBeenCalledTimes(2); // consume + take, une fois
-        expect(defineCommand).toHaveBeenCalledWith("edupilotConsumeTokens", { lua: CONSUME_LUA });
-        expect(defineCommand).toHaveBeenCalledWith("edupilotTakeTokens", { numberOfKeys: 1, lua: TAKE_UP_TO_LUA });
+    it("refus sur un niveau récent : aucun aller-retour (rafale contre un seau vide)", async () => {
+        const time = clock();
+        const store = sharedStore(time.now);
+        const buckets = new SharedTokenBuckets(store.debit, time.now);
+        const spec = perMinute("tb:ip:robot", 20);
+        for (let i = 0; i < 20; i++) await buckets.consume([spec]);
+        await buckets.consume([spec]); // vide : synchronise et refuse
+        const callsWhenEmpty = store.calls;
+
+        for (let i = 0; i < 500; i++) expect((await buckets.consume([spec])).allowed).toBe(false);
+        expect(store.calls).toBe(callsWhenEmpty);
     });
 
-    it("takeRedis lit le nombre accordé et l'attente", async () => {
-        const { client, commands } = fakeClient([5, 0]);
-        expect(await takeRedis(client, perMinute("jobs:worker", 600), 20)).toEqual({ granted: 5, retryAfterMs: 0 });
-        expect(commands.edupilotTakeTokens).toHaveBeenCalledWith("jobs:worker", 600, 600 / 60_000, 20);
+    it("donne le délai avant le prochain jeton quand le seau est vide", async () => {
+        const time = clock();
+        const store = sharedStore(time.now);
+        const buckets = new SharedTokenBuckets(store.debit, time.now);
+        const spec = perMinute("tb:user:b", 100);
+        for (let i = 0; i < 100; i++) await buckets.consume([spec]);
+        const denied = await buckets.consume([spec]);
+        expect(denied.allowed).toBe(false);
+        expect(denied.retryAfterMs).toBeGreaterThan(0);
+        expect(denied.retryAfterMs).toBeLessThanOrEqual(600);
     });
 
-    it("le script prend l'horloge du serveur Redis, commune à tous les pods", () => {
-        expect(CONSUME_LUA).toContain("redis.call('TIME')");
-        expect(TAKE_UP_TO_LUA).toContain("redis.call('TIME')");
-        expect(CONSUME_LUA).toContain("PEXPIRE");
+    it("plusieurs processus : plafond global respecté, écart borné à un lot par processus", async () => {
+        const time = clock();
+        const store = sharedStore(time.now);
+        const processes = [0, 1, 2, 3].map(() => new SharedTokenBuckets(store.debit, time.now));
+        const spec = perMinute("tb:user:multi", 1_000); // lot = 50
+
+        let granted = 0;
+        for (let round = 0; round < 1_500; round++) {
+            const process = processes[round % processes.length];
+            if ((await process.consume([spec])).allowed) granted += 1;
+        }
+        expect(granted).toBeGreaterThanOrEqual(1_000);
+        expect(granted).toBeLessThanOrEqual(1_000 + processes.length * 50);
+    });
+
+    it("la consommation accordée localement finit inscrite dans le seau commun", async () => {
+        const time = clock();
+        const store = sharedStore(time.now);
+        const buckets = new SharedTokenBuckets(store.debit, time.now);
+        const spec = perMinute("tb:user:flush", 6_000);
+        for (let i = 0; i < 10; i++) await buckets.consume([spec]);
+        time.advance(SYNC_INTERVAL_MS);
+        await buckets.consume([spec]); // niveau trop ancien : synchronise et inscrit les 10
+        expect(store.level("tb:user:flush")).toBeLessThanOrEqual(6_000 - 10 + 1);
+    });
+
+    it("compte et IP : si l'un est vide, aucun n'est débité", async () => {
+        const time = clock();
+        const store = sharedStore(time.now);
+        const buckets = new SharedTokenBuckets(store.debit, time.now);
+        const user = perMinute("tb:user:c", 100);
+        const ip = perMinute("tb:ip:5.6.7.8", 2);
+        await buckets.consume([user, ip]);
+        await buckets.consume([user, ip]);
+        const denied = await buckets.consume([user, ip]);
+        expect(denied).toMatchObject({ allowed: false, deniedIndex: 1 });
+        // Le seau du compte n'a perdu que les 2 jetons accordés
+        const afterwards = await buckets.consume([user]);
+        expect(afterwards.remaining).toBe(100 - 3);
+    });
+
+    it("les appels simultanés sur un seau partagent une seule synchronisation", async () => {
+        const time = clock();
+        const store = sharedStore(time.now);
+        const buckets = new SharedTokenBuckets(store.debit, time.now);
+        const spec = big("tb:user:concurrent");
+        const results = await Promise.all(Array.from({ length: 50 }, () => buckets.consume([spec])));
+        expect(results.every((r) => r.allowed)).toBe(true);
+        expect(store.calls).toBe(1);
+    });
+
+    it("takeUpTo : accorde le disponible et l'inscrit aussitôt", async () => {
+        const time = clock();
+        const store = sharedStore(time.now);
+        const buckets = new SharedTokenBuckets(store.debit, time.now);
+        const spec = perMinute("jobs:worker", 10);
+        expect((await buckets.takeUpTo(spec, 25)).granted).toBe(10);
+        expect(store.level("jobs:worker")).toBeLessThanOrEqual(0.01);
+        const none = await buckets.takeUpTo(spec, 5);
+        expect(none.granted).toBe(0);
+        expect(none.retryAfterMs).toBeGreaterThan(0);
     });
 });
 
-describe("consumeTokens sans REDIS_URL", () => {
+describe("consumeTokens en tests unitaires (magasin partagé inactif)", () => {
     it("retombe sur la mémoire du processus", async () => {
         const key = `tb:test:${Math.random()}`;
         expect((await consumeTokens([perMinute(key, 1)])).allowed).toBe(true);

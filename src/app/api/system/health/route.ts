@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
-import { getRedisClient } from "@/lib/cache/redis";
+import { storeCircuit } from "@/lib/shared-state/pg";
 import { getJobQueueStats } from "@/lib/jobs/queue";
 
 export const dynamic = "force-dynamic";
@@ -23,16 +23,9 @@ export const GET = createApiHandler(async (_request, context) => {
     await prisma.$queryRaw`SELECT 1`;
     const dbResponseTime = Date.now() - dbHealthStart;
 
-    const redis = getRedisClient();
-    let cacheStatus: "healthy" | "warning" | "disabled" = "disabled";
-    if (redis) {
-      try {
-        await redis.ping();
-        cacheStatus = "healthy";
-      } catch {
-        cacheStatus = "warning";
-      }
-    }
+    // État partagé (limites, coupe-circuits) dans PostgreSQL : « warning »
+    // tant que son coupe-circuit est ouvert (repli mémoire local).
+    const cacheStatus: "healthy" | "warning" = storeCircuit.isOpen() ? "warning" : "healthy";
 
     // Count active users (all active users since lastLoginAt field doesn't exist in schema)
     const activeUsers = await prisma.user.count({

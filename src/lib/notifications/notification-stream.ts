@@ -34,7 +34,7 @@ export interface NotificationStreamOptions<N extends StreamNotification> {
     verify: () => Promise<boolean>;
     /** Notifications créées après `since` (mode relève en base). */
     fetchSince?: (since: Date) => Promise<N[]>;
-    /** Abonnement poussé (Redis) ; renvoie la fonction de désabonnement. */
+    /** Abonnement poussé (source externe) ; renvoie la fonction de désabonnement. */
     subscribe?: (onMessage: (data: unknown) => void) => () => void;
     checkIntervalMs?: number;
     keepaliveIntervalMs?: number;

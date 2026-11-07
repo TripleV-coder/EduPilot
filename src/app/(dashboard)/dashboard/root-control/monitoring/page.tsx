@@ -99,12 +99,12 @@ function RootMonitoringContent() {
                                                 Synchronisé
                                             </Badge>
                                         ) : (
-                                            <Badge variant="destructive">Déconnecté</Badge>
+                                            <Badge variant="destructive">Repli local</Badge>
                                         )}
                                     </div>
-                                    <h3 className="font-semibold text-lg">Redis cache</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">Hit rate: {data.cache.hitRate}%</p>
-                                    {data.cache.memory && <p className="text-xs text-muted-foreground mt-0.5">Mem: {data.cache.memory}</p>}
+                                    <h3 className="font-semibold text-lg">Cache et état partagé</h3>
+                                    <p className="text-sm text-muted-foreground mt-1">Réponses servies par le cache : {data.cache.hitRate} %</p>
+                                    {data.cache.memory && <p className="text-xs text-muted-foreground mt-0.5">Mémoire : {data.cache.memory}</p>}
                                 </CardContent>
                             </Card>
 

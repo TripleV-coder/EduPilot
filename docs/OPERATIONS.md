@@ -9,8 +9,8 @@ Manuel d'exploitation : déploiement, monitoring, sauvegardes, mise à l'échell
 | Environnement | URL | DB | Cache | Sentry | Branches |
 |---------------|-----|----|----|--------|----------|
 | Local dev | `http://localhost:3000` | Postgres local Docker | in-memory | désactivé | toute branche |
-| Staging | `https://staging.edupilot.app` | Postgres dédié | Upstash Redis (free tier) | env `staging` | `main` (auto-deploy) |
-| Production | `https://app.edupilot.bj` | Postgres + replicas | Upstash Redis (pay-as-you-go) | env `production` | tags `v*.*.*` (manual approval) |
+| Staging | `https://staging.edupilot.app` | Postgres dédié | — (état partagé dans Postgres) | env `staging` | `main` (auto-deploy) |
+| Production | `https://app.edupilot.bj` | Postgres + replicas | — (état partagé dans Postgres) | env `production` | tags `v*.*.*` (manual approval) |
 
 ---
 
@@ -24,8 +24,6 @@ Voir `.env.example` pour la liste complète. Les **critiques** :
 | `NEXTAUTH_URL` | URL | URL publique de l'app |
 | `NEXTAUTH_SECRET` | secret | Min 32 caractères — `openssl rand -base64 48` |
 | `TOTP_ENCRYPTION_KEY` | secret hex | 64 caractères hex — `openssl rand -hex 32` |
-| `UPSTASH_REDIS_REST_URL` | URL | Cache + rate-limiter distribués |
-| `UPSTASH_REDIS_REST_TOKEN` | secret | Auth Upstash |
 | `SENTRY_DSN` | URL | DSN frontend + backend |
 | `SENTRY_AUTH_TOKEN` | secret | Pour upload des sourcemaps en CI |
 | `EMAIL_API_KEY` | secret | Emails transactionnels |
@@ -129,7 +127,6 @@ curl https://app.edupilot.bj/api/health
 ### 5.1 Capacité actuelle (estimation V1)
 - **Frontend** : 1 instance Vercel suffisante jusqu'à ~5 000 utilisateurs concurrents
 - **DB** : Postgres 16, t3.medium (2 vCPU, 4 Go RAM) jusqu'à ~50 écoles / 10 000 élèves
-- **Cache** : Upstash free tier (10 000 commandes/jour) suffisant en dev/staging
 
 ### 5.2 Goulots connus
 | Endpoint | Symptôme | Mitigation |
@@ -141,7 +138,6 @@ curl https://app.edupilot.bj/api/health
 ### 5.3 Scaling horizontal
 - Frontend : Vercel auto-scale ; pour self-hosted, ajouter PM2 cluster mode ou K8s replicas
 - DB : ajouter une replica read-only et router les requêtes lecture via `prisma.$replica`
-- Cache : Upstash s'auto-scale
 
 ---
 
@@ -199,7 +195,7 @@ psql $DATABASE_URL -c "SELECT COUNT(*) FROM \"Grade\";"
 
 ---
 
-## 8. Cache (Upstash Redis)
+## 8. Cache (mémoire du processus)
 
 ### 8.1 Stratégies
 | Donnée | TTL | Pattern d'invalidation |
@@ -208,18 +204,12 @@ psql $DATABASE_URL -c "SELECT COUNT(*) FROM \"Grade\";"
 | Dashboards | 120 s (MEDIUM) | Cron `analytics-sync` toutes les 5 min |
 | Données de référence (matières, niveaux) | 300 s (LONG) | Manuel via admin panel |
 | Sessions NextAuth | 30 j | Auto via NextAuth |
-| Rate-limit counters | window-based | Auto via Upstash |
+| Compteurs de limites | fenêtre / seau | PostgreSQL (tables UNLOGGED, nettoyage automatique) |
 
 ### 8.2 Commandes utiles
 ```bash
-# Voir le hit ratio
-curl -X POST "$UPSTASH_REDIS_REST_URL" \
-  -H "Authorization: Bearer $UPSTASH_REDIS_REST_TOKEN" \
-  -d '["info","stats"]'
-
-# Vider tout le cache API (à utiliser avec précaution)
-curl -X POST "$UPSTASH_REDIS_REST_URL/eval" \
-  -d 'redis.call("DEL", unpack(redis.call("KEYS", "api:*")))'
+# Taux de succès mesuré : écran Pilotage root → Monitoring (« Cache et état partagé »)
+# Vider le cache d'une instance : Pilotage root → Maintenance → « Vider le cache des réponses »
 ```
 
 ---
@@ -245,7 +235,6 @@ Stockage : Vault (V2) ou GitHub Actions Secrets (V1). **Pas** d'AWS Secrets Mana
 |---------|------|------|
 | Vercel (hosting) | Pro | ~20 USD |
 | Postgres managé (Neon / Supabase) | Pro 2 vCPU | ~25 USD |
-| Upstash Redis | Pay-as-you-go | ~5 USD |
 | Sentry | Team | ~26 USD |
 | Resend (email) | 50K/mois | 20 USD |
 | Domaine + SSL | annuel | ~15 USD |
@@ -253,7 +242,7 @@ Stockage : Vault (V2) ou GitHub Actions Secrets (V1). **Pas** d'AWS Secrets Mana
 
 À ~500 écoles actives, ces coûts triplent environ. Le scaling applicatif est désormais suivi via
 [`docs/adr/0008-multi-tenancy.md`](./adr/0008-multi-tenancy.md) pour l'isolation tenant
-et [`docs/adr/0007-cache-upstash.md`](./adr/0007-cache-upstash.md) pour la stratégie cache/rate limiting.
+et [`docs/adr/0013-etat-partage-postgresql.md`](./adr/0013-etat-partage-postgresql.md) pour la stratégie cache/rate limiting.
 
 ---
 

@@ -72,8 +72,9 @@ export const GET = createApiHandler(
 );
 
 /**
- * POST /api/admin/system/clear-cache
- * Clear system cache
+ * POST /api/admin/system/info  { action: "clear-cache" }
+ * Vide le cache de réponses de l'instance qui traite la requête (mémoire du
+ * processus). Les autres instances expirent leur copie à la durée de vie.
  */
 export const POST = createApiHandler(
   async (request, context) => {
@@ -82,7 +83,9 @@ export const POST = createApiHandler(
       const { action } = await request.json();
 
       if (action === "clear-cache") {
-        // In a real implementation, this would clear Redis/cache
+        const { getCacheService, getCacheStats } = await import("@/lib/cache/service");
+        const cleared = getCacheStats().entries;
+        await getCacheService().clear();
         await prisma.auditLog.create({
           data: {
             userId: session.user.id,
@@ -94,7 +97,8 @@ export const POST = createApiHandler(
 
         return NextResponse.json({
           success: true,
-          message: "Cache effacé avec succès",
+          cleared,
+          message: `Cache vidé : ${cleared} réponse(s) retirée(s) sur cette instance.`,
         });
       }
 

@@ -416,7 +416,7 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
         try {
             // ── RATE LIMITING ──
             // Le middleware (`proxy.ts`) applique déjà un rate-limit Edge sur `/api/*`
-            // et pose `x-edupilot-edge-rl=1`. On saute alors le second round-trip Redis
+            // et pose `x-edupilot-edge-rl=1`. On saute alors le second comptage (aller-retour inutile)
             // (latence x2). Les tests unitaires (Request sans middleware) gardent le
             // chemin local. Forcer via `rateLimit: true` + absence du header.
             const edgeAlreadyLimited =

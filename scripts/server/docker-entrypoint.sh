@@ -8,7 +8,7 @@
 #    ne génère rien et ne supprime rien.
 # 2. Lance le serveur standalone via cluster.cjs, qui charge les deux
 #    préchargements (adresse client fiable H3, arrêt propre Lot 7) et démarre
-#    WEB_CONCURRENCY processus (1 par défaut ; REDIS_URL obligatoire au-delà).
+#    WEB_CONCURRENCY processus (1 par défaut ; limites partagées par PostgreSQL).
 #
 # `exec` est indispensable : le serveur devient PID 1 et reçoit lui-même le
 # SIGTERM de `docker stop`. Sans lui, le shell l'intercepterait et les requêtes

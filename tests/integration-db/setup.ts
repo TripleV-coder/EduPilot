@@ -11,8 +11,6 @@ process.env.CRON_SECRET ??= "integration-cron-secret-0123456789abcdef";
 process.env.PAYMENT_SECRETS_KEY ??= "5e".repeat(32);
 // Indépendance vis-à-vis du .env du poste : un Upstash factice ou injoignable
 // ajouterait ~4 s par requête (H6). Le repli mémoire est le comportement testé.
-process.env.UPSTASH_REDIS_REST_URL = "";
-process.env.UPSTASH_REDIS_REST_TOKEN = "";
 
 /**
  * Seule la session est simulée : NextAuth dépend du runtime Next et du cookie

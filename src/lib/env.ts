@@ -108,7 +108,7 @@ const ENV_VARS: EnvVar[] = [
  */
 export function validateEnv(): void {
     // E2E / CI smoke runs build with NODE_ENV=production but never hit the
-    // real email / Redis paths under audit, so let SKIP_ENV_VALIDATION=true
+    // real email paths under audit, so let SKIP_ENV_VALIDATION=true
     // bypass prod-required vars at runtime — same escape hatch already used
     // at build time. Should never be set in real production.
     if (process.env.SKIP_ENV_VALIDATION === "true") return;

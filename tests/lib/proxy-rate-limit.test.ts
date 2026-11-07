@@ -21,6 +21,13 @@ vi.mock("@/lib/auth/edge", () => ({
     edgeAuth: vi.fn().mockResolvedValue(null),
 }));
 
+// Le proxy lit le mode maintenance en base (cache 15 s) : base simulée, maintenance inactive.
+vi.mock("@/lib/prisma", () => ({ default: {}, prisma: {}, prismaBase: {} }));
+vi.mock("@/lib/system/maintenance", () => ({
+    getMaintenanceState: vi.fn().mockResolvedValue({ enabled: false, message: "" }),
+    maintenanceBlocksRole: (role: string | null | undefined) => role !== "SUPER_ADMIN",
+}));
+
 vi.mock("@/lib/rate-limit", () => ({
     authLimiter: { name: "auth" },
     strictLimiter: { name: "strict" },

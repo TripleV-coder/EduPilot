@@ -47,7 +47,7 @@ node e2e/recette/sms-catcher.mjs 8027 &
 npm run build
 DATABASE_URL="postgresql://edupilot_app:recette-app-role@127.0.0.1:5434/edupilot_recette?schema=public" \
   AUTH_TRUST_HOST=true NEXTAUTH_URL=http://localhost:3100 ROOT_USER_EMAILS= SKIP_ENV_VALIDATION=true \
-  UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= RATE_LIMIT_RELAXED=true \
+  RATE_LIMIT_RELAXED=true \
   EMAIL_PROVIDER=smtp SMTP_HOST=127.0.0.1 SMTP_PORT=1026 SMTP_SECURE=false SMTP_USER=recette SMTP_PASS=recette \
   EMAIL_FROM="EduPilot <no-reply@recette.edupilot.test>" SMS_WEBHOOK_URL=http://127.0.0.1:8027/sms \
   INITIAL_SETUP_TOKEN=recette-jeton-installation-2026 \

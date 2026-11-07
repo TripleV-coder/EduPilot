@@ -31,14 +31,9 @@ services:
       MIGRATE_DATABASE_URL: "${MIGRATE_DATABASE_URL:-postgresql://${POSTGRES_USER:-edupilot}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-edupilot}?schema=public}"
       NODE_ENV: production
       # Processus serveur (1, N ou « max ») : un processus Node n'utilise qu'un
-      # cœur. Au-delà de 1, REDIS_URL est obligatoire (limites partagées), ex. :
-      #   REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      # cœur. Limites de débit et fichiers envoyés vivent dans PostgreSQL :
+      # aucun autre service ni volume n'est nécessaire.
       WEB_CONCURRENCY: "${WEB_CONCURRENCY:-1}"
-      REDIS_URL: "${REDIS_URL:-}"
-    volumes:
-      # Fichiers téléversés (justificatifs, avatars, documents) : sans volume,
-      # ils disparaissaient à chaque recréation du conteneur.
-      - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,32 +73,8 @@ services:
       retries: 5
       start_period: 10s
 
-  # -----------------------------------------------
-  # Redis — Rate limiting multi-instance (optionnel)
-  # -----------------------------------------------
-  redis:
-    image: redis:7-alpine
-    container_name: edupilot-redis
-    restart: unless-stopped
-    ports:
-      # Boucle locale seulement.
-      - "127.0.0.1:6379:6379"
-    # En production, REDIS_PASSWORD doit être fourni par l'environnement sans valeur par défaut faible.
-    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
-    volumes:
-      - redis_data:/data
-    networks:
-      - edupilot-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
 volumes:
-  uploads_data:
   postgres_data:
-  redis_data:
 
 networks:
   edupilot-network:

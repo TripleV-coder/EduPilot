@@ -6,7 +6,7 @@ import { rateLimitSettings } from "@/lib/resilience/config";
 import { retryAfterSeconds } from "@/lib/resilience/errors";
 import { recordApiRequest, recordRejection } from "@/lib/resilience/metrics";
 import { consumeTokens, perMinute } from "@/lib/resilience/token-bucket";
-import { readEdgeMaintenanceState, edgeMaintenanceBlocksRole } from "@/lib/system/maintenance-edge";
+import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
 import { getClientIp } from "@/lib/security/client-ip";
 
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -176,7 +176,7 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-/** Marqueur interne : le rate-limit Edge a déjà été appliqué (évite le double hit Redis dans createApiHandler). */
+/** Marqueur interne : le proxy a déjà appliqué les limites (createApiHandler ne les recompte pas). */
 const EDGE_RL_HEADER = "x-edupilot-edge-rl";
 
 function apiPassthrough(request: NextRequest, remaining?: number): NextResponse {
@@ -214,7 +214,7 @@ export default async function proxy(request: NextRequest) {
     if (!isPublic) apiSession = await auth();
     const userId = apiSession?.user?.id;
 
-    // 1) Débit général, seaux à jetons partagés par Redis. Compte connecté :
+    // 1) Débit général, seaux à jetons partagés (PostgreSQL). Compte connecté :
     //    son propre seau (RATE_LIMIT_USER_PER_MIN) seulement — une IP
     //    d'établissement ou le NAT d'un opérateur mobile porte des centaines de
     //    personnes, qu'un seau par IP refuserait ensemble (analyse de capacité
@@ -333,11 +333,12 @@ export default async function proxy(request: NextRequest) {
   }
 
   // ── MODE MAINTENANCE ──
-  // Filet Edge pour les rares routes hors `createApiHandler` + pages.
-  // Miroir Redis (Edge-safe) ; état inconnu ⇒ on laisse passer (mesure d'exploitation).
-  if (edgeMaintenanceBlocksRole(session.user.role)) {
-    const maintenance = await readEdgeMaintenanceState();
-    if (maintenance?.enabled) {
+  // Filet pour les rares routes hors `createApiHandler` + pages. Le proxy
+  // tourne sur Node (Next 16) : il lit la base, avec le cache de 15 s du
+  // module ; base en erreur ⇒ on laisse passer (mesure d'exploitation).
+  if (maintenanceBlocksRole(session.user.role)) {
+    const maintenance = await getMaintenanceState();
+    if (maintenance.enabled) {
       if (isApi) {
         return NextResponse.json(
           { error: maintenance.message, code: "MAINTENANCE" },

@@ -28,10 +28,6 @@ EMAIL_PROVIDER="resend"  # ou "sendgrid"
 EMAIL_API_KEY="re_prod_xxxxxxxxxxxxxxxx"
 EMAIL_FROM="noreply@votredomaine.com"
 
-# Redis Cache & Rate Limiting (OBLIGATOIRE pour production multi-instance)
-UPSTASH_REDIS_REST_URL="https://xxx-xxx.upstash.io"
-UPSTASH_REDIS_REST_TOKEN="AYxxxx..."
-
 # Backup API : désactivée par défaut
 ALLOW_BACKUP_API="false"
 ALLOW_BACKUP_API_IN_PRODUCTION="false"
@@ -154,9 +150,9 @@ const dbUrl = "postgresql://user:pass@..."
 
 #### B. Rate Limiting
 ```bash
-# Vérifier que Redis Upstash est configuré
-# Le fallback in-memory n'est acceptable qu'en dev/test
-echo $UPSTASH_REDIS_REST_URL
+# Limites partagées dans PostgreSQL (aucun Redis, ADR-0013) :
+# "sharedState": "connected" attendu
+curl -s https://votredomaine.com/api/health
 ```
 
 #### C. Headers de Sécurité
@@ -193,7 +189,6 @@ const logger = pino({
 #### B. Services de Monitoring Recommandés
 - **Sentry** : Error tracking (déjà intégré ?)
 - **Vercel Analytics** : Si déployé sur Vercel
-- **Upstash Redis Insights** : Monitoring cache/rate limiting
 - **PostgreSQL logs** : Activer slow query log
 
 #### C. Health Check Endpoint
@@ -221,8 +216,8 @@ module.exports = {
 
 #### B. Cache Strategy
 ```typescript
-// Vérifier que le cache Redis est actif
-// Dans /app/src/lib/cache/redis.ts
+// Cache mémoire borné du processus : src/lib/cache/service.ts
+// (taux de succès mesuré dans Pilotage root → Monitoring)
 - Cache finance/stats : 5 minutes
 - Cache utilisateurs : 1 minute
 - Cache écoles : 15 minutes
@@ -312,7 +307,6 @@ curl https://edupilot.com/api/health
 
 ### Infrastructure
 - [ ] PostgreSQL production configuré et accessible
-- [ ] Redis Upstash configuré (ou alternative)
 - [ ] DNS configuré (edupilot.votredomaine.com)
 - [ ] SSL/TLS certificat installé (Let's Encrypt/Cloudflare)
 - [ ] Firewall configuré (port 443 ouvert, 22 restreint)
@@ -324,7 +318,6 @@ curl https://edupilot.com/api/health
 - [ ] `NEXTAUTH_SECRET` généré et unique (pas celui de dev)
 - [ ] `DATABASE_URL` pointe vers DB production
 - [ ] Email provider configuré et testé
-- [ ] Rate limiting Redis configuré
 
 ### Code
 - [ ] `npm run build` réussit sans erreur
@@ -426,8 +419,7 @@ systemctl status nginx  # si utilisé
 # Test connectivité DB
 psql $DATABASE_URL -c "SELECT COUNT(*) FROM users;"
 
-# Clear cache Redis (si nécessaire)
-redis-cli -u $UPSTASH_REDIS_REST_URL FLUSHALL
+# Vider le cache : Pilotage root → Maintenance → « Vider le cache des réponses »
 ```
 
 ---

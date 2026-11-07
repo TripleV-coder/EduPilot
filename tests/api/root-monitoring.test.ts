@@ -60,7 +60,8 @@ describe("GET /api/root/monitoring", () => {
     expect(body.database.connectionPool.status).toBe("active");
     expect(["excellent", "good", "warning", "critical"]).toContain(body.database.health.status);
 
-    expect(body.cache).toEqual({ connected: false, hitRate: 0, memory: null });
+    expect(body.cache).toMatchObject({ connected: true, hitRate: expect.any(Number) });
+    expect(body.cache.memory).toMatch(/entrée\(s\)/);
 
     expect(body.system).toEqual({
       maintenanceMode: false,
@@ -73,7 +74,6 @@ describe("GET /api/root/monitoring", () => {
     expect(body.errors.recent).toEqual([]);
     expect(body.errors.byType).toEqual([{ type: "LOGIN_ERROR", count: 3 }]);
 
-    expect(body.alerts.map((a: { message: string }) => a.message)).toContain("Cache Redis non connecté");
     expect(body.alerts.map((a: { message: string }) => a.message)).toContain("2 requête(s) de données en attente");
   });
 

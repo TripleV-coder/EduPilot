@@ -30,13 +30,8 @@ export async function register() {
       log.info("Connexions PostgreSQL fermées", { module: "server/shutdown" });
     });
     registerShutdownTask(async () => {
-      const { closeRedis } = await import("./src/lib/cache/redis");
-      await closeRedis();
-      log.info("Client Redis fermé", { module: "server/shutdown" });
-    });
-    registerShutdownTask(async () => {
-      const { closeTcpRedis } = await import("./src/lib/redis/tcp");
-      await closeTcpRedis();
+      const { closeCache } = await import("./src/lib/cache/service");
+      await closeCache();
     });
 
     // RLS effective (audit M2) : refus d'un rôle PostgreSQL qui l'ignorerait.

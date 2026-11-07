@@ -3598,8 +3598,11 @@ model StoredFile {
   @@map("stored_files")
 }
 
-/// Compteurs de limite de débit partagés entre instances (hébergement sans
-/// serveur, sans Redis) : fenêtre fixe, une ligne par clé.
+/// État partagé entre instances, sans Redis (hébergement sans serveur) :
+/// fenêtres fixes des limites de débit et clés à durée de vie des
+/// coupe-circuits. Table UNLOGGED (migration 20261107100000) : rien n'est écrit
+/// dans le journal de PostgreSQL, ce sont des compteurs jetables.
+/// Accès en SQL uniquement : `src/lib/shared-state/pg.ts`.
 model RateLimitCounter {
   key     String   @id
   count   Int
@@ -3607,4 +3610,16 @@ model RateLimitCounter {
 
   @@index([resetAt])
   @@map("rate_limit_counters")
+}
+
+/// Seaux à jetons du débit général (proxy), partagés entre instances.
+/// UNLOGGED comme `rate_limit_counters` ; synchronisation par lot, atomique,
+/// par la fonction SQL `edupilot_sync_token_buckets` (migration 20261107100000).
+model TokenBucket {
+  key       String   @id
+  tokens    Float
+  updatedAt DateTime
+
+  @@index([updatedAt])
+  @@map("token_buckets")
 }

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { NextResponse } from "next/server";
 
 const store = new Map<string, unknown>();
-vi.mock("@/lib/cache/redis", () => ({
+vi.mock("@/lib/cache/service", () => ({
   getCacheService: () => ({
     get: async (key: string) => store.get(key) ?? null,
     set: async (key: string, value: unknown) => { store.set(key, value); },

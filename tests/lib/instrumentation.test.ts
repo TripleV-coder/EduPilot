@@ -16,8 +16,7 @@ const mocks = vi.hoisted(() => ({
   warmCache: vi.fn().mockResolvedValue(undefined),
   initSentryServer: vi.fn(),
   disconnect: vi.fn().mockResolvedValue(undefined),
-  closeRedis: vi.fn().mockResolvedValue(undefined),
-  closeTcpRedis: vi.fn().mockResolvedValue(undefined),
+  closeCache: vi.fn().mockResolvedValue(undefined),
   assertRls: vi.fn().mockResolvedValue(undefined),
   warn: vi.fn(),
   info: vi.fn(),
@@ -28,8 +27,7 @@ vi.mock("../../src/lib/system/shutdown", () => ({ registerShutdownTask: mocks.re
 vi.mock("../../src/lib/cache/warm", () => ({ warmCache: mocks.warmCache }));
 vi.mock("../../src/lib/monitoring/sentry", () => ({ initSentryServer: mocks.initSentryServer, initSentryEdge: vi.fn() }));
 vi.mock("../../src/lib/prisma", () => ({ prisma: { $disconnect: mocks.disconnect }, default: { $disconnect: mocks.disconnect } }));
-vi.mock("../../src/lib/cache/redis", () => ({ closeRedis: mocks.closeRedis }));
-vi.mock("../../src/lib/redis/tcp", () => ({ closeTcpRedis: mocks.closeTcpRedis }));
+vi.mock("../../src/lib/cache/service", () => ({ closeCache: mocks.closeCache }));
 vi.mock("../../src/lib/db/rls-guard", () => ({ assertRlsEnforcedAtStartup: mocks.assertRls }));
 vi.mock("../../src/lib/utils/logger", () => ({
   logger: { warn: mocks.warn, info: mocks.info, error: vi.fn(), debug: vi.fn() },
@@ -46,13 +44,13 @@ afterEach(() => {
 });
 
 describe("démarrage du serveur", () => {
-  it("enregistre les fermetures de Prisma et de Redis", async () => {
+  it("enregistre les fermetures de la file, de Prisma et du cache", async () => {
     const { register } = await import("../../instrumentation");
 
     await register();
 
     expect(mocks.validateEnv).toHaveBeenCalled();
-    expect(mocks.registerShutdownTask).toHaveBeenCalledTimes(3);
+    expect(mocks.registerShutdownTask).toHaveBeenCalledTimes(2);
   });
 
   it("n'essaie même pas de charger Sentry sans DSN", async () => {
@@ -72,11 +70,11 @@ describe("démarrage du serveur", () => {
     const { register } = await import("../../instrumentation");
     await register();
 
-    expect(mocks.registerShutdownTask).toHaveBeenCalledTimes(3);
+    expect(mocks.registerShutdownTask).toHaveBeenCalledTimes(2);
     expect(mocks.warn).toHaveBeenCalled();
   });
 
-  it("ferme réellement Prisma et Redis quand les tâches sont exécutées", async () => {
+  it("ferme réellement Prisma et le cache quand les tâches sont exécutées", async () => {
     const { register } = await import("../../instrumentation");
     await register();
 
@@ -85,8 +83,7 @@ describe("démarrage du serveur", () => {
     }
 
     expect(mocks.disconnect).toHaveBeenCalled();
-    expect(mocks.closeRedis).toHaveBeenCalled();
-    expect(mocks.closeTcpRedis).toHaveBeenCalled();
+    expect(mocks.closeCache).toHaveBeenCalled();
   });
 
   it("ne fait rien hors du runtime Node", async () => {
