@@ -19,11 +19,16 @@ export function isVercel(env: Env = process.env): boolean {
 }
 
 /**
- * Adresse publique de l'application : NEXTAUTH_URL, puis NEXT_PUBLIC_APP_URL,
+ * Adresse publique de l'application : NEXT_PUBLIC_APP_URL, puis NEXTAUTH_URL,
  * puis le domaine de production fourni par Vercel ; null si rien n'est connu.
+ *
+ * NEXT_PUBLIC_APP_URL d'abord : c'est l'ordre historique des liens envoyés
+ * aux familles (retour de paiement, e-mails). NEXTAUTH_URL peut valoir une
+ * adresse interne derrière un proxy : un parent renvoyé vers « localhost »
+ * après son paiement (régression du 2026-11-07, corrigée le jour même).
  */
 export function publicBaseUrl(env: Env = process.env): string | null {
-    const explicit = env.NEXTAUTH_URL?.trim() || env.NEXT_PUBLIC_APP_URL?.trim();
+    const explicit = env.NEXT_PUBLIC_APP_URL?.trim() || env.NEXTAUTH_URL?.trim();
     if (explicit) return explicit.replace(/\/+$/, "");
     const vercelHost = env.VERCEL_PROJECT_PRODUCTION_URL?.trim() || env.VERCEL_URL?.trim();
     return vercelHost ? `https://${vercelHost}` : null;

@@ -170,7 +170,8 @@ export const POST = createApiHandler(
             });
 
             // Send welcome email with temporary password
-            const baseUrl = (publicBaseUrl() ?? "http://localhost:3000");
+            // NEXTAUTH_URL d'abord, comme avant le 2026-11-07
+            const baseUrl = process.env.NEXTAUTH_URL?.trim() || publicBaseUrl() || "http://localhost:3000";
             const loginUrl = `${baseUrl}/login`;
 
             await sendWelcomeEmail({

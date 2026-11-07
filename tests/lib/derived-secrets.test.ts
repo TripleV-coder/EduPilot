@@ -74,5 +74,7 @@ describe("e-mail et plateforme", () => {
         expect(isServerlessPlatform({})).toBe(false);
         expect(publicBaseUrl({ VERCEL: "1", VERCEL_PROJECT_PRODUCTION_URL: "ecole.vercel.app" })).toBe("https://ecole.vercel.app");
         expect(publicBaseUrl({ NEXTAUTH_URL: "https://app.ecole.bj/", VERCEL_URL: "x.vercel.app" })).toBe("https://app.ecole.bj");
+        // Liens envoyés aux familles : l'adresse publique passe avant NEXTAUTH_URL (adresse parfois interne)
+        expect(publicBaseUrl({ NEXTAUTH_URL: "http://localhost:3000", NEXT_PUBLIC_APP_URL: "https://ecole.bj" })).toBe("https://ecole.bj");
     });
 });
