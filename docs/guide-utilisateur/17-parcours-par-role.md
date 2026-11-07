@@ -46,7 +46,7 @@ Chaque compte travaille dans une **école active**. Tout ce qui s'affiche (class
 La barre en haut de l'écran (ou **Ctrl + K**, **⌘ K** sur Mac) ouvre une recherche : on tape le nom d'une page, d'un élève ou d'une action. Elle propose les entrées du menu, *Mon compte*, *Aide & support*, *Se déconnecter*, et des **actions rapides** selon le rôle (par exemple « Faire l'appel » pour un enseignant, « Payer les frais » pour un parent).
 
 ### L'assistant ✅
-Selon le rôle, un **assistant** aide à rédiger, à comprendre une situation ou à préparer une analyse. Les noms envoyés à l'assistant sont remplacés par des alias (chapitre 2).
+Selon le rôle, un **assistant** répond avec les chiffres de l'établissement, aide à rédiger une appréciation ou à préparer un plan d'action. Il calcule tout dans EduPilot, sans service extérieur (chapitre 2).
 
 ---
 

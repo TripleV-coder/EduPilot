@@ -25,12 +25,10 @@ vi.mock("@/lib/prisma", () => ({
     period: { findFirst: vi.fn() },
   },
 }));
-vi.mock("@/lib/env", () => ({ appEnv: { ai: { enabled: false, hasExternalKeys: false } } }));
 vi.mock("@/lib/analytics/service", () => ({ analyticsService: {} }));
 vi.mock("@/lib/services/analytics-sync", () => ({ persistStudentAnalyticsSnapshot: vi.fn() }));
 vi.mock("@/lib/services/ai-predictive", () => ({ generateStudentPredictions: vi.fn() }));
 vi.mock("@/lib/services/ai-predictive/predict-failure", () => ({ predictFailureRisk: vi.fn() }));
-vi.mock("@/lib/ai/external-client", () => ({ callExternalAI: vi.fn() }));
 vi.mock("@/lib/teachers/taught-classes", () => ({ teacherTeachesStudent: vi.fn() }));
 
 import prisma from "@/lib/prisma";

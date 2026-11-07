@@ -18,7 +18,7 @@ const globalForPrisma = globalThis as unknown as {
  * et des pages en erreur dès le passage à plusieurs processus. Une valeur
  * explicite dans l'URL (`connection_limit=`) reste prioritaire ; sinon
  * DATABASE_POOL_SIZE (défaut 10). Règle : WEB_CONCURRENCY × DATABASE_POOL_SIZE
- * × instances + autres clients (n8n, sauvegardes) < max_connections de
+ * × instances + autres clients (sauvegardes) < max_connections de
  * PostgreSQL — au-delà, PgBouncer (mode transaction) devant PostgreSQL.
  */
 export function withPoolLimit(url: string | undefined): string | undefined {

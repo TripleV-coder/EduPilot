@@ -72,7 +72,6 @@ Le fichier `docker-compose.yml` inclut :
 - Application Next.js
 - PostgreSQL 16
 - Redis (optionnel)
-- n8n (optionnel pour l'automatisation)
 
 ### 3. Démarrage
 

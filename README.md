@@ -64,7 +64,7 @@ L'expérience académique augmentée.
 * **Dashboard Premium :** Vue d'ensemble sur l'emploi du temps, les devoirs à venir, le classement et les performances.
 * **Learning Hub :** Accès aux cours en ligne, passage d'examens dématérialisés avec timer et auto-correction.
 * **Tickets Cantine & Emprunts :** Suivi des QR Codes de restauration et de la bibliothèque.
-* **IA Buddy :** Chatbot IA (Cloud LLMs Multi-providers / n8n) pour aider aux révisions et réexpliquer les concepts complexes en temps réel.
+* **Assistant IA 100 % local :** questions en français sur les données de l'établissement (élèves à risque, prévisions, orientation, appel, emploi du temps, devoirs, paiements), sans modèle externe ni clé à configurer.
 
 ### 5. 👨‍👩‍👧‍👦 Parents
 Implication totale sans friction.

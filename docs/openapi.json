@@ -3241,162 +3241,6 @@
         }
       }
     },
-    "/api/ai/analyze": {
-      "post": {
-        "summary": "POST /api/ai/analyze",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/ai/chatbot": {
-      "post": {
-        "summary": "POST /api/ai/chatbot",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/ai/local": {
-      "get": {
-        "summary": "GET /api/ai/local",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      },
-      "post": {
-        "summary": "POST /api/ai/local",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/ai/predict-failure": {
-      "post": {
-        "summary": "POST /api/ai/predict-failure",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
     "/api/ai/predictions/class": {
       "get": {
         "summary": "GET /api/ai/predictions/class",
@@ -3518,35 +3362,6 @@
       }
     },
     "/api/ai/v2/chat": {
-      "get": {
-        "summary": "GET /api/ai/v2/chat",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      },
       "post": {
         "summary": "POST /api/ai/v2/chat",
         "description": "Session requise.",
@@ -3567,6 +3382,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"

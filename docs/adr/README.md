@@ -20,8 +20,9 @@ Chaque décision architecturale majeure d'EduPilot est consignée ici. Format in
 | [0006](./0006-rest-vs-trpc.md) | REST + Server Actions (pas tRPC) | Accepté | 2025-02-15 |
 | [0007](./0007-cache-upstash.md) | Upstash Redis pour cache et rate-limit | Accepté | 2025-03-05 |
 | [0008](./0008-multi-tenancy.md) | Multi-tenant : row-level scoping app | Accepté | 2025-03-10 |
-| [0009](./0009-ai-gemini.md) | Gemini pour IA (bulletins, action plans) | Accepté | 2025-09-20 |
+| [0009](./0009-ai-gemini.md) | Gemini pour IA (bulletins, action plans) | Supersedé par ADR-0012 | 2025-09-20 |
 | [0010](./0010-mobile-money-providers.md) | Flutterwave + Paystack pour le mobile money | Accepté | 2025-04-01 |
+| [0012](./0012-ia-locale.md) | IA 100 % locale, aucun modèle de langage externe | Accepté | 2026-11-07 |
 
 ## Conventions
 

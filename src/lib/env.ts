@@ -230,18 +230,4 @@ export const appEnv = {
 
     allowBackupApi: getEnv("ALLOW_BACKUP_API") === "true",
     allowBackupApiInProduction: getEnv("ALLOW_BACKUP_API_IN_PRODUCTION") === "true",
-
-    ai: {
-        enabled: getEnv("AI_ENABLED") !== "false",
-        providers: (getEnv("AI_PROVIDER") ?? "")
-            .split(",")
-            .map((p) => p.trim())
-            .filter(Boolean),
-        hasExternalKeys: Boolean(
-            getEnv("GROQ_API_KEY") ||
-                getEnv("OPENAI_API_KEY") ||
-                getEnv("ANTHROPIC_API_KEY") ||
-                getEnv("GOOGLE_AI_API_KEY")
-        ),
-    },
 };

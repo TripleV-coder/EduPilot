@@ -308,6 +308,5 @@ SELECT * FROM pg_locks l JOIN pg_stat_activity a ON l.pid = a.pid WHERE NOT l.gr
 |------|-------|
 | `MAINTENANCE_MODE=true` | Mode maintenance (V2) |
 | `READ_ONLY_MODE=true` | Lecture seule globale (V2) |
-| `DISABLE_AI=true` | Coupe les appels Gemini |
 | `DISABLE_EMAIL=true` | Coupe Resend (utile en test) |
 | `DEBUG=true` | Logs verbeux Pino |

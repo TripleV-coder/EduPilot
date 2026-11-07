@@ -49,8 +49,8 @@ function buildCsp(nonce: string): string {
     "img-src 'self' blob: data:",
     "font-src 'self' data:",
     IS_PROD
-      ? "connect-src 'self' https://*.upstash.io https://*.ingest.sentry.io https://generativelanguage.googleapis.com https://api.openai.com https://api.anthropic.com https://api.fedapay.com https://sandbox-api.fedapay.com"
-      : "connect-src 'self' http://localhost:* https://*.upstash.io https://*.ingest.sentry.io https://generativelanguage.googleapis.com https://api.openai.com https://api.anthropic.com https://api.fedapay.com https://sandbox-api.fedapay.com",
+      ? "connect-src 'self' https://*.upstash.io https://*.ingest.sentry.io https://api.fedapay.com https://sandbox-api.fedapay.com"
+      : "connect-src 'self' http://localhost:* https://*.upstash.io https://*.ingest.sentry.io https://api.fedapay.com https://sandbox-api.fedapay.com",
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",

@@ -29,7 +29,6 @@ Voir `.env.example` pour la liste complète. Les **critiques** :
 | `SENTRY_DSN` | URL | DSN frontend + backend |
 | `SENTRY_AUTH_TOKEN` | secret | Pour upload des sourcemaps en CI |
 | `EMAIL_API_KEY` | secret | Emails transactionnels |
-| `GOOGLE_AI_API_KEY` | secret | Gemini pour bulletins / action plans |
 | `STAGING_DEPLOY_COMMAND` | commande | Commande de déploiement staging exécutée par `ci-cd.yml` |
 | `PRODUCTION_DEPLOY_COMMAND` | commande | Commande de déploiement production exécutée par `ci-cd.yml` |
 

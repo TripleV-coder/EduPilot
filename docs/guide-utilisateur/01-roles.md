@@ -97,7 +97,7 @@ L'administrateur de l'école choisit les **modules** utilisés dans *Paramètres
 | Finance et paiements | Frais, paiements, bourses, comptabilité. |
 | Santé | Dossiers médicaux, allergies, vaccinations, contacts d'urgence. **Données sensibles : à n'activer qu'avec une infirmerie.** |
 | Discipline | Incidents, sanctions, conseils de discipline. |
-| Assistant IA | Assistant de conversation et analyses assistées. **Les données sont envoyées à un service extérieur d'intelligence artificielle.** |
+| Assistant IA | Assistant qui répond aux questions avec les chiffres de l'établissement (élèves à risque, prévisions, appel, emploi du temps, devoirs, paiements) et rédige des propositions d'appréciation. **Tout est calculé dans EduPilot : aucune donnée n'est envoyée à un service extérieur.** |
 | Badges et contrôle d'accès | Cartes scolaires, points de passage, journaux d'entrée et de sortie. |
 | Ressources humaines et paie | Personnel, présence, congés, bulletins de paie. |
 | Cantine | Menus, tickets, facturation. |

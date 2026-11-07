@@ -167,7 +167,7 @@ Source : `next.config.js`, appliqué sur toutes les routes (`source: "/(.*)"`).
 | `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Force HTTPS pendant 2 ans |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Désactive les API navigateur sensibles |
 
-**Connect-src** autorise explicitement : `*.upstash.io` (cache), `*.ingest.sentry.io` (monitoring), `generativelanguage.googleapis.com` (Gemini), `api.openai.com`, `api.anthropic.com`.
+**Connect-src** autorise explicitement : `*.upstash.io` (cache), `*.ingest.sentry.io` (monitoring), `api.fedapay.com` et `sandbox-api.fedapay.com` (paiement). Aucun service d'IA externe : l'assistant est calculé sur le serveur (ADR-0012).
 
 ---
 

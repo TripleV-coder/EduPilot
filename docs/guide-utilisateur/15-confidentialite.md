@@ -30,9 +30,10 @@ L'école fixe la durée de conservation de chaque type de données (*Rétention 
 Un **aperçu** montre ce qui serait touché avant toute application.
 
 ## 15.4 Données qui sortent de l'établissement
+L'assistant IA n'en fait pas partie : il calcule ses réponses dans EduPilot, sans service extérieur.
+
 | Quand | Quoi | Vers qui |
 |---|---|---|
-| Assistant IA activé | questions et contexte, avec des **alias** à la place des noms | service d'intelligence artificielle |
 | SMS, notifications vocales, WhatsApp | numéros de téléphone et messages | prestataire d'envoi |
 | Paiement en ligne | montant, référence, numéro du payeur | MTN Mobile Money ou FedaPay |
 | Comparaison entre établissements | chiffres agrégés, jamais nominatifs | réseau d'écoles |

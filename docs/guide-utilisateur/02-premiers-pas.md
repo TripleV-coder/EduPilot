@@ -46,7 +46,16 @@ Chaque rôle a son propre accueil :
 Le menu de gauche est regroupé par thème, et n'affiche que les modules et les cycles que l'école utilise (chapitre 1).
 
 ### L'assistant
-Selon le rôle et si le module est activé, un **assistant** répond aux questions, aide à rédiger une appréciation ou propose une analyse. Les informations envoyées à l'assistant sont **pseudonymisées** : les noms sont remplacés par des alias. Le nombre de demandes par personne est limité.
+Selon le rôle et si le module est activé, un **assistant** répond aux questions posées en français, même avec des fautes : « élèves à risque en 3e B », « prévision de Koffi », « absences d'hier », « emploi du temps de demain », « combien je dois encore payer ? ». Il répond avec les chiffres réels, montre la page où agir et propose les questions suivantes en un clic. Il retient le sujet de la conversation : après « prévision de Koffi », « et son plan d'action ? » suffit. Quand deux élèves portent le même prénom, il demande lequel au lieu de deviner.
+
+Il sait aussi :
+- **résumer un élève** en un paragraphe (« résume Koffi ») : résultats, points forts et faibles, assiduité, discipline et, pour la famille et la direction, reste à payer ;
+- **expliquer** (« pourquoi Koffi baisse ? ») : les causes classées par importance, d'après le modèle de risque de l'école et l'évolution par matière ;
+- **reformuler** (« tu peux répéter ? ») et **proposer la suite** (« autre chose ? », « d'accord »).
+
+Le ton s'adapte : bienveillant avec les familles, direct avec l'équipe. Les réponses sont rédigées à partir de phrases modèles : l'assistant ne tient pas de conversation libre sur un sujet qu'il ne connaît pas, il le dit et propose des exemples.
+
+L'assistant ne voit que ce que la personne a le droit de voir : toute l'école pour la direction, ses classes pour un enseignant, ses enfants pour un parent, lui-même pour un élève. **Tout est calculé dans EduPilot : rien n'est envoyé à un service extérieur.** Le nombre de demandes par minute est limité.
 
 ---
 
