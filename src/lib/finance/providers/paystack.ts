@@ -7,6 +7,7 @@
  *   NEXT_PUBLIC_APP_URL   — URL de base pour les redirections
  */
 
+import { publicBaseUrl } from "@/lib/system/platform";
 import { PaymentProvider } from '../types';
 import { logger } from '@/lib/utils/logger';
 import { CIRCUITS, circuitFetch } from '@/lib/resilience/circuit-breaker';
@@ -57,7 +58,7 @@ export class PaystackProvider implements PaymentProvider {
         reference: string,
         metadata: Record<string, unknown>
     ): Promise<{ paymentUrl: string; transactionId: string }> {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const appUrl = (publicBaseUrl() ?? "http://localhost:3000");
 
         // Paystack attend le montant en kobo (×100 pour XOF/NGN)
         const amountInKobo = Math.round(amount * 100);

@@ -1,3 +1,4 @@
+import { publicBaseUrl } from "@/lib/system/platform";
 import { NextResponse } from "next/server";
 import { hash } from "@/lib/auth/password";
 import prisma from "@/lib/prisma";
@@ -169,7 +170,7 @@ export const POST = createApiHandler(
             });
 
             // Send welcome email with temporary password
-            const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+            const baseUrl = (publicBaseUrl() ?? "http://localhost:3000");
             const loginUrl = `${baseUrl}/login`;
 
             await sendWelcomeEmail({

@@ -80,6 +80,23 @@ interface WelcomeEmailParams {
 /**
  * Send an email using the configured email provider
  */
+export type EmailProvider = "smtp" | "resend" | "sendgrid";
+
+/**
+ * Fournisseur d'e-mail : EMAIL_PROVIDER s'il est défini, sinon déduit de la
+ * configuration présente (une variable de moins à renseigner) :
+ * clé « re_… » → Resend, « SG.… » → SendGrid, SMTP_HOST → SMTP.
+ */
+export function resolveEmailProvider(env: Record<string, string | undefined> = process.env): EmailProvider | null {
+  const explicit = env.EMAIL_PROVIDER?.trim().toLowerCase();
+  if (explicit === "smtp" || explicit === "resend" || explicit === "sendgrid") return explicit;
+  const key = env.EMAIL_API_KEY?.trim() ?? "";
+  if (key.startsWith("re_")) return "resend";
+  if (key.startsWith("SG.")) return "sendgrid";
+  if (env.SMTP_HOST?.trim()) return "smtp";
+  return null;
+}
+
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const { to, subject, html, text } = options;
 
@@ -87,11 +104,12 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const isDev = process.env.NODE_ENV === "development";
 
   // Check if email service is configured
-  const emailProvider = process.env.EMAIL_PROVIDER;
+  const emailProvider = resolveEmailProvider();
   const emailApiKey = process.env.EMAIL_API_KEY;
   const emailFrom = process.env.EMAIL_FROM || "noreply@edupilot.bj";
 
-  const isSmtpIncomplete = emailProvider === "smtp" && (!process.env.SMTP_HOST || !process.env.SMTP_PORT);
+  // SMTP_PORT a un défaut (587) : seul l'hôte est indispensable
+  const isSmtpIncomplete = emailProvider === "smtp" && !process.env.SMTP_HOST;
   const isApiIncomplete = (emailProvider === "resend" || emailProvider === "sendgrid") && !emailApiKey;
 
   if (!emailProvider || isSmtpIncomplete || isApiIncomplete) {
@@ -115,7 +133,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     // En production : l'email n'est pas configuré — erreur explicite
     // (validateEnv() en instrumentation.ts devrait avoir bloqué le démarrage avant d'arriver ici)
     logger.error(
-      "Service email non configuré en production. Définir EMAIL_PROVIDER, EMAIL_API_KEY et EMAIL_FROM.",
+      "Service email non configuré en production. Définir EMAIL_API_KEY (Resend « re_… » ou SendGrid « SG.… ») ou SMTP_HOST, et EMAIL_FROM.",
       undefined,
       { module: "email", to: maskEmail(to), subject }
     );

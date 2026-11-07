@@ -5,6 +5,7 @@
  * Délègue à `@/lib/payments/fedapay` (SDK officiel, déjà testé). Config-gated :
  * sans FEDAPAY_SECRET_KEY, l'initiation lève une erreur explicite.
  */
+import { publicBaseUrl } from "@/lib/system/platform";
 import { PaymentProvider } from "../types";
 import {
     createFedaPayCheckout,
@@ -31,7 +32,7 @@ export class FedaPayProvider implements PaymentProvider {
         if (!isFedaPayConfigured()) {
             throw new Error("[FedaPay] FEDAPAY_SECRET_KEY non configurée");
         }
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const appUrl = (publicBaseUrl() ?? "http://localhost:3000");
         const { firstname, lastname } = splitName(metadata?.studentName as string);
 
         const checkout = await createFedaPayCheckout({

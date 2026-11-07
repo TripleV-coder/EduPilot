@@ -1,3 +1,4 @@
+import { publicBaseUrl } from "@/lib/system/platform";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
@@ -260,7 +261,7 @@ export const POST = createApiHandler(
 
             let result: { paymentUrl: string; transactionId: string };
             try {
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+                const appUrl = (publicBaseUrl() ?? "http://localhost:3000");
                 const checkout = await createAccountCheckout(resolved.credentials, {
                     amount: Number(paymentRecord.amount),
                     description: "Frais scolaires",

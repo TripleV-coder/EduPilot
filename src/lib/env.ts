@@ -42,6 +42,11 @@ function checkDatabaseUrl(value: string): string | null {
 }
 
 const usesSmtp = () => process.env.EMAIL_PROVIDER === "smtp";
+/** Plateforme sans serveur (variables posées par l'hébergeur, voir lib/system/platform.ts). */
+const onServerless = () => process.env.VERCEL === "1" || Boolean(process.env.NETLIFY) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+/** E-mail configuré par une clé d'API (Resend/SendGrid, fournisseur déduit) ou par SMTP. */
+const emailConfigured = () =>
+    Boolean(process.env.EMAIL_API_KEY?.trim()) || Boolean(process.env.SMTP_HOST?.trim());
 
 const ENV_VARS: EnvVar[] = [
     {
@@ -59,23 +64,18 @@ const ENV_VARS: EnvVar[] = [
     {
         name: "NEXTAUTH_URL",
         required: "production",
-        description: "URL publique de l'application (ex: https://app.edupilot.com)",
+        description: "URL publique de l'application (ex: https://app.edupilot.com) — déduite automatiquement sur Vercel",
+        when: () => !onServerless(),
     },
-    {
-        name: "TOTP_ENCRYPTION_KEY",
-        required: "production",
-        description: "Clé AES-256 pour chiffrer les secrets TOTP (openssl rand -hex 32)",
-    },
-    {
-        name: "EMAIL_PROVIDER",
-        required: "production",
-        description: "Fournisseur email (smtp, resend ou sendgrid) — requis pour la réinitialisation de mot de passe",
-    },
+    // TOTP_ENCRYPTION_KEY, SIGNATURE_SALT, PAYMENT_SECRETS_KEY et CRON_SECRET ne
+    // sont plus exigées : dérivées de NEXTAUTH_SECRET quand elles sont absentes
+    // (lib/security/derived-secrets.ts). Une valeur explicite reste prioritaire.
     {
         name: "EMAIL_API_KEY",
         required: "production",
-        description: "Clé API du fournisseur email (resend / sendgrid)",
-        when: () => !usesSmtp(),
+        description:
+            "E-mail (réinitialisation de mot de passe) : clé Resend « re_… » ou SendGrid « SG.… » (fournisseur déduit), ou SMTP_HOST",
+        when: () => !emailConfigured(),
     },
     {
         name: "SMTP_HOST",
@@ -89,13 +89,10 @@ const ENV_VARS: EnvVar[] = [
         description: "Adresse email expéditeur (ex: noreply@edupilot.com)",
     },
     {
-        name: "SIGNATURE_SALT",
-        required: "production",
-        description: "Sel du hachage des adresses IP des signatures électroniques (openssl rand -hex 32)",
-    },
-    {
         name: "EDUPILOT_PEER_TOKEN",
         required: "production",
+        // Sans serveur : l'adresse IP est lue dans l'en-tête posé par la plateforme (lib/security/client-ip.ts)
+        when: () => !onServerless(),
         description:
             "Posé automatiquement par le préchargement de l'IP client : démarrer le serveur avec " +
             "`node --require ./scripts/server/client-ip-preload.cjs` (sans lui, le rate-limit ne peut pas identifier les clients)",

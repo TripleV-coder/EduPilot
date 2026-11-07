@@ -3,6 +3,7 @@
  * Provides comprehensive utilities for API routes
  */
 
+import { publicBaseUrl } from "@/lib/system/platform";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { Permission, hasPermission, roleSatisfies, roleAppliesAtSchool } from "@/lib/rbac/permissions";
@@ -309,6 +310,7 @@ export function isCrossSiteBrowserMutation(request: Pick<Request, "method" | "ur
         request.headers.get("x-forwarded-host")?.split(",")[0]?.trim(),
         hostOf(process.env.NEXTAUTH_URL),
         hostOf(process.env.NEXT_PUBLIC_APP_URL),
+        hostOf(publicBaseUrl() ?? undefined),
     ].filter((host): host is string => Boolean(host));
     return !allowed.includes(originHost);
 }

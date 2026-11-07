@@ -80,10 +80,25 @@ describe("validateEnv — production", () => {
         expect(() => validateEnv()).not.toThrow();
     });
 
-    it("exige SIGNATURE_SALT (L4)", () => {
-        vi.stubEnv("EMAIL_PROVIDER", "resend");
-        vi.stubEnv("EMAIL_API_KEY", "cle");
+    it("n'exige plus SIGNATURE_SALT ni TOTP_ENCRYPTION_KEY : dérivés de NEXTAUTH_SECRET (L4 conservé)", () => {
+        vi.stubEnv("EMAIL_API_KEY", "re_cle");
         vi.stubEnv("SIGNATURE_SALT", "");
-        expect(() => validateEnv()).toThrow(/SIGNATURE_SALT/);
+        vi.stubEnv("TOTP_ENCRYPTION_KEY", "");
+        expect(() => validateEnv()).not.toThrow();
+    });
+
+    it("sans serveur (Vercel) : ni NEXTAUTH_URL ni jeton de préchargement exigés", () => {
+        vi.stubEnv("EMAIL_API_KEY", "re_cle");
+        vi.stubEnv("VERCEL", "1");
+        vi.stubEnv("NEXTAUTH_URL", "");
+        vi.stubEnv("EDUPILOT_PEER_TOKEN", "");
+        expect(() => validateEnv()).not.toThrow();
+    });
+
+    it("exige toujours un moyen d'envoyer les e-mails", () => {
+        vi.stubEnv("EMAIL_PROVIDER", "");
+        vi.stubEnv("EMAIL_API_KEY", "");
+        vi.stubEnv("SMTP_HOST", "");
+        expect(() => validateEnv()).toThrow(/EMAIL_API_KEY/);
     });
 });

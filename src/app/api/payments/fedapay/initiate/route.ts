@@ -1,3 +1,4 @@
+import { publicBaseUrl } from "@/lib/system/platform";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -125,7 +126,7 @@ export const POST = createApiHandler(async (request, context) => {
     const reference = payment.reference ?? `EDU-${payment.id}`;
     // Adresse publique configurée, comme /api/payments/initiate : jamais l'en-tête
     // Host de la requête (adresse interne derrière un proxy, ou falsifiable)
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = (publicBaseUrl() ?? "http://localhost:3000");
 
     try {
         // Référence enregistrée AVANT la création chez FedaPay : si le

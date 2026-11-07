@@ -1,3 +1,4 @@
+import { resolveSecret } from "@/lib/security/derived-secrets";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 /**
@@ -40,7 +41,8 @@ function parseKey(hex: string | undefined): Buffer | null {
 
 /** Clé active et trousseau complet (active + anciennes). */
 function keyring(env: NodeJS.ProcessEnv = process.env): { activeVersion: number; keys: Map<number, Buffer> } | null {
-    const active = parseKey(env.PAYMENT_SECRETS_KEY);
+    // PAYMENT_SECRETS_KEY si définie, sinon dérivée de NEXTAUTH_SECRET (lib/security/derived-secrets.ts)
+    const active = parseKey(resolveSecret("payment-secrets", env) ?? undefined);
     const activeVersion = Number(env.PAYMENT_SECRETS_KEY_VERSION ?? "1");
     if (!active || !Number.isInteger(activeVersion) || activeVersion < 1) return null;
     const keys = new Map<number, Buffer>([[activeVersion, active]]);

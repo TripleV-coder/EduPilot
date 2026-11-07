@@ -5,6 +5,7 @@
  * ultérieure du document produit un hash différent, rendant l'altération détectable.
  * On ne vise PAS une signature qualifiée eIDAS (pas de PKI).
  */
+import { resolveSecret } from "@/lib/security/derived-secrets";
 import { createHash } from "crypto";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import type { SignableDocType } from "@prisma/client";
@@ -43,10 +44,11 @@ const DEVELOPMENT_SALT = "edupilot-development-only-signature-salt";
  * (ici et dans la validation de démarrage, lib/env.ts).
  */
 export function getSignatureSalt(env: Record<string, string | undefined> = process.env): string {
-    const salt = env.SIGNATURE_SALT?.trim();
+    // SIGNATURE_SALT si défini, sinon dérivé de NEXTAUTH_SECRET (lib/security/derived-secrets.ts)
+    const salt = resolveSecret("signature-salt", env);
     if (salt) return salt;
     if (env.NODE_ENV === "production") {
-        throw new Error("SIGNATURE_SALT est obligatoire en production (hachage des adresses IP des signatures).");
+        throw new Error("Sel des signatures indisponible : définir NEXTAUTH_SECRET (ou SIGNATURE_SALT).");
     }
     return DEVELOPMENT_SALT;
 }

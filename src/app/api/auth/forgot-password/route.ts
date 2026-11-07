@@ -1,3 +1,4 @@
+import { publicBaseUrl } from "@/lib/system/platform";
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import prisma from "@/lib/prisma";
@@ -65,7 +66,7 @@ export const POST = createApiHandler(
       });
 
       // Build reset URL
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const baseUrl = (publicBaseUrl() ?? "http://localhost:3000");
       const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
       // Send email
