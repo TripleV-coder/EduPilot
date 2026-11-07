@@ -313,14 +313,15 @@ function SuggestionChips({ items, onPick }: { items: string[]; onPick: (q: strin
                     key={item}
                     type="button"
                     onClick={() => onPick(item)}
-                    className="transition-colors hover:bg-[var(--brand-100)]"
+                    // Couleurs « info » : inversées en mode sombre (les --brand-50/100 ne le sont pas)
+                    className="transition-colors hover:bg-[var(--eduflow-info-100)]"
                     style={{
                         padding: "8px 14px",
                         fontSize: 12,
                         fontWeight: 500,
-                        color: "var(--eduflow-text-primary)",
-                        background: "var(--brand-50)",
-                        border: "1px solid var(--brand-100)",
+                        color: "var(--eduflow-info-800)",
+                        background: "var(--eduflow-info-50)",
+                        border: "1px solid var(--eduflow-info-200)",
                         borderRadius: 999,
                         cursor: "pointer",
                         fontFamily: "inherit",
@@ -353,7 +354,7 @@ function RichText({ text }: { text: string }) {
 function MaybeLink({ href, children }: { href?: string; children: ReactNode }) {
     if (!href) return <>{children}</>;
     return (
-        <Link href={href} className="hover:underline" style={{ color: "var(--brand-700)", fontWeight: 600 }}>
+        <Link href={href} className="hover:underline" style={{ color: "var(--eduflow-info-700)", fontWeight: 600 }}>
             {children}
         </Link>
     );
@@ -467,8 +468,9 @@ function Block({ block }: { block: AnswerBlock }) {
                 style={{
                     margin: 0,
                     padding: "10px 14px",
-                    borderLeft: "3px solid var(--brand-600)",
-                    background: "var(--brand-50)",
+                    borderLeft: "3px solid var(--eduflow-info-500)",
+                    background: "var(--eduflow-info-50)",
+                    color: "var(--eduflow-text-primary)",
                     borderRadius: 8,
                     fontSize: 14,
                     lineHeight: 1.55,
@@ -566,10 +568,10 @@ function AssistantBubble({
                                     key={`${link.href}-${link.label}`}
                                     href={link.href}
                                     className="hover:underline"
-                                    style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 600, color: "var(--brand-700)" }}
+                                    style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 600, color: "var(--eduflow-info-700)" }}
                                 >
                                     {link.label}
-                                    <Icon name="arrowRight" size={12} color="var(--brand-700)" />
+                                    <Icon name="arrowRight" size={12} color="var(--eduflow-info-700)" />
                                 </Link>
                             ))}
                         </div>

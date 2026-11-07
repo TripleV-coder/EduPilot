@@ -96,6 +96,8 @@ export interface Entities {
     range?: TimeRange;
     /** Jour visé pour l'emploi du temps (0 = dimanche … 6 = samedi). */
     day?: { dayOfWeek: number; label: string };
+    /** Nom propre écrit dans la question mais introuvable dans le périmètre (« analyse de Patrick Chabi » pour un parent). */
+    unknownName?: string;
     /** Le message renvoie à l'élève ou à la classe du tour précédent (« son », « sa », « cette classe »). */
     anaphora: boolean;
 }

@@ -25,7 +25,9 @@ const NOT_NAMES = new Set<string>([
     ...DAY_NAMES, "aujourd", "hui", "hier", "demain", "semaine", "mois", "trimestre", "semestre", "annee",
     "derniere", "dernier", "derniers", "jours", "passee", "passe", "prochain", "prochaine", "eleve", "eleves",
     "enfant", "enfants", "fils", "fille", "classe", "classes", "matiere", "matieres", "moyenne", "apres",
-    "quand", "combien", "quoi", "comment", "pourquoi", "matin", "soir",
+    "quand", "combien", "quoi", "comment", "pourquoi", "matin", "soir", "janvier", "fevrier", "mars", "avril",
+    "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre", "rentree", "vacances",
+    "ecole", "college", "lycee", "etablissement", "direction", "parent", "parents",
 ]);
 
 const ANAPHORA = /\b(son|sa|ses|lui|cet eleve|cette eleve|cet enfant|cette classe|la meme|le meme|il|elle)\b/;
@@ -157,7 +159,12 @@ export function extractEntities(message: string, scope: AssistantScope, now: Dat
     const excluded = new Set([...(klass ? words(klass.name) : []), ...(subject ? words(subject.name) : [])]);
     for (const [alias] of Object.entries(SUBJECT_ALIASES)) excluded.add(alias);
 
-    const matches = findStudents(nameCandidates(queryWords, excluded), scope.students);
+    let matches = findStudents(nameCandidates(queryWords, excluded), scope.students);
+    // Homonymes complets : la classe citée (« Zoé Houétchénou (5e B) ») départage
+    if (matches.length > 1 && klass) {
+        const inClass = matches.filter((s) => s.className !== null && compact(s.className) === compact(klass.name));
+        if (inClass.length > 0) matches = inClass;
+    }
 
     const entities: Entities = {
         class: klass,
@@ -168,5 +175,14 @@ export function extractEntities(message: string, scope: AssistantScope, now: Dat
     };
     if (matches.length === 1) entities.student = matches[0];
     else if (matches.length > 1) entities.studentCandidates = matches.slice(0, 6);
+    else {
+        // Un nom propre (majuscule) qui ne correspond à personne du périmètre : le dire,
+        // plutôt que de répondre sur un autre élève (ex. l'enfant unique d'un parent)
+        const candidates = new Set(nameCandidates(queryWords, excluded));
+        const written = message
+            .split(/[\s,;:!?.()]+/)
+            .filter((token) => /^\p{Lu}/u.test(token) && candidates.has(normalize(token)));
+        if (written.length > 0) entities.unknownName = written.join(" ");
+    }
     return entities;
 }

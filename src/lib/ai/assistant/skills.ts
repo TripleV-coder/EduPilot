@@ -9,6 +9,8 @@ import { getPassingGrade } from "@/lib/academic/grading-settings";
 import { governanceService } from "@/lib/ai/governance-service";
 import { AIServiceError, type GovernanceRequest } from "@/lib/ai/ai-service";
 import { computeYearFeeRecovery } from "@/lib/finance/expected-fees";
+import { seriesFullLabel } from "@/lib/benin/series";
+import type { RecommendedSeries } from "@prisma/client";
 import { getChildFinance } from "@/lib/finance/family-finance";
 import { SERVICE_CATALOG } from "@/lib/navigation/service-catalog";
 import { navForRole } from "@/components/edu-shell/role-nav";
@@ -16,7 +18,7 @@ import { hasPermission, roleSatisfies, type Permission } from "@/lib/rbac/permis
 import type { UserRole } from "@prisma/client";
 import { localDay } from "./entities";
 import * as f from "./format";
-import { humanize, joinFr, judgeAverage, sentence, voiceFor } from "./phrasing";
+import { deFr, humanize, joinFr, judgeAverage, sentence, voiceFor } from "./phrasing";
 import type { AssistantScope } from "./scope";
 import { contentWords, similar, stem } from "./text";
 import type { AnswerBlock, AssistantContext, Entities, NamedRef, StudentRef, TimeRange, Tone } from "./types";
@@ -71,13 +73,29 @@ const studentHref = (scope: AssistantScope, id: string) => (scope.kind === "fami
 const classHref = (scope: AssistantScope, id: string) => (scope.kind === "family" ? undefined : `/dashboard/classes/${id}`);
 const refused = (message: string): SkillOutput => ({ text: message, sources: [] });
 
+/** « de **Koffi** », « d'**Aicha** » : élision devant un nom mis en gras. */
+const deBold = (name: string) => (deFr(name).startsWith("d'") ? `d'**${name}**` : `de **${name}**`);
+
+/** L'élève parle de lui-même : on lui répond à la deuxième personne. */
+const isSelf = (scope: AssistantScope) => scope.user.role === "STUDENT";
+
 function studentFollowUps(scope: AssistantScope, student: StudentRef, exclude: string): string[] {
-    const name = f.firstName(student.name);
+    if (isSelf(scope)) {
+        const mine = [
+            { key: "overview", text: "Mon analyse" },
+            { key: "forecast", text: "Ma prévision" },
+            { key: "plan", text: "Mon plan d'action" },
+            { key: "attendance", text: "Mes absences ce mois" },
+        ];
+        return mine.filter((item) => item.key !== exclude).slice(0, 3).map((item) => item.text);
+    }
+    // Nom complet : un prénom seul redemanderait « lequel ? » dès qu'il y a des homonymes
+    const name = student.name;
     const all = [
-        { key: "overview", text: `Analyse de ${student.name}` },
-        { key: "forecast", text: `Prévision de ${name}` },
+        { key: "overview", text: `Analyse ${deFr(name)}` },
+        { key: "forecast", text: `Prévision ${deFr(name)}` },
         { key: "plan", text: `Plan d'action pour ${name}` },
-        { key: "attendance", text: `Absences de ${name} ce mois` },
+        { key: "attendance", text: `Absences ${deFr(name)} ce mois` },
         ...(scope.kind === "family" ? [] : [{ key: "comment", text: `Appréciation de bulletin pour ${name}` }]),
     ];
     return all.filter((item) => item.key !== exclude).slice(0, 3).map((item) => item.text);
@@ -105,6 +123,35 @@ interface AtRiskData {
 
 const RISK_ORDER: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
 
+/**
+ * Élèves dont la DERNIÈRE moyenne de l'année en cours est sous le seuil de
+ * réussite, dans le périmètre. Le modèle de risque peut classer « faible »
+ * un élève à 9/20 (assiduité et comportement bons) : sans ce chiffre,
+ * « aucun élève à risque » contredirait l'accueil (« x % en échec »).
+ */
+async function belowPassingCount(scope: AssistantScope, classId: string | undefined, passing: number): Promise<number> {
+    const classIds = classId ? [classId] : scope.kind === "direction" ? null : scope.classes.map((c) => c.id);
+    const rows = await prisma.studentAnalytics.findMany({
+        where: {
+            academicYear: { schoolId: scope.schoolId, isCurrent: true },
+            student: {
+                schoolId: scope.schoolId,
+                enrollments: { some: { status: "ACTIVE", ...(classIds ? { classId: { in: classIds } } : {}) } },
+            },
+        },
+        select: { studentId: true, generalAverage: true, period: { select: { startDate: true } } },
+    });
+    const latest = new Map<string, { at: number; average: number | null }>();
+    for (const row of rows) {
+        const at = new Date(row.period.startDate).getTime();
+        const current = latest.get(row.studentId);
+        if (!current || at > current.at) latest.set(row.studentId, { at, average: row.generalAverage === null ? null : Number(row.generalAverage) });
+    }
+    let count = 0;
+    for (const { average } of latest.values()) if (average !== null && average < passing) count += 1;
+    return count;
+}
+
 export async function riskList(input: SkillInput): Promise<SkillOutput> {
     const { scope, klass, message } = input;
     const voice = voiceFor(scope, message);
@@ -112,7 +159,7 @@ export async function riskList(input: SkillInput): Promise<SkillOutput> {
         ? [{ classId: klass.id }]
         : scope.kind === "direction"
           ? [{}]
-          : scope.classes.slice(0, 15).map((item) => ({ classId: item.id }));
+          : scope.classes.slice(0, 40).map((item) => ({ classId: item.id }));
     if (targets.length === 0) return refused("Aucune classe ne vous est rattachée pour le moment.");
 
     const results = await Promise.all(targets.map((target) => governance<AtRiskData>(scope, "detect-at-risk", target)));
@@ -142,23 +189,30 @@ export async function riskList(input: SkillInput): Promise<SkillOutput> {
     }
 
     const passing = await getPassingGrade(scope.schoolId);
+    const below = await belowPassingCount(scope, klass?.id, passing);
     const high = rows.filter((row) => row.riskLevel === "HIGH" || row.riskLevel === "CRITICAL").length;
     const analysedLabel = f.count(analysed, "élève analysé", "élèves analysés");
     const text =
         rows.length === 0
-            ? voice.pick([
-                  `Bonne nouvelle : aucun élève à risque modéré ou élevé ${where} (${analysedLabel}).`,
-                  `Rien à signaler ${where} : aucun élève à risque modéré ou élevé sur ${analysedLabel}.`,
-              ])
+            ? below > 0
+                ? `Le modèle ne signale aucun élève à risque modéré ou élevé ${where} (${analysedLabel}).`
+                : voice.pick([
+                      `Bonne nouvelle : aucun élève à risque modéré ou élevé ${where} (${analysedLabel}).`,
+                      `Rien à signaler ${where} : aucun élève à risque modéré ou élevé sur ${analysedLabel}.`,
+                  ])
             : voice.pick([
                   `**${f.count(rows.length, "élève à suivre", "élèves à suivre")}** ${where}, dont **${high}** à risque élevé ou critique, sur ${analysedLabel}.`,
                   `Sur ${analysedLabel} ${where}, **${rows.length}** ${rows.length > 1 ? "demandent" : "demande"} un suivi, dont **${high}** en priorité (risque élevé ou critique).`,
                   `J'ai repéré **${f.count(rows.length, "élève à suivre", "élèves à suivre")}** ${where} (sur ${analysedLabel}) ; **${high}** ${high > 1 ? "sont" : "est"} à traiter en priorité.`,
               ]) + (high > 0 ? ` ${voice.pick(["Je les ai classés du plus urgent au moins urgent.", "Le tableau commence par les plus urgents."], 1)}` : "");
+    const belowNote =
+        below > rows.length
+            ? `\n${rows.length === 0 ? "En revanche" : "Par ailleurs"}, **${f.count(below, "élève a", "élèves ont")}** une moyenne sous ${f.grade(passing)} : le modèle ${below - rows.length > 1 ? "les classe" : "le classe"} à risque faible (assiduité et comportement corrects), mais ${below > 1 ? "ils restent" : "il reste"} à accompagner sur les résultats.`
+            : "";
 
     const first = rows[0];
     return {
-        text,
+        text: text + belowNote,
         blocks: rows.length
             ? [
                   {
@@ -226,7 +280,7 @@ export async function studentOverview(input: SkillInput): Promise<SkillOutput> {
 
     const period = data.analyticsPeriod ? data.analyticsPeriod.periodName : null;
     const lines = [
-        voice.by(
+        isSelf(scope) ? `Voici où vous en êtes${period ? ` (${period})` : ""}.` : voice.by(
             [
                 `Voici comment va **${f.firstName(data.student.name)}**${period ? ` (${period})` : ""}.`,
                 `Voici les dernières nouvelles de **${f.firstName(data.student.name)}**${period ? `, ${period}` : ""}.`,
@@ -238,7 +292,7 @@ export async function studentOverview(input: SkillInput): Promise<SkillOutput> {
         ),
     ];
     if (m.averageGrade !== null) {
-        lines.push(`${voice.pick(["Moyenne de", "Sa moyenne est de"], 2)} **${f.grade(m.averageGrade)}** (seuil de réussite : ${f.grade(passing)}) : ${judgeAverage(voice, m.averageGrade, passing)}.`);
+        lines.push(`${isSelf(scope) ? "Votre moyenne est de" : voice.pick(["Moyenne de", "Sa moyenne est de"], 2)} **${f.grade(m.averageGrade)}** (seuil de réussite : ${f.grade(passing)}) : ${judgeAverage(voice, m.averageGrade, passing)}.`);
     }
     if (m.progressionRate !== null && Math.abs(m.progressionRate) >= 1) {
         lines.push(
@@ -328,13 +382,22 @@ export async function studentForecast(input: SkillInput): Promise<SkillOutput> {
         : data.subjectPredictions;
     const lines: string[] = [];
     if (predicted !== null) {
-        const range = general?.range ? ` ${voice.pick(["très probablement entre", "vraisemblablement entre", "avec une fourchette de"], 1)} ${f.grade(general.range.min)} et ${f.grade(general.range.max)}` : "";
+        const range = general?.range
+            ? voice.pick(
+                  [
+                      ` très probablement entre ${f.grade(general.range.min)} et ${f.grade(general.range.max)}`,
+                      ` vraisemblablement entre ${f.grade(general.range.min)} et ${f.grade(general.range.max)}`,
+                      ` dans une fourchette de ${f.grade(general.range.min)} à ${f.grade(general.range.max)}`,
+                  ],
+                  1,
+              )
+            : "";
         lines.push(
-            voice.pick([
+            (isSelf(scope) ? `Ma prévision pour vous : **${f.grade(predicted)}** à la prochaine période,${range}.` : voice.pick([
                 `Moyenne attendue pour **${student.name}** à la prochaine période : **${f.grade(predicted)}**,${range}.`,
                 `Si la tendance se maintient, **${f.firstName(student.name)}** devrait obtenir environ **${f.grade(predicted)}** à la prochaine période,${range}.`,
                 `Ma prévision pour **${f.firstName(student.name)}** : **${f.grade(predicted)}** à la prochaine période,${range}.`,
-            ]).replace(",.", "."),
+            ])).replace(",.", "."),
         );
         lines.push(`${f.percent(general?.confidence)} de chances que la vraie moyenne soit à un point près.`);
         if (voice.register === "family") {
@@ -347,7 +410,11 @@ export async function studentForecast(input: SkillInput): Promise<SkillOutput> {
     }
     if (general?.warning) lines.push(general.warning);
     const below = subjects.filter((row) => row.projectedAverage < passing).map((row) => row.subjectName);
-    if (below.length) lines.push(`Matières projetées sous ${f.grade(passing)} : **${below.join(", ")}**.`);
+    if (below.length) {
+        const shown = below.slice(0, 4);
+        const rest = below.length - shown.length;
+        lines.push(`Matières projetées sous ${f.grade(passing)} : **${shown.join(", ")}**${rest > 0 ? ` et ${f.count(rest, "autre")} (détail ci-dessous)` : ""}.`);
+    }
     lines.push("Méthode : lissage des moyennes passées, fourchette calibrée sur l'historique de l'élève.");
 
     const trendLabel = { up: "↗ hausse", down: "↘ baisse", stable: "→ stable" } as const;
@@ -366,7 +433,7 @@ export async function studentForecast(input: SkillInput): Promise<SkillOutput> {
         blocks.push({
             type: "table",
             title: entities.subject ? entities.subject.name : "Par matière",
-            columns: ["Matière", "Dernière", "Prévue", "Tendance"],
+            columns: ["Matière", "Dernière", "Prévue", "Évolution récente"],
             rows: subjects.map((row) => ({
                 cells: [row.subjectName, f.grade(row.latestAverage), f.grade(row.projectedAverage), trendLabel[row.trend]],
                 tone: f.gradeTone(row.projectedAverage, passing),
@@ -396,11 +463,14 @@ export async function studentOrientation(input: SkillInput): Promise<SkillOutput
     const result = await governance<OrientationData>(scope, "recommend-orientation", { studentId: student.id });
     if (!result.ok) return refused(result.message);
     const data = result.data;
+    const label = (code: string) => seriesFullLabel(code as RecommendedSeries);
     const blocks: AnswerBlock[] = [];
-    if (data.alternatives?.length) blocks.push({ type: "list", title: "Autres séries possibles", items: data.alternatives.map((label) => ({ label })) });
-    if (data.synthesis) blocks.push({ type: "quote", title: "Synthèse", text: data.synthesis });
+    if (data.alternatives?.length) blocks.push({ type: "list", title: "Autres séries possibles", items: data.alternatives.map((code) => ({ label: label(code) })) });
+    // La synthèse reprend la justification : on n'en garde que ce qu'elle ajoute
+    const extra = data.synthesis?.split(data.justification).slice(1).join("").trim();
+    if (extra) blocks.push({ type: "text", text: extra });
     return {
-        text: `Série la plus adaptée pour **${student.name}** : **${data.series}**${data.score !== undefined ? ` (adéquation ${f.percent(data.score)})` : ""}.\n${data.justification}`,
+        text: `Série la plus adaptée pour **${student.name}** : **${label(data.series)}**${data.score !== undefined ? ` (adéquation ${f.percent(data.score)})` : ""}.\n${data.justification}`,
         blocks,
         suggestions: studentFollowUps(scope, student, "orientation"),
         sources: ["moyennes par discipline", "critères d'orientation de l'école"],
@@ -489,7 +559,9 @@ export async function studentGrades(input: SkillInput): Promise<SkillOutput> {
     const mean = onTwenty.length ? onTwenty.reduce((sum, v) => sum + v, 0) / onTwenty.length : null;
     return {
         text:
-            `Les ${f.count(grades.length, "dernière note", "dernières notes")} de **${student.name}**${scopeLabel}` +
+            (isSelf(scope)
+                ? `Vos ${f.count(grades.length, "dernière note", "dernières notes")}${scopeLabel}`
+                : `Les ${f.count(grades.length, "dernière note", "dernières notes")} ${deBold(student.name)}${scopeLabel}`) +
             (mean !== null
                 ? ` — moyenne simple de ces notes : **${f.grade(mean)}** (la moyenne officielle applique les coefficients et la formule de l'école).`
                 : "."),
@@ -813,11 +885,13 @@ export async function scheduleDay(input: SkillInput): Promise<SkillOutput> {
         },
     });
     const context: AssistantContext = { intent: "schedule.day", studentId: student?.id, classId: klass?.id };
-    if (slots.length === 0) return { text: `Aucun cours prévu pour ${target} ${when}.`, sources: ["emploi du temps"], context };
+    if (slots.length === 0) {
+        return { text: target === "vous" ? `Vous n'avez aucun cours ${when}.` : `Aucun cours prévu pour ${target} ${when}.`, sources: ["emploi du temps"], context };
+    }
 
     const showClass = new Set(slots.map((s) => s.class.name)).size > 1 || teacherOnly;
     return {
-        text: `Emploi du temps de ${target}, ${when} : **${f.count(slots.length, "cours", "cours")}**, de ${slots[0].startTime} à ${slots[slots.length - 1].endTime}.`,
+        text: `${target === "vous" ? "Votre emploi du temps" : `Emploi du temps de ${target}`}, ${when} : **${f.count(slots.length, "cours", "cours")}**, de ${slots[0].startTime} à ${slots[slots.length - 1].endTime}.`,
         blocks: [
             {
                 type: "table",
@@ -1104,9 +1178,10 @@ export async function studentSummary(input: SkillInput): Promise<SkillOutput> {
     const data = result.data;
     const m = data.metrics;
 
+    const self = isSelf(scope);
     const paragraphs: string[] = [];
     paragraphs.push(
-        voice.by(
+        self ? voice.pick(["Voici où vous en êtes.", "Je vous fais le point."]) : voice.by(
             [`Voici où en est **${name}**.`, `Je vous fais le point sur **${name}**.`, `Voici un résumé pour **${name}**.`],
             [`Synthèse — **${student.name}**${student.className ? ` (${student.className})` : ""}.`, `Point complet sur **${student.name}**${student.className ? `, ${student.className}` : ""}.`],
         ),
@@ -1114,15 +1189,15 @@ export async function studentSummary(input: SkillInput): Promise<SkillOutput> {
 
     // Résultats
     if (m.averageGrade !== null) {
-        let line = `${voice.pick(["Sa moyenne est de", "Côté résultats, sa moyenne atteint", "Sur la dernière période, sa moyenne est de"], 2)} **${f.grade(m.averageGrade)}**`;
+        let line = `${self ? voice.pick(["Votre moyenne est de", "Sur la dernière période, votre moyenne est de"], 2) : voice.pick(["Sa moyenne est de", "Côté résultats, sa moyenne atteint", "Sur la dernière période, sa moyenne est de"], 2)} **${f.grade(m.averageGrade)}**`;
         if (m.classRank && m.classSize) line += ` (${m.classRank}ᵉ sur ${m.classSize})`;
         line += ` : ${judgeAverage(voice, m.averageGrade, passing)}.`;
         const strengths = data.strengths.slice(0, 2);
         const weaknesses = data.weaknesses.slice(0, 2);
         if (strengths.length && weaknesses.length) {
-            line += ` ${name} réussit bien en ${joinFr(strengths)} ; en revanche, ${joinFr(weaknesses)} ${weaknesses.length > 1 ? "demandent" : "demande"} plus de travail.`;
+            line += ` ${self ? "Vous réussissez" : `${name} réussit`} bien en ${joinFr(strengths)} ; en revanche, ${joinFr(weaknesses)} ${weaknesses.length > 1 ? "demandent" : "demande"} plus de travail.`;
         } else if (strengths.length) {
-            line += ` Ses points forts : ${joinFr(strengths)}.`;
+            line += ` ${self ? "Vos" : "Ses"} points forts : ${joinFr(strengths)}.`;
         } else if (weaknesses.length) {
             line += ` ${sentence(joinFr(weaknesses))} ${weaknesses.length > 1 ? "sont les matières à renforcer" : "est la matière à renforcer"}.`;
         }
@@ -1133,7 +1208,7 @@ export async function studentSummary(input: SkillInput): Promise<SkillOutput> {
         }
         paragraphs.push(line);
     } else {
-        paragraphs.push(`Aucune moyenne de période n'est encore calculée pour ${name}.`);
+        paragraphs.push(self ? "Aucune moyenne de période n'est encore calculée pour vous." : `Aucune moyenne de période n'est encore calculée pour ${name}.`);
     }
 
     // Assiduité et comportement
@@ -1161,13 +1236,26 @@ export async function studentSummary(input: SkillInput): Promise<SkillOutput> {
         );
     }
 
-    // Conclusion
+    // Conclusion : jamais « rassurante » sous le seuil ou en recul net
     const high = m.riskLevel === "HIGH" || m.riskLevel === "CRITICAL";
-    if (high) {
+    const watch = !high && m.averageGrade !== null && (m.averageGrade < passing || (m.progressionRate ?? 0) <= -5);
+    if (self && (high || watch)) {
+        paragraphs.push(voice.pick(["En résumé, c'est le moment de vous accrocher : n'hésitez pas à demander de l'aide à vos professeurs.", "En résumé, un effort régulier dans les prochaines semaines peut tout changer ; vos professeurs peuvent vous aider."], 7));
+    } else if (self && m.averageGrade !== null) {
+        paragraphs.push(voice.pick(["Dans l'ensemble, vous êtes sur une bonne trajectoire : continuez ainsi.", "Globalement, c'est une bonne période : gardez ce rythme."], 7));
+    } else if (high) {
         paragraphs.push(
             voice.by(
                 [`En résumé, ${name} a besoin d'un coup de pouce en ce moment. Un échange avec l'équipe pédagogique serait utile.`, `En résumé, c'est le bon moment pour accompagner ${name} de plus près ; l'école peut vous proposer un plan d'aide.`],
                 [`En résumé : risque ${f.RISK_LABELS[m.riskLevel ?? ""]?.toLowerCase() ?? "élevé"}, un plan d'action est conseillé.`, `Conclusion : suivi prioritaire recommandé (risque ${f.RISK_LABELS[m.riskLevel ?? ""]?.toLowerCase() ?? "élevé"}).`],
+                7,
+            ),
+        );
+    } else if (watch) {
+        paragraphs.push(
+            voice.by(
+                [`En résumé, rien d'alarmant pour l'instant, mais les résultats de ${name} demandent de l'attention dans les prochaines semaines.`, `En résumé, ${name} a besoin d'encouragements et d'un suivi régulier sur ses résultats.`],
+                [`En résumé : risque faible selon le modèle, mais résultats à surveiller.`, `Conclusion : à suivre sur les résultats (sous le seuil ou en recul).`],
                 7,
             ),
         );
@@ -1180,7 +1268,7 @@ export async function studentSummary(input: SkillInput): Promise<SkillOutput> {
         text: paragraphs.join("\n"),
         links: href ? [{ label: "Fiche de l'élève", href }] : [{ label: "Notes & bulletins", href: "/dashboard/grades" }],
         suggestions: [
-            ...(high || (m.progressionRate ?? 0) < 0 ? [`Pourquoi ${name} est en difficulté ?`] : []),
+            ...(high || watch || (m.progressionRate ?? 0) < 0 ? [self ? "Pourquoi mes résultats baissent ?" : `Pourquoi ${student.name} est en difficulté ?`] : []),
             ...studentFollowUps(scope, student, "overview"),
         ].slice(0, 3),
         sources: ["analyses de période", "appel (30 jours)", "discipline", ...(finance ? ["paiements"] : [])],
@@ -1211,7 +1299,7 @@ export async function studentWhy(input: SkillInput): Promise<SkillOutput> {
         .slice(0, 3);
     if (declining.length) {
         reasons.push({
-            text: `la baisse vient surtout de ${joinFr(declining.map((s) => `${s.subjectName} (−${f.percent(-(s.progressionRate ?? 0))})`))}`,
+            text: `la baisse vient surtout ${deFr(joinFr(declining.map((s) => `${s.subjectName} (−${f.percent(-(s.progressionRate ?? 0))})`)))}`,
             weight: 60,
         });
     }
@@ -1235,7 +1323,11 @@ export async function studentWhy(input: SkillInput): Promise<SkillOutput> {
         };
     }
 
-    const intro = top.length === 1
+    const intro = isSelf(scope)
+        ? top.length === 1
+            ? "Voici ce qui pèse le plus sur vos résultats :"
+            : voice.pick([`D'après vos données, ${top.length} éléments expliquent surtout vos résultats :`, "Voici ce qui pèse le plus sur vos résultats :"])
+        : top.length === 1
         ? voice.pick([`D'après les données, un élément explique surtout la situation de **${name}** :`, `La raison principale, pour **${name}** :`])
         : voice.pick([`D'après les données, ${top.length} éléments expliquent surtout la situation de **${name}** :`, `Voici ce qui pèse le plus sur les résultats de **${name}** :`, `Si l'on regarde de près, la situation de **${name}** s'explique par ${top.length} éléments :`]);
     const closing = voice.by(
@@ -1249,7 +1341,7 @@ export async function studentWhy(input: SkillInput): Promise<SkillOutput> {
             { type: "list", items: top.map((r, index) => ({ label: `${index + 1}. ${sentence(r.text)}` })) },
             { type: "text", text: closing },
         ],
-        suggestions: [`Plan d'action pour ${name}`, `Résume ${name}`, `Absences de ${name} ce mois`],
+        suggestions: isSelf(scope) ? ["Mon plan d'action", "Résume ma situation", "Mes absences ce mois"] : [`Plan d'action pour ${student.name}`, `Résume ${student.name}`, `Absences ${deFr(student.name)} ce mois`],
         sources: ["modèle de risque", "progression par matière", "appel (30 jours)"],
         context,
     };

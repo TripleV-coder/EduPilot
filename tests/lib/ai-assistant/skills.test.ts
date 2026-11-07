@@ -15,6 +15,7 @@ vi.mock("@/lib/prisma", () => ({
         homeworkSubmission: { findMany: vi.fn() },
         enrollment: { findFirst: vi.fn() },
         academicYear: { findFirst: vi.fn() },
+        studentAnalytics: { findMany: vi.fn() },
     },
 }));
 vi.mock("@/lib/academic/grading-settings", () => ({ getPassingGrade: vi.fn(async () => 10) }));
@@ -64,6 +65,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     m(prisma.attendance.findMany).mockResolvedValue([]);
     m(prisma.homeworkSubmission.findMany).mockResolvedValue([]);
+    m(prisma.studentAnalytics.findMany).mockResolvedValue([]);
 });
 
 describe("appel", () => {
@@ -107,6 +109,23 @@ describe("élèves à risque", () => {
         const table = out.blocks?.[0] as { rows: Array<{ cells: string[]; href?: string }> };
         expect(table.rows[0].cells[0]).toBe("Béa");
         expect(table.rows[0].href).toBe("/dashboard/students/s-2");
+    });
+
+    it("aucun risque modéré, mais des élèves sous la moyenne : le dit (cas réel : 182 élèves à 9/20 classés « faible »)", async () => {
+        m(governanceService.execute).mockResolvedValue({ data: { totalStudents: 3, atRiskStudents: [] } });
+        const t1 = new Date("2025-01-06"), t3 = new Date("2025-04-14");
+        m(prisma.studentAnalytics.findMany).mockResolvedValueOnce([
+            { studentId: "a", generalAverage: 12, period: { startDate: t1 } },
+            { studentId: "a", generalAverage: 9, period: { startDate: t3 } }, // dernière période : sous la moyenne
+            { studentId: "b", generalAverage: 8, period: { startDate: t1 } },
+            { studentId: "b", generalAverage: 11, period: { startDate: t3 } }, // remonté : ne compte pas
+            { studentId: "c", generalAverage: 9.5, period: { startDate: t3 } },
+        ]);
+        const out = await skills.riskList({ scope: scope("teacher", "TEACHER"), entities: none, message: "élèves à risque", now: NOW });
+        const where = m(prisma.studentAnalytics.findMany).mock.calls[0][0] as { where: { student: { enrollments: { some: { classId: unknown } } } } };
+        expect(where.where.student.enrollments.some.classId).toEqual({ in: ["c-3b", "c-4a"] });
+        expect(out.text).toContain("aucun élève à risque modéré ou élevé");
+        expect(out.text).toContain("**2 élèves ont** une moyenne sous 10,00/20");
     });
 
     it("sans moyennes calculées : explique quoi faire au lieu d'afficher zéro", async () => {

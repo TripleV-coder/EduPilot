@@ -107,7 +107,7 @@ describe("synthèse rédigée — « résume Koffi »", () => {
         expect(out.text).toMatch(/il reste \*\*45\s000 FCFA\*\* à régler/);
         expect(out.text).toMatch(/coup de pouce|accompagner Koffi/);
         expect(out.text).not.toMatch(/priorité de suivi|plan d'action est conseillé/); // registre équipe absent
-        expect(out.suggestions[0]).toMatch(/^Pourquoi Koffi/);
+        expect(out.suggestions[0]).toBe("Pourquoi Koffi Adjovi est en difficulté ?");
         expect(out.context).toEqual({ intent: "student.summary", studentId: "s-koffi" });
     });
 
@@ -135,6 +135,37 @@ describe("synthèse rédigée — « résume Koffi »", () => {
     });
 });
 
+describe("synthèse — conclusion honnête et élève à la deuxième personne", () => {
+    const moderate = (overrides: Record<string, unknown>) =>
+        analysis({
+            metrics: { averageGrade: 8.9, classRank: 23, classSize: 32, attendanceRate: 95, riskLevel: "LOW", incidentCount: 0, progressionRate: -3 },
+            ...overrides,
+        });
+
+    it("risque « faible » mais sous la moyenne : jamais « rassurante » (cas réel : Rosine, 8,93/20)", async () => {
+        m(governanceService.execute).mockResolvedValueOnce(moderate({}));
+        m(prisma.attendance.findMany).mockResolvedValueOnce([]);
+        m(getChildFinance).mockResolvedValueOnce({ totals: { remaining: 0 } });
+        const out = await studentSummary({ scope: scope("family", "PARENT"), entities: none, message: "résume Koffi", now: NOW, student: koffi });
+        expect(out.text).not.toMatch(/rassurante|bonne trajectoire/);
+        expect(out.text).toMatch(/demandent de l'attention|encouragements et d'un suivi/);
+        expect(out.text).not.toMatch(/encouragée?\b/); // jamais d'accord deviné
+    });
+
+    it("l'élève lui-même : vouvoiement, suggestions à la première personne", async () => {
+        m(governanceService.execute).mockResolvedValueOnce(moderate({}));
+        m(prisma.attendance.findMany).mockResolvedValueOnce([]);
+        m(getChildFinance).mockResolvedValueOnce({ totals: { remaining: 0 } });
+        const out = await studentSummary({ scope: scope("family", "STUDENT"), entities: none, message: "résume ma situation", now: NOW, student: koffi });
+        expect(out.text).toMatch(/^(Voici où vous en êtes|Je vous fais le point)\./);
+        expect(out.text).toMatch(/(V|v)otre moyenne est de \*\*8,90\/20\*\*/);
+        expect(out.text).toContain("Vous réussissez bien en Anglais");
+        expect(out.text).not.toContain("Koffi");
+        expect(out.suggestions[0]).toBe("Pourquoi mes résultats baissent ?");
+        expect(out.suggestions).toContain("Ma prévision");
+    });
+});
+
 describe("explication — « pourquoi Koffi baisse ? »", () => {
     it("classe les causes par poids réel et nomme les matières en baisse", async () => {
         m(governanceService.execute).mockResolvedValueOnce(analysis());
@@ -142,11 +173,12 @@ describe("explication — « pourquoi Koffi baisse ? »", () => {
         const items = (out.blocks?.[0] as { items: Array<{ label: string }> }).items.map((i) => i.label);
         expect(items).toHaveLength(3);
         expect(items[0]).toBe("1. La baisse vient surtout de Mathématiques (−25 %)");
+        expect(out.suggestions).toContain("Absences de Koffi Adjovi ce mois");
         expect(items[1]).toBe("2. La moyenne est en dessous du seuil de réussite (10/20)");
         expect(out.text).toMatch(/3 éléments|pèse le plus/);
         expect(items[2]).toBe("3. Taux de présence de 88 % (au moins 90 % recommandés)");
         expect(out.blocks?.[1]).toMatchObject({ type: "text", text: expect.stringMatching(/on peut agir|se travaillent/) }); // ton familial, après la liste
-        expect(out.suggestions).toContain("Plan d'action pour Koffi");
+        expect(out.suggestions).toContain("Plan d'action pour Koffi Adjovi");
     });
 
     it("rien d'inquiétant : le dit clairement", async () => {
@@ -182,14 +214,14 @@ describe("suite de conversation", () => {
     it("« autre chose ? » propose la suite autour de l'élève en cours", async () => {
         const answer = await ask("autre chose ?", { intent: "student.summary", studentId: "s-koffi" });
         expect(answer.meta.intent).toBe("more");
-        expect(answer.suggestions).toEqual(["Pourquoi les résultats de Koffi ?", "Prévision de Koffi", "Plan d'action pour Koffi", "Absences de Koffi ce mois"]);
+        expect(answer.suggestions).toEqual(["Pourquoi les résultats de Koffi Adjovi ?", "Prévision de Koffi Adjovi", "Plan d'action pour Koffi Adjovi", "Absences de Koffi Adjovi ce mois"]);
         expect(answer.context).toEqual({ intent: "student.summary", studentId: "s-koffi" });
     });
 
     it("« d'accord » garde le fil et ne relit rien en base", async () => {
         const answer = await ask("d'accord", { intent: "student.forecast", studentId: "s-koffi" });
         expect(answer.meta.intent).toBe("ack");
-        expect(answer.suggestions[0]).toBe("Résume Koffi");
+        expect(answer.suggestions[0]).toBe("Résume Koffi Adjovi");
         expect(governanceService.execute).not.toHaveBeenCalled();
     });
 

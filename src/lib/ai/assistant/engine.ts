@@ -15,7 +15,7 @@ import { roleSatisfies } from "@/lib/rbac/permissions";
 import { extractEntities } from "./entities";
 import { classify, DIRECTION, intentDefinition, STAFF, type Classification } from "./intents";
 import { loadScope, scopeHasClass, scopeHasStudent, type AssistantScope } from "./scope";
-import { voiceFor } from "./phrasing";
+import { deFr, voiceFor, withDe } from "./phrasing";
 import * as skills from "./skills";
 import type { SkillInput, SkillOutput } from "./skills";
 import type { AssistantAnswer, AssistantContext, AssistantUser, Entities, IntentId, NamedRef, StudentRef } from "./types";
@@ -117,14 +117,23 @@ function capabilities(scope: AssistantScope): string {
 function followUps(scope: AssistantScope, previous: AssistantContext | undefined): string[] {
     const student = scope.students.find((s) => s.id === previous?.studentId);
     if (student) {
-        const name = student.name.split(" ")[0];
-        const all: Array<[IntentId, string]> = [
-            ["student.summary", `Résume ${name}`],
-            ["student.why", `Pourquoi les résultats de ${name} ?`],
-            ["student.forecast", `Prévision de ${name}`],
-            ["student.action-plan", `Plan d'action pour ${name}`],
-            ["attendance.summary", `Absences de ${name} ce mois`],
-        ];
+        // Nom complet : un prénom seul est ambigu dès qu'il y a des homonymes
+        const name = student.name;
+        const all: Array<[IntentId, string]> = scope.user.role === "STUDENT"
+            ? [
+                  ["student.summary", "Résume ma situation"],
+                  ["student.why", "Pourquoi mes résultats ?"],
+                  ["student.forecast", "Ma prévision"],
+                  ["student.action-plan", "Mon plan d'action"],
+                  ["attendance.summary", "Mes absences ce mois"],
+              ]
+            : [
+                  ["student.summary", `Résume ${name}`],
+                  ["student.why", `Pourquoi les résultats ${deFr(name)} ?`],
+                  ["student.forecast", `Prévision ${deFr(name)}`],
+                  ["student.action-plan", `Plan d'action pour ${name}`],
+                  ["attendance.summary", `Absences ${deFr(name)} ce mois`],
+              ];
         return all.filter(([id]) => id !== previous?.intent).slice(0, 4).map(([, text]) => text);
     }
     const klass = scope.classes.find((c) => c.id === previous?.classId);
@@ -204,11 +213,27 @@ function resolveStudent(intent: IntentId, scope: AssistantScope, entities: Entit
     if (entities.student) return { value: entities.student };
 
     const phrase = STUDENT_PHRASES[intent] ?? "Analyse de";
+    if (entities.unknownName && !entities.studentCandidates?.length) {
+        const where = scope.kind === "family" ? "vos enfants" : scope.kind === "teacher" ? "vos classes" : "l'établissement";
+        return {
+            clarify: {
+                text: scope.user.role === "STUDENT"
+                    ? "Vous ne pouvez consulter que vos propres résultats."
+                    : `Je ne trouve aucun élève « ${entities.unknownName} » parmi ${where}. Vérifiez l'orthographe du nom.`,
+                suggestions: scope.kind === "family" && scope.user.role !== "STUDENT" ? scope.students.map((s) => withDe(phrase, s.name)) : [],
+                sources: [],
+                context: { intent },
+            },
+        };
+    }
+    // « Prévision de Zoé » pendant une conversation sur Zoé Houétchénou : c'est elle
+    const continuing = entities.studentCandidates?.find((s) => s.id === previous?.studentId);
+    if (continuing) return { value: continuing };
     if (entities.studentCandidates?.length) {
         return {
             clarify: {
                 text: "Plusieurs élèves correspondent. Lequel ?",
-                suggestions: entities.studentCandidates.map((s) => `${phrase} ${s.name}${s.className ? ` (${s.className})` : ""}`),
+                suggestions: entities.studentCandidates.map((s) => `${withDe(phrase, s.name)}${s.className ? ` (${s.className})` : ""}`),
                 sources: [],
                 context: { intent },
             },
@@ -222,7 +247,8 @@ function resolveStudent(intent: IntentId, scope: AssistantScope, entities: Entit
     return {
         clarify: {
             text: family ? "Pour lequel de vos enfants ?" : "De quel élève parlez-vous ? Écrivez son nom ou son prénom.",
-            suggestions: (family ? scope.students : scope.students.slice(0, 3)).map((s) => `${phrase} ${s.name}`),
+            // Famille : ses enfants en un clic ; équipe : jamais d'élèves pris au hasard
+            suggestions: family ? scope.students.map((s) => withDe(phrase, s.name)) : [],
             sources: [],
             context: { intent },
         },

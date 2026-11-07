@@ -122,6 +122,12 @@ describe("assistant — suite de conversation", () => {
         expect(input.entities.range?.label).toBe("la semaine dernière");
     });
 
+    it("« Prévision de Awa » pendant une conversation sur Awa Houngbo : pas de « lequel ? » (cas réel)", async () => {
+        const answer = await ask("Prévision de Awa", "DIRECTOR", { intent: "student.overview", studentId: "s-awa2" });
+        expect(answer.meta.intent).toBe("student.forecast");
+        expect(skills.studentForecast).toHaveBeenCalledWith(expect.objectContaining({ student: expect.objectContaining({ id: "s-awa2" }) }));
+    });
+
     it("ignore un identifiant d'élève hors périmètre envoyé par le navigateur", async () => {
         const answer = await ask("et son plan d'action ?", "DIRECTOR", { intent: "student.forecast", studentId: "eleve-autre-ecole" });
         expect(skills.studentActionPlan).not.toHaveBeenCalled();
@@ -133,7 +139,7 @@ describe("assistant — précisions demandées au lieu de deviner", () => {
     it("deux élèves du même prénom : choix en un clic", async () => {
         const answer = await ask("prévision de Awa");
         expect(answer.meta.intent).toBe("clarify");
-        expect(answer.suggestions).toEqual(["Prévision de Awa Dossou (4e A)", "Prévision de Awa Houngbo (3e B)"]);
+        expect(answer.suggestions).toEqual(["Prévision d'Awa Dossou (4e A)", "Prévision d'Awa Houngbo (3e B)"]); // élision
         expect(skills.studentForecast).not.toHaveBeenCalled();
     });
 
@@ -149,6 +155,20 @@ describe("assistant — précisions demandées au lieu de deviner", () => {
             classes: [{ id: "c-3b", name: "3e B" }],
         });
         await ask("comment va mon enfant ?", "PARENT");
+        expect(skills.studentOverview).toHaveBeenCalledWith(expect.objectContaining({ student: expect.objectContaining({ id: "s-koffi" }) }));
+    });
+
+    it("un nom hors périmètre est signalé, jamais remplacé par un autre élève (cas réel en recette)", async () => {
+        state.scope = scopeFor("family", "PARENT", {
+            students: [{ id: "s-koffi", name: "Koffi Adjovi", className: "3e B" }],
+            classes: [{ id: "c-3b", name: "3e B" }],
+        });
+        const answer = await ask("analyse de Patrick Chabi", "PARENT");
+        expect(answer.meta.intent).toBe("clarify");
+        expect(answer.text).toBe("Je ne trouve aucun élève « Patrick Chabi » parmi vos enfants. Vérifiez l'orthographe du nom.");
+        expect(skills.studentOverview).not.toHaveBeenCalled();
+        // Une majuscule en début de phrase ou un mois n'est pas un nom d'élève
+        await ask("Comment va mon enfant en Novembre ?", "PARENT");
         expect(skills.studentOverview).toHaveBeenCalledWith(expect.objectContaining({ student: expect.objectContaining({ id: "s-koffi" }) }));
     });
 

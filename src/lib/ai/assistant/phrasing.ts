@@ -108,3 +108,15 @@ export function judgeAverage(voice: Voice, average: number, passing: number): st
         1,
     );
 }
+
+const VOWEL_START = /^[aeiouyhàâäéèêëîïôöùûüAEIOUYHÀÂÄÉÈÊËÎÏÔÖÙÛÜ]/;
+
+/** « de Koffi », « d'Aicha », « d'Éducation civique ». */
+export function deFr(word: string): string {
+    return VOWEL_START.test(word) ? `d'${word}` : `de ${word}`;
+}
+
+/** « Analyse de » + « Aicha » → « Analyse d'Aicha » ; sinon simple juxtaposition. */
+export function withDe(phrase: string, name: string): string {
+    return phrase.endsWith(" de") ? `${phrase.slice(0, -3)} ${deFr(name)}` : `${phrase} ${name}`;
+}

@@ -86,6 +86,19 @@ describe("éléments reconnus", () => {
         expect(entities("comment va Awa Houngbo ?").student?.id).toBe("s-awa2");
     });
 
+    it("départage des homonymes complets par la classe citée (cas réel : trois « Zoé Houétchénou »)", () => {
+        const twins: AssistantScope = {
+            ...scope,
+            students: [
+                { id: "z-5b", name: "Zoé Houétchénou", className: "3e B" },
+                { id: "z-4a", name: "Zoé Houétchénou", className: "4ème A" },
+            ],
+        };
+        expect(extractEntities("comment va Zoé Houétchénou ?", twins, NOW).studentCandidates).toHaveLength(2);
+        expect(extractEntities("Analyse de Zoé Houétchénou (4ème A)", twins, NOW).student?.id).toBe("z-4a");
+        expect(extractEntities("Analyse de Zoé Houétchénou (3e B)", twins, NOW).student?.id).toBe("z-5b");
+    });
+
     it("ne prend jamais un mot de la question pour un élève hors périmètre", () => {
         expect(entities("absences de cette semaine").student).toBeUndefined();
         expect(entities("emploi du temps de demain").student).toBeUndefined();
@@ -203,6 +216,13 @@ describe("compréhension des intentions — corpus", () => {
         ["reformule stp", "repeat"],
         ["autre chose ?", "more"],
         ["quoi d'autre", "more"],
+        // Suggestions proposées à l'élève (première personne)
+        ["Mon analyse", "student.overview"],
+        ["Ma prévision", "student.forecast"],
+        ["Mon plan d'action", "student.action-plan"],
+        ["Résume ma situation", "student.summary"],
+        ["Pourquoi mes résultats baissent ?", "student.why"],
+        ["Mes absences ce mois", "attendance.summary"],
     ];
 
     it.each(corpus)("« %s » → %s", (message, expected) => {
