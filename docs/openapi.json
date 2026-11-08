@@ -16703,6 +16703,55 @@
         }
       }
     },
+    "/api/root/integrations": {
+      "get": {
+        "summary": "GET /api/root/integrations",
+        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "tags": [
+          "root"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /api/root/integrations",
+        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "tags": [
+          "root"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
     "/api/root/logs": {
       "get": {
         "summary": "GET /api/root/logs",

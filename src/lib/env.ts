@@ -1,3 +1,4 @@
+import { publicBaseUrl } from "@/lib/system/platform";
 /**
  * Environnement — module unique (L3, décision du propriétaire du 2026-09-18).
  *
@@ -196,9 +197,11 @@ export function validateCriticalEnv(): void {
         if (malformed) errors.push(`${name} — ${malformed}`);
     }
 
-    if (process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_APP_URL) {
+    // Une seule adresse publique suffit : NEXTAUTH_URL (lue à l'exécution) ou
+    // NEXT_PUBLIC_APP_URL (figée au build) — voir lib/system/platform.ts.
+    if (process.env.NODE_ENV === "production" && !publicBaseUrl()) {
         console.warn(
-            "⚠️  NEXT_PUBLIC_APP_URL non défini — http://localhost:3000 par défaut"
+            "⚠️  Adresse publique non définie (NEXTAUTH_URL) — liens des e-mails en http://localhost:3000"
         );
     }
 

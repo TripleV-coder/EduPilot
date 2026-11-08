@@ -1,4 +1,5 @@
 import { logger } from "@/lib/utils/logger";
+import { getIntegrationSetting } from "@/lib/system/integration-settings";
 import { CIRCUITS, circuitFetch } from "@/lib/resilience/circuit-breaker";
 import { CircuitOpenError } from "@/lib/resilience/errors";
 
@@ -7,7 +8,7 @@ import { CircuitOpenError } from "@/lib/resilience/errors";
  * l'initiative de l'école doit passer par un MODÈLE approuvé par Meta : le
  * texte de l'école en est le paramètre {{1}}.
  *
- * Variables : WHATSAPP_PHONE_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_TEMPLATE_NAME,
+ * Réglages (console root › Intégrations, ou variables d'environnement) : WHATSAPP_PHONE_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_TEMPLATE_NAME,
  * WHATSAPP_TEMPLATE_LANG (défaut « fr »), WHATSAPP_API_VERSION (défaut v21.0).
  */
 const WHATSAPP_TIMEOUT_MS = 10_000;
@@ -21,23 +22,23 @@ export interface WhatsAppResult {
 }
 
 export function whatsAppConfig() {
-    const phoneId = process.env.WHATSAPP_PHONE_ID;
-    const token = process.env.WHATSAPP_ACCESS_TOKEN;
-    const template = process.env.WHATSAPP_TEMPLATE_NAME;
+    const phoneId = getIntegrationSetting("WHATSAPP_PHONE_ID");
+    const token = getIntegrationSetting("WHATSAPP_ACCESS_TOKEN");
+    const template = getIntegrationSetting("WHATSAPP_TEMPLATE_NAME");
     return {
         configured: Boolean(phoneId && token && template),
         phoneId,
         token,
         template,
-        lang: process.env.WHATSAPP_TEMPLATE_LANG || "fr",
-        version: process.env.WHATSAPP_API_VERSION || "v21.0",
+        lang: getIntegrationSetting("WHATSAPP_TEMPLATE_LANG") || "fr",
+        version: getIntegrationSetting("WHATSAPP_API_VERSION") || "v21.0",
     };
 }
 
 export async function sendWhatsAppText(to: string, text: string): Promise<WhatsAppResult> {
     const cfg = whatsAppConfig();
     if (!cfg.configured) {
-        return { success: false, error: "WhatsApp non configuré (WHATSAPP_PHONE_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_TEMPLATE_NAME).", permanent: true };
+        return { success: false, error: "WhatsApp non configuré (console root › Intégrations).", permanent: true };
     }
     try {
         const response = await circuitFetch(CIRCUITS.whatsapp, `https://graph.facebook.com/${cfg.version}/${cfg.phoneId}/messages`, {

@@ -24,6 +24,7 @@ const READ_PATTERNS = [
     /process\.env\[["']([A-Z][A-Z0-9_]+)["']\]/g,
     /getEnv\(["']([A-Z][A-Z0-9_]+)["']\)/g,
     /\benv\.([A-Z][A-Z0-9_]+)/g, // lib/security/client-ip.ts (environnement injectable)
+    /getIntegrationSetting\(["']([A-Z][A-Z0-9_]+)["']\)/g, // réglages console root, variable prioritaire (lib/system/integration-settings.ts)
 ];
 
 function sourceFiles(dir: string): string[] {

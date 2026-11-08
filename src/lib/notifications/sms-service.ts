@@ -4,6 +4,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { getIntegrationSetting } from "@/lib/system/integration-settings";
 import { enqueueJobs } from "@/lib/jobs/queue";
 import { CIRCUITS, circuitFetch } from "@/lib/resilience/circuit-breaker";
 import { CircuitOpenError } from "@/lib/resilience/errors";
@@ -30,7 +31,7 @@ interface BulkSMSResult {
 }
 
 export function isSmsProviderConfigured(): boolean {
-    return Boolean(process.env.SMS_WEBHOOK_URL);
+    return Boolean(getIntegrationSetting("SMS_WEBHOOK_URL"));
 }
 
 async function sendViaConfiguredProvider(params: {
@@ -39,13 +40,13 @@ async function sendViaConfiguredProvider(params: {
     type: SMSType;
     schoolId: string;
 }): Promise<SMSResult> {
-    const webhookUrl = process.env.SMS_WEBHOOK_URL;
-    const apiKey = process.env.SMS_API_KEY;
+    const webhookUrl = getIntegrationSetting("SMS_WEBHOOK_URL");
+    const apiKey = getIntegrationSetting("SMS_API_KEY");
 
     if (!webhookUrl) {
         return {
             success: false,
-            error: "Aucun fournisseur SMS configuré (SMS_WEBHOOK_URL).",
+            error: "Aucun fournisseur SMS configuré (console root › Intégrations).",
             permanent: true,
         };
     }

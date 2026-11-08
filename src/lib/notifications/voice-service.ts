@@ -1,16 +1,18 @@
 import { logger } from "@/lib/utils/logger";
+import { getIntegrationSetting } from "@/lib/system/integration-settings";
 import { CIRCUITS, circuitFetch } from "@/lib/resilience/circuit-breaker";
 import { CircuitOpenError } from "@/lib/resilience/errors";
 
 /**
  * Appels vocaux par une passerelle HTTP configurable (même principe que le
  * SMS) : la passerelle synthétise ou diffuse l'enregistrement et appelle le
- * numéro. Variables : VOICE_WEBHOOK_URL, VOICE_API_KEY (facultative).
+ * numéro. Réglages (console root › Intégrations, ou variables d'environnement) :
+ * VOICE_WEBHOOK_URL, VOICE_API_KEY (facultative).
  */
 const VOICE_TIMEOUT_MS = 10_000;
 
 export function isVoiceGatewayConfigured(): boolean {
-    return Boolean(process.env.VOICE_WEBHOOK_URL);
+    return Boolean(getIntegrationSetting("VOICE_WEBHOOK_URL"));
 }
 
 export async function sendVoiceCall(params: {
@@ -20,9 +22,9 @@ export async function sendVoiceCall(params: {
     audioUrl?: string | null;
     campaignId: string;
 }): Promise<{ success: boolean; error?: string; permanent?: boolean }> {
-    const url = process.env.VOICE_WEBHOOK_URL;
-    if (!url) return { success: false, error: "Aucune passerelle vocale configurée (VOICE_WEBHOOK_URL).", permanent: true };
-    const apiKey = process.env.VOICE_API_KEY;
+    const url = getIntegrationSetting("VOICE_WEBHOOK_URL");
+    if (!url) return { success: false, error: "Aucune passerelle vocale configurée (console root › Intégrations).", permanent: true };
+    const apiKey = getIntegrationSetting("VOICE_API_KEY");
     try {
         const response = await circuitFetch(CIRCUITS.voice, url, {
             method: "POST",

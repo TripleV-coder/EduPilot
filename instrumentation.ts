@@ -48,6 +48,10 @@ export async function register() {
       await logPendingSetup(() => prismaBase.user.count(), (message) => log.warn(message)).catch(() => {});
     }
 
+    // Réglages SMS / voix / WhatsApp saisis dans la console root (relus toutes les 30 s)
+    const { startIntegrationSettingsRefresh } = await import("./src/lib/system/integration-settings");
+    await startIntegrationSettingsRefresh();
+
     const { warmCache } = await import("./src/lib/cache/warm");
     warmCache().catch(() => {});
 
