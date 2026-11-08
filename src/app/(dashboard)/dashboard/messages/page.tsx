@@ -18,6 +18,7 @@ import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError, PageLoading } from "@/components/layout/page-states";
 import { FetchError, defaultHttpErrorMessage } from "@/lib/http-error";
 import { SubLabel } from "@/components/edu-homes/_shared";
+import { useLiveNotifications } from "@/hooks/use-live-notifications";
 
 type UserStub = {
     id: string;
@@ -176,9 +177,16 @@ function MessagesPageContent() {
         void refresh();
     }, [refresh]);
 
-    // Les nouveaux messages arrivent sans recharger la page : relève toutes les
-    // 20 s tant que l'onglet est visible, et dès qu'il redevient visible ou
-    // que la connexion revient.
+    // Temps réel : un message reçu déclenche aussitôt la relecture (flux de
+    // notifications), ainsi qu'une reconnexion du flux pour rattraper une
+    // coupure.
+    useLiveNotifications((event) => {
+        if (event.kind === "reconnected" || event.items.some((item) => item.type === "MESSAGE")) void refresh();
+    });
+
+    // Filet : relève toutes les 20 s tant que l'onglet est visible (accusés
+    // de lecture, flux indisponible), et dès qu'il redevient visible ou que
+    // la connexion revient.
     useEffect(() => {
         const visible = () => document.visibilityState === "visible";
         const timer = window.setInterval(() => {

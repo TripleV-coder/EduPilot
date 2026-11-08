@@ -2,13 +2,17 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
+import { toast } from "sonner";
 
 import { Avatar, Button, Icon } from "@/components/edu";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
 import { useCommandPalette } from "@/components/edu-shell/CommandPaletteProvider";
 import { fetcher } from "@/lib/fetcher";
+import { useLiveNotifications } from "@/hooks/use-live-notifications";
+import { normalizeNotificationLink } from "@/lib/utils/notification-links";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS, AI_ASSISTANT_NAV_LINK, canUseAiAssistant } from "./role-nav";
 
@@ -47,7 +51,7 @@ export function EduTopBar() {
     const role = session?.user?.role ?? "STAFF";
     const userName = session?.user?.name || "Utilisateur";
 
-    const { data: notifs } = useSWR<{ unreadCount?: number }>(
+    const { data: notifs, mutate: refreshNotifs } = useSWR<{ unreadCount?: number }>(
         session?.user ? "/api/notifications?unread=true&limit=1" : null,
         fetcher,
         // Compteur rafraîchi chaque minute tant que l'onglet est visible (SWR suspend
@@ -56,6 +60,32 @@ export function EduTopBar() {
         { refreshInterval: 60_000, revalidateOnFocus: true, dedupingInterval: 15_000, shouldRetryOnError: false }
     );
     const unreadCount = notifs?.unreadCount ?? 0;
+    const router = useRouter();
+    const pathname = usePathname();
+
+    // Temps réel : la pastille suit chaque notification dès son arrivée (le
+    // relevé d'une minute ci-dessus ne sert plus que de filet), et une alerte
+    // discrète l'annonce — sauf un message quand la messagerie est déjà
+    // ouverte, où il apparaît directement dans la conversation.
+    useLiveNotifications((event) => {
+        void refreshNotifs();
+        if (event.kind === "reconnected") return;
+        const shown = event.items.filter(
+            (item) => !(item.type === "MESSAGE" && pathname?.startsWith("/dashboard/messages")),
+        );
+        for (const item of shown.slice(0, 3)) {
+            const link = normalizeNotificationLink(item.link);
+            toast(item.title, {
+                description: item.message,
+                action: link?.startsWith("/") ? { label: "Ouvrir", onClick: () => router.push(link) } : undefined,
+            });
+        }
+        if (shown.length > 3) {
+            toast(`${shown.length - 3} autres notifications`, {
+                action: { label: "Voir", onClick: () => router.push("/dashboard/notifications") },
+            });
+        }
+    }, Boolean(session?.user));
 
     const handleMenuClick = () => {
         if (window.innerWidth < 768) {

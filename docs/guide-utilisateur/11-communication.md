@@ -5,7 +5,7 @@
 ## 11.1 Messagerie ✅
 *Messages* : conversations entre le personnel, les parents et les élèves de l'établissement. La direction peut envoyer un message à un groupe (une classe, tous les parents d'un niveau…).
 
-Les nouveaux messages arrivent **sans recharger la page** (relève toutes les 20 secondes tant que l'onglet est ouvert, et au retour sur l'onglet).
+Les nouveaux messages arrivent **en temps réel**, sans recharger la page : en général en moins d'une seconde, au plus 2 à 3 secondes. Si la connexion est coupée, la messagerie se remet à jour d'elle-même dès qu'elle revient.
 
 Le comptable peut transmettre le journal comptable à la direction par la messagerie. Un organisateur de cagnotte peut écrire à tous les participants.
 
@@ -14,6 +14,8 @@ Le comptable peut transmettre le journal comptable à la direction par la messag
 
 ## 11.3 Notifications ✅
 *Centre de notifications* : toutes les alertes reçues. Un clic ouvre directement la page concernée : une note, une absence, un paiement, un message…
+
+Une nouvelle notification s'affiche **aussitôt** dans un petit encadré en haut à droite, avec un bouton *Ouvrir*, et un point rouge apparaît sur la cloche. Sur la page *Messages*, un message reçu apparaît directement dans la conversation, sans encadré.
 
 ### Notifications push sur le téléphone ✅
 Dans *Paramètres › Notifications*, **« Activer sur cet appareil »** : les notifications de l'école (absence, note, paiement, message…) arrivent sur le téléphone ou l'ordinateur **même application fermée**. Chaque appareil s'active séparément ; plusieurs notifications reçues ensemble deviennent un seul résumé. La déconnexion arrête le push sur l'appareil.

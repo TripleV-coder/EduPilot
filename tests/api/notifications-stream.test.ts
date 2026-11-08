@@ -4,11 +4,11 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/prisma", () => ({
-  default: {
-    notification: { findMany: vi.fn() },
-  },
-}));
+// Le flux reçoit ses notifications du relevé commun du processus (prismaBase)
+vi.mock("@/lib/prisma", () => {
+  const client = { notification: { findMany: vi.fn() } };
+  return { default: client, prismaBase: client };
+});
 // Compte toujours autorisé : la revérification périodique (audit MS-01, F2)
 // a ses propres tests (tests/lib/notification-stream.test.ts et intégration).
 vi.mock("@/lib/auth/user-status-cache", () => ({
@@ -73,10 +73,10 @@ describe("GET /api/notifications/stream", () => {
     await reader.cancel();
   });
 
-  it("polle la DB toutes les 5 secondes et pousse les nouvelles notifications", async () => {
+  it("relevé commun toutes les 2 s : pousse les nouvelles notifications du compte", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("PARENT", { id: USER_ID }));
     vi.mocked(prisma.notification.findMany).mockResolvedValue([
-      { id: cuid("notifnew"), createdAt: new Date(), title: "Nouvelle" },
+      { id: cuid("notifnew"), userId: USER_ID, createdAt: new Date(), title: "Nouvelle" },
     ] as never);
 
     vi.useFakeTimers();
@@ -84,14 +84,15 @@ describe("GET /api/notifications/stream", () => {
     const reader = (res.body as ReadableStream<Uint8Array>).getReader();
     await reader.read(); // événement connected
 
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(2000);
     expect(vi.mocked(prisma.notification.findMany)).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ userId: USER_ID }) })
+      expect.objectContaining({ where: expect.objectContaining({ userId: { in: [USER_ID] } }) })
     );
 
     const { value } = await reader.read();
     const payload = new TextDecoder().decode(value);
     expect(payload).toContain("event: notifications");
+    expect(payload).toContain("Nouvelle");
 
     await reader.cancel();
   });

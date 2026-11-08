@@ -1,8 +1,10 @@
 /**
  * Création des notifications in-app. Le flux SSE (`/api/notifications/stream`)
- * les relève en base : aucun relais de publication (Redis retiré le 2026-11-07).
+ * les reçoit par le relevé commun du processus (`realtime-hub`) ; une
+ * notification créée ici est livrée sans attendre ce relevé.
  */
 import prisma from "@/lib/prisma";
+import { notificationHub } from "@/lib/notifications/realtime-hub";
 
 type NotificationType = "INFO" | "SUCCESS" | "WARNING" | "ERROR" | "GRADE" | "PAYMENT" | "BULLETIN" | "ENROLLMENT" | "SYSTEM" | "MESSAGE" | "ATTENDANCE";
 
@@ -32,6 +34,8 @@ export async function createNotification(params: CreateNotificationParams) {
       link: params.link,
     },
   });
+  // Destinataire connecté à ce processus : livré tout de suite
+  notificationHub.publish(notif);
 
   return notif;
 }

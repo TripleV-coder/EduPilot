@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -15,6 +15,7 @@ import {
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError } from "@/components/layout/page-states";
 import { SubLabel } from "@/components/edu-homes/_shared";
+import { useLiveNotifications } from "@/hooks/use-live-notifications";
 
 type CatColor = "neutral" | "danger" | "warning" | "success" | "info" | "brand";
 
@@ -125,6 +126,27 @@ function NotificationsCenterPageContent() {
             cancelled = true;
         };
     }, [activeCat]);
+
+    // Temps réel : une notification reçue est ajoutée sans recharger la page
+    // ni afficher d'état de chargement ; la sélection en cours est conservée.
+    const activeCatRef = useRef(activeCat);
+    useEffect(() => {
+        activeCatRef.current = activeCat;
+    }, [activeCat]);
+    useLiveNotifications((event) => {
+        if (event.kind !== "notifications") return;
+        const category = activeCatRef.current;
+        void fetch(`/api/notifications/feed?category=${category}`)
+            .then(async (res) => (res.ok ? ((await res.json()) as FeedData) : null))
+            .then((body) => {
+                if (!body || activeCatRef.current !== category) return;
+                setData(body);
+                setSelectedId((current) => current ?? body.preview?.id ?? null);
+            })
+            .catch(() => {
+                // relève suivante ou rechargement manuel
+            });
+    });
 
     const allItems = useMemo(() => {
         if (!data) return [] as NotifItem[];

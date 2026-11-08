@@ -6,8 +6,9 @@
  *
  * Fonctionnement :
  * - Le client ouvre une connexion SSE persistante (EventSource).
- * - Le serveur relève les nouvelles notifications en base toutes les 5 secondes
- *   (index sur la date de création).
+ * - Les notifications arrivent par le relevé commun du processus
+ *   (`realtime-hub` : une requête toutes les 2 s pour tous les connectés,
+ *   livraison immédiate de celles créées sur ce processus).
  * - Le compte est revérifié toutes les 5 secondes et avant chaque message
  *   poussé : compte supprimé, désactivé, suspendu ou mot de passe changé
  *   depuis l'ouverture → flux fermé (audit MS-01, F2). Connexion plafonnée à
@@ -16,10 +17,10 @@
 
 import { NextRequest } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
-import prisma from "@/lib/prisma";
 import { getUserStatus } from "@/lib/auth/user-status-cache";
 import { isBlockedBySchoolSuspension } from "@/lib/auth/school-suspension";
 import { createNotificationStream } from "@/lib/notifications/notification-stream";
+import { notificationHub } from "@/lib/notifications/realtime-hub";
 
 export const GET = createApiHandler(
     async (req: NextRequest, { session }) => {
@@ -34,15 +35,12 @@ export const GET = createApiHandler(
             return !(status.passwordChangedAt && status.passwordChangedAt > openedAt);
         };
 
+        // Relevé commun au processus (un seul pour tous les connectés) ; le
+        // flux revérifie le compte toutes les 5 s et avant chaque envoi.
         const { stream, close } = createNotificationStream({
             userId,
             verify,
-            fetchSince: (since) =>
-                prisma.notification.findMany({
-                    where: { userId, createdAt: { gt: since } },
-                    orderBy: { createdAt: "asc" },
-                    take: 50,
-                }),
+            subscribe: (onMessage) => notificationHub.subscribe(userId, onMessage),
         });
 
         // Fermeture propre si le client déconnecte
