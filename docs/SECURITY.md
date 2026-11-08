@@ -35,7 +35,7 @@ Document de référence pour l'équipe de sécurité, les auditeurs externes et 
 - **Expiration** : 30 jours glissants, invalidation au logout et au changement de mot de passe
 
 ### 2.3 Multi-facteur (MFA / 2FA)
-- **Standard** : TOTP (RFC 6238) via `otplib`, 6 chiffres, période 30s, fenêtre ±1
+- **Standard** : TOTP (RFC 6238) implémenté avec `node:crypto` (`src/lib/auth/totp.ts`, vérifié contre les vecteurs officiels des RFC 4226 et 6238), HMAC-SHA1, 6 chiffres, période 30s, fenêtre ±1, comparaison à temps constant
 - **Secret chiffré** : AES-256-GCM en base via `TOTP_ENCRYPTION_KEY` (64 chars hex). Format DB : `iv:authTag:ciphertext`
 - **QR code** : généré à la volée via `qrcode`, jamais persisté
 - **Activation** : optionnelle pour STUDENT/PARENT, recommandée pour TEACHER, à imposer pour DIRECTOR+ en V2

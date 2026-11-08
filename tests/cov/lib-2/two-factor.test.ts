@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 
-// Double d'otplib : un « authentificateur » déterministe (le vrai comportement
-// d'otplib 13 est éprouvé dans two-factor-otplib.test.ts).
+// Double du module TOTP : un « authentificateur » déterministe (le vrai calcul
+// est éprouvé dans tests/lib/auth/totp.test.ts et two-factor-totp.test.ts).
 const otp = vi.hoisted(() => ({
-  generateSecret: vi.fn(() => "JBSWY3DPEHPK3PXP"),
-  verify: vi.fn(),
+  generateTotpSecret: vi.fn(() => "JBSWY3DPEHPK3PXP"),
+  verifyTotpCode: vi.fn(),
 }));
-vi.mock("otplib", () => ({
-  generateSecret: otp.generateSecret,
-  verify: otp.verify,
+vi.mock("@/lib/auth/totp", () => ({
+  generateTotpSecret: otp.generateTotpSecret,
+  verifyTotpCode: otp.verifyTotpCode,
 }));
 vi.mock("@/lib/utils/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 
@@ -32,8 +32,10 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-type VerifyArg = { token: string; secret: string };
-const verifyArgs = () => otp.verify.mock.calls.map((c) => (c as unknown as [VerifyArg])[0]);
+const verifyArgs = () => otp.verifyTotpCode.mock.calls.map((c) => {
+  const [token, secret] = c as unknown as [string, string];
+  return { token, secret };
+});
 
 describe("generateSecret", () => {
   it("construit une URI otpauth encodée pour l'application d'authentification", () => {
@@ -55,20 +57,20 @@ describe("generateQRCode", () => {
 
 describe("verifyToken", () => {
   it("déchiffre un secret stocké chiffré avant la vérification", async () => {
-    otp.verify.mockResolvedValueOnce({ valid: true });
+    otp.verifyTotpCode.mockReturnValueOnce(true);
     const stored = encryptSecret("SECRETCLAIR");
     expect(await verifyToken("123456", stored)).toBe(true);
     expect(verifyArgs()[0]).toMatchObject({ token: "123456", secret: "SECRETCLAIR" });
   });
 
   it("utilise tel quel un secret hérité stocké en clair", async () => {
-    otp.verify.mockResolvedValueOnce({ valid: false });
+    otp.verifyTotpCode.mockReturnValueOnce(false);
     expect(await verifyToken("654321", "LEGACYSECRET")).toBe(false);
     expect(verifyArgs()[0]).toMatchObject({ secret: "LEGACYSECRET" });
   });
 
   it("retombe sur la valeur stockée si le déchiffrement échoue (clé changée)", async () => {
-    otp.verify.mockResolvedValueOnce({ valid: false });
+    otp.verifyTotpCode.mockReturnValueOnce(false);
     const stored = encryptSecret("X");
     const [iv, tag, ct] = stored.split(":");
     const corrupted = `${iv}:${tag.replace(/^./, tag[0] === "0" ? "1" : "0")}:${ct}`;
@@ -77,7 +79,7 @@ describe("verifyToken", () => {
   });
 
   it("renvoie false et journalise quand la vérification lève une erreur", async () => {
-    otp.verify.mockImplementationOnce(() => {
+    otp.verifyTotpCode.mockImplementationOnce(() => {
       throw new Error("boom");
     });
     expect(await verifyToken("1", "S")).toBe(false);
@@ -85,7 +87,7 @@ describe("verifyToken", () => {
   });
 
   it("enveloppe dans une Error une valeur levée qui n'en est pas une", async () => {
-    otp.verify.mockImplementationOnce(() => {
+    otp.verifyTotpCode.mockImplementationOnce(() => {
       throw "chaine";
     });
     expect(await verifyToken("1", "S")).toBe(false);

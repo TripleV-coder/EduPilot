@@ -6,14 +6,12 @@
  * perte de connexion, suspension d'un établissement par la plateforme.
  */
 import { expect, test } from "@playwright/test";
-import { TOTP } from "otplib";
+import { totpCode } from "../../src/lib/auth/totp";
 import { etat, explorePage, goto, login, loginToDashboard, openActor, pause, pickOption, scrollThrough, step } from "./kit";
 
 const ETAPE = "13-configurations-transverses";
 const MOBILE = { width: 375, height: 812 };
 
-// otplib 13 : generate() est asynchrone (une promesse, pas le code) — l'application attend déjà verify()
-const totp = new TOTP({ step: 30, window: 1 } as never) as unknown as { generate: (opts: { secret: string }) => Promise<string> };
 
 test("01 · sur téléphone (375 px) : chaque rôle et ses écrans du quotidien", async ({ browser }) => {
     const parcours: { key: string; label: string; pages: string[] }[] = [
@@ -249,7 +247,7 @@ test("07 · double authentification (application TOTP) : activation, connexion, 
             admin,
             "Code de l'application : 2FA activée, codes de secours affichés",
             async () => {
-                await page.getByLabel("Code à 6 chiffres").fill(await totp.generate({ secret }));
+                await page.getByLabel("Code à 6 chiffres").fill(totpCode(secret));
                 await page.getByRole("button", { name: /activer la 2fa/i }).click();
                 await expect(page.getByText(/codes de secours/i).first()).toBeVisible();
                 await pause(admin, 3000);
@@ -276,7 +274,7 @@ test("07 · double authentification (application TOTP) : activation, connexion, 
         await step(admin, "Bon code : accès au tableau de bord", async () => {
             await page.reload();
             await page.locator("input").first().click();
-            await page.keyboard.type(await totp.generate({ secret }), { delay: 150 });
+            await page.keyboard.type(totpCode(secret), { delay: 150 });
             await page.waitForURL(/\/dashboard/, { timeout: 30_000 });
             await pause(admin, 2000);
         });

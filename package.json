@@ -62,7 +62,6 @@
     "next": "~16.4.3",
     "next-auth": "^5.0.0-beta.30",
     "nodemailer": "^10.0.12",
-    "otplib": "^13.3.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

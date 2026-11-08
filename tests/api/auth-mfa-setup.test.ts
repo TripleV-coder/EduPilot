@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid } from "./test-helpers";
 
-// two-factor charge otplib + qrcode (modules externes lourds) → mock au
+// two-factor charge qrcode et le chiffrement des secrets → mock au
 // niveau module pour tester la route en isolation.
 vi.mock("@/lib/auth/two-factor", () => ({
   generateSecret: vi.fn(),
