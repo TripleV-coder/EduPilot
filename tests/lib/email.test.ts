@@ -151,3 +151,27 @@ describe("templates", () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).html).not.toContain("mot de passe temporaire");
   });
 });
+
+describe("SMTP_URL : une seule variable pour le serveur SMTP", () => {
+  it("smtps:// → TLS, port 465 par défaut ; identifiants décodés", async () => {
+    const { smtpSettings } = await import("@/lib/email");
+    expect(smtpSettings({ SMTP_URL: "smtps://direction%40ecole.bj:p%40ss%3Aw0rd@smtp.ecole.bj" })).toEqual({
+      host: "smtp.ecole.bj", port: 465, secure: true, user: "direction@ecole.bj", pass: "p@ss:w0rd",
+    });
+  });
+
+  it("smtp:// → STARTTLS, port 587 par défaut ; port explicite respecté", async () => {
+    const { smtpSettings } = await import("@/lib/email");
+    expect(smtpSettings({ SMTP_URL: "smtp://u:p@mail.ecole.bj" })).toMatchObject({ port: 587, secure: false });
+    expect(smtpSettings({ SMTP_URL: "smtp://u:p@mail.ecole.bj:2525" })).toMatchObject({ port: 2525 });
+  });
+
+  it("ancienne forme acceptée sans SMTP_URL ; SMTP_URL prioritaire ; valeur invalide refusée", async () => {
+    const { smtpSettings, resolveEmailProvider } = await import("@/lib/email");
+    expect(smtpSettings({ SMTP_HOST: "h", SMTP_PORT: "25", SMTP_USER: "u", SMTP_PASS: "p" })).toEqual({ host: "h", port: 25, secure: false, user: "u", pass: "p" });
+    expect(smtpSettings({ SMTP_URL: "smtps://a:b@nouveau", SMTP_HOST: "ancien" })?.host).toBe("nouveau");
+    expect(smtpSettings({ SMTP_URL: "https://pas-un-smtp" })).toBeNull();
+    expect(smtpSettings({})).toBeNull();
+    expect(resolveEmailProvider({ SMTP_URL: "smtps://a:b@h" })).toBe("smtp");
+  });
+});

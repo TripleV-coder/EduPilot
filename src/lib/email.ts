@@ -37,14 +37,54 @@ let smtpTransport: { key: string; transporter: ReturnType<typeof nodemailer.crea
  * Transporteur SMTP réutilisé (connexions mutualisées) : en créer un par
  * message ouvrait une connexion et une négociation TLS à chaque envoi.
  */
-function getSmtpTransport() {
-  const config = {
-    host: process.env.SMTP_HOST || "localhost",
-    port: parseInt(process.env.SMTP_PORT || "587", 10),
-    secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+export interface SmtpSettings {
+  host: string;
+  port: number;
+  secure: boolean;
+  user?: string;
+  pass?: string;
+}
+
+/**
+ * Réglages SMTP. Une seule variable (2026-11-08) :
+ *   SMTP_URL=smtps://utilisateur:mot-de-passe@smtp.exemple.bj        (TLS, port 465 par défaut)
+ *   SMTP_URL=smtp://utilisateur:mot-de-passe@smtp.exemple.bj:587     (STARTTLS)
+ * (caractères spéciaux du mot de passe encodés : @ → %40, : → %3A…).
+ * Les anciennes variables SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER,
+ * SMTP_PASS restent acceptées quand SMTP_URL est absente.
+ */
+export function smtpSettings(env: Record<string, string | undefined> = process.env): SmtpSettings | null {
+  const raw = env.SMTP_URL?.trim();
+  if (raw) {
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      return null;
+    }
+    if (url.protocol !== "smtp:" && url.protocol !== "smtps:") return null;
+    const secure = url.protocol === "smtps:";
+    return {
+      host: url.hostname,
+      port: url.port ? Number(url.port) : secure ? 465 : 587,
+      secure,
+      user: url.username ? decodeURIComponent(url.username) : undefined,
+      pass: url.password ? decodeURIComponent(url.password) : undefined,
+    };
+  }
+  const host = env.SMTP_HOST?.trim();
+  if (!host) return null;
+  return {
+    host,
+    port: parseInt(env.SMTP_PORT || "587", 10),
+    secure: env.SMTP_SECURE === "true",
+    user: env.SMTP_USER,
+    pass: env.SMTP_PASS,
   };
+}
+
+function getSmtpTransport() {
+  const config = smtpSettings() ?? { host: "localhost", port: 587, secure: false };
   const key = JSON.stringify(config);
   if (smtpTransport?.key === key) return smtpTransport.transporter;
 
@@ -85,7 +125,7 @@ export type EmailProvider = "smtp" | "resend" | "sendgrid";
 /**
  * Fournisseur d'e-mail : EMAIL_PROVIDER s'il est défini, sinon déduit de la
  * configuration présente (une variable de moins à renseigner) :
- * clé « re_… » → Resend, « SG.… » → SendGrid, SMTP_HOST → SMTP.
+ * clé « re_… » → Resend, « SG.… » → SendGrid, SMTP_URL (ou SMTP_HOST) → SMTP.
  */
 export function resolveEmailProvider(env: Record<string, string | undefined> = process.env): EmailProvider | null {
   const explicit = env.EMAIL_PROVIDER?.trim().toLowerCase();
@@ -93,7 +133,7 @@ export function resolveEmailProvider(env: Record<string, string | undefined> = p
   const key = env.EMAIL_API_KEY?.trim() ?? "";
   if (key.startsWith("re_")) return "resend";
   if (key.startsWith("SG.")) return "sendgrid";
-  if (env.SMTP_HOST?.trim()) return "smtp";
+  if (env.SMTP_URL?.trim() || env.SMTP_HOST?.trim()) return "smtp";
   return null;
 }
 
@@ -108,8 +148,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const emailApiKey = process.env.EMAIL_API_KEY;
   const emailFrom = process.env.EMAIL_FROM || "noreply@edupilot.bj";
 
-  // SMTP_PORT a un défaut (587) : seul l'hôte est indispensable
-  const isSmtpIncomplete = emailProvider === "smtp" && !process.env.SMTP_HOST;
+  // Le port a un défaut : seul le serveur est indispensable
+  const isSmtpIncomplete = emailProvider === "smtp" && !smtpSettings();
   const isApiIncomplete = (emailProvider === "resend" || emailProvider === "sendgrid") && !emailApiKey;
 
   if (!emailProvider || isSmtpIncomplete || isApiIncomplete) {
@@ -133,7 +173,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     // En production : l'email n'est pas configuré — erreur explicite
     // (validateEnv() en instrumentation.ts devrait avoir bloqué le démarrage avant d'arriver ici)
     logger.error(
-      "Service email non configuré en production. Définir EMAIL_API_KEY (Resend « re_… » ou SendGrid « SG.… ») ou SMTP_HOST, et EMAIL_FROM.",
+      "Service email non configuré en production. Définir EMAIL_API_KEY (Resend « re_… » ou SendGrid « SG.… ») ou SMTP_URL, et EMAIL_FROM.",
       undefined,
       { module: "email", to: maskEmail(to), subject }
     );

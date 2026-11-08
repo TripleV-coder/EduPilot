@@ -46,7 +46,7 @@ const usesSmtp = () => process.env.EMAIL_PROVIDER === "smtp";
 const onServerless = () => process.env.VERCEL === "1" || Boolean(process.env.NETLIFY) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
 /** E-mail configuré par une clé d'API (Resend/SendGrid, fournisseur déduit) ou par SMTP. */
 const emailConfigured = () =>
-    Boolean(process.env.EMAIL_API_KEY?.trim()) || Boolean(process.env.SMTP_HOST?.trim());
+    Boolean(process.env.EMAIL_API_KEY?.trim()) || Boolean(process.env.SMTP_URL?.trim()) || Boolean(process.env.SMTP_HOST?.trim());
 
 const ENV_VARS: EnvVar[] = [
     {
@@ -74,14 +74,14 @@ const ENV_VARS: EnvVar[] = [
         name: "EMAIL_API_KEY",
         required: "production",
         description:
-            "E-mail (réinitialisation de mot de passe) : clé Resend « re_… » ou SendGrid « SG.… » (fournisseur déduit), ou SMTP_HOST",
+            "E-mail (réinitialisation de mot de passe) : clé Resend « re_… » ou SendGrid « SG.… » (fournisseur déduit), ou SMTP_URL (smtps://utilisateur:mot-de-passe@serveur)",
         when: () => !emailConfigured(),
     },
     {
-        name: "SMTP_HOST",
+        name: "SMTP_URL",
         required: "production",
-        description: "Serveur SMTP (EMAIL_PROVIDER=smtp)",
-        when: usesSmtp,
+        description: "Serveur SMTP (EMAIL_PROVIDER=smtp) : smtps://utilisateur:mot-de-passe@serveur (ou l'ancien SMTP_HOST)",
+        when: () => usesSmtp() && !process.env.SMTP_HOST?.trim(),
     },
     {
         name: "EMAIL_FROM",

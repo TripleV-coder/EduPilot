@@ -24,7 +24,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 /** Noms de variables sensibles (jamais les variables publiques NEXT_PUBLIC_). */
-const SECRET_NAME = /(SECRET|PASSWORD|PASSWD|_PASS$|TOKEN|API_KEY|_KEY$|PRIVATE|CREDENTIAL|DATABASE_URL|_DSN$|ENCRYPTION)/;
+// SMTP_URL : contient le mot de passe SMTP (smtps://utilisateur:mot-de-passe@serveur)
+const SECRET_NAME = /(SECRET|PASSWORD|PASSWD|_PASS$|TOKEN|API_KEY|_KEY$|PRIVATE|CREDENTIAL|DATABASE_URL|SMTP_URL|_DSN$|ENCRYPTION)/;
 /** En dessous, une valeur est trop banale pour être recherchée sans faux positif. */
 const MIN_SECRET_LENGTH = 8;
 const ENV_FILE = /^\.env(\..+)?$/;

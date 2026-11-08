@@ -58,7 +58,7 @@ describe("stripStandaloneEnvFiles", () => {
 
 describe("check-artifact-secrets", () => {
   it("noms sensibles : secrets oui, variables publiques et paramètres non", () => {
-    for (const name of ["NEXTAUTH_SECRET", "SMTP_PASS", "DATABASE_URL", "GOOGLE_AI_API_KEY", "TOTP_ENCRYPTION_KEY", "UPSTASH_REDIS_REST_TOKEN"]) {
+    for (const name of ["NEXTAUTH_SECRET", "SMTP_PASS", "SMTP_URL", "DATABASE_URL", "GOOGLE_AI_API_KEY", "TOTP_ENCRYPTION_KEY", "UPSTASH_REDIS_REST_TOKEN"]) {
       expect(isSecretName(name), name).toBe(true);
     }
     for (const name of ["NEXT_PUBLIC_APP_URL", "NEXTAUTH_URL", "SMTP_HOST", "SMTP_PORT", "AI_ENABLED", "NEXT_PUBLIC_SENTRY_KEY"]) {
