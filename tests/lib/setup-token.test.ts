@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { MIN_SETUP_TOKEN_LENGTH, setupTokenMatches, setupTokenPolicy } from "@/lib/auth/setup-token";
+import { describe, it, expect, vi } from "vitest";
+import { MIN_SETUP_TOKEN_LENGTH, logPendingSetup, setupTokenMatches, setupTokenPolicy } from "@/lib/auth/setup-token";
+import { derivedSecretHex } from "@/lib/security/derived-secrets";
 
 const strong = "a".repeat(MIN_SETUP_TOKEN_LENGTH);
 
@@ -16,6 +17,26 @@ describe("jeton d'installation", () => {
     it("développement : facultatif, sauf s'il est défini", () => {
         expect(setupTokenPolicy({ NODE_ENV: "development" })).toEqual({ mode: "optional" });
         expect(setupTokenPolicy({ NODE_ENV: "test", INITIAL_SETUP_TOKEN: "dev" })).toEqual({ mode: "required", expected: "dev" });
+    });
+
+    it("production sans variable : jeton dérivé du secret maître (plus de variable à définir)", () => {
+        const env = { NODE_ENV: "production", NEXTAUTH_SECRET: "m".repeat(40) };
+        const derived = derivedSecretHex("setup", env);
+        expect(setupTokenPolicy(env)).toEqual({ mode: "required", expected: derived });
+        // une variable explicite reste prioritaire
+        expect(setupTokenPolicy({ ...env, INITIAL_SETUP_TOKEN: strong })).toEqual({ mode: "required", expected: strong });
+    });
+
+    it("journal de démarrage : jeton donné seulement si la base n'a aucun compte et sans variable explicite", async () => {
+        const env = { NODE_ENV: "production", NEXTAUTH_SECRET: "m".repeat(40) };
+        const log = vi.fn();
+        await logPendingSetup(async () => 0, log, env);
+        expect(log).toHaveBeenCalledWith(expect.stringContaining(derivedSecretHex("setup", env)!));
+        log.mockClear();
+        await logPendingSetup(async () => 1, log, env);
+        await logPendingSetup(async () => 0, log, { ...env, INITIAL_SETUP_TOKEN: strong });
+        await logPendingSetup(async () => 0, log, { NODE_ENV: "development" });
+        expect(log).not.toHaveBeenCalled();
     });
 
     it("comparaison exacte, espaces de saisie ignorés, refus de tout le reste", () => {

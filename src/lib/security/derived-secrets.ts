@@ -8,7 +8,8 @@
  *
  * Une variable explicite reste TOUJOURS prioritaire (installations existantes
  * inchangées) :
- *   TOTP_ENCRYPTION_KEY · SIGNATURE_SALT · PAYMENT_SECRETS_KEY · CRON_SECRET
+ *   TOTP_ENCRYPTION_KEY · SIGNATURE_SALT · PAYMENT_SECRETS_KEY · CRON_SECRET ·
+ *   METRICS_TOKEN · INITIAL_SETUP_TOKEN · VAPID_PRIVATE_KEY (clé push, voir push/config)
  *
  * ⚠️ Changer `NEXTAUTH_SECRET` change les clés dérivées : les secrets 2FA et
  * les clés des comptes marchands chiffrés en base deviendraient illisibles.
@@ -19,7 +20,7 @@ import { hkdfSync } from "node:crypto";
 
 type Env = Record<string, string | undefined>;
 
-export type SecretPurpose = "totp-encryption" | "signature-salt" | "payment-secrets" | "cron";
+export type SecretPurpose = "totp-encryption" | "signature-salt" | "payment-secrets" | "cron" | "metrics" | "setup" | "push-vapid";
 
 /** Variable explicite qui, si elle est définie, remplace la clé dérivée. */
 export const SECRET_OVERRIDES: Record<SecretPurpose, string> = {
@@ -27,6 +28,9 @@ export const SECRET_OVERRIDES: Record<SecretPurpose, string> = {
     "signature-salt": "SIGNATURE_SALT",
     "payment-secrets": "PAYMENT_SECRETS_KEY",
     cron: "CRON_SECRET",
+    metrics: "METRICS_TOKEN",
+    setup: "INITIAL_SETUP_TOKEN",
+    "push-vapid": "VAPID_PRIVATE_KEY",
 };
 
 const MIN_MASTER_LENGTH = 32;

@@ -8,6 +8,7 @@ const { statsMock } = vi.hoisted(() => ({ statsMock: vi.fn() }));
 vi.mock("@/lib/jobs/queue", () => ({ getJobQueueStats: statsMock }));
 
 import { GET } from "@/app/api/metrics/route";
+import { derivedSecretHex } from "@/lib/security/derived-secrets";
 
 const TOKEN = "m".repeat(64);
 const request = (authorization?: string) =>
@@ -28,9 +29,19 @@ afterEach(() => {
 });
 
 describe("GET /api/metrics", () => {
-    it("n'existe pas sans METRICS_TOKEN", async () => {
+    it("n'existe pas sans METRICS_TOKEN ni secret maître", async () => {
         vi.stubEnv("METRICS_TOKEN", "");
+        vi.stubEnv("NEXTAUTH_SECRET", "");
+        vi.stubEnv("AUTH_SECRET", "");
         expect((await GET(request(`Bearer ${TOKEN}`))).status).toBe(404);
+    });
+
+    it("sans METRICS_TOKEN : jeton dérivé du secret maître accepté, tout autre refusé", async () => {
+        vi.stubEnv("METRICS_TOKEN", "");
+        vi.stubEnv("NEXTAUTH_SECRET", "m".repeat(40));
+        const derived = derivedSecretHex("metrics")!;
+        expect((await GET(request(`Bearer ${derived}`))).status).toBe(200);
+        expect((await GET(request(`Bearer ${derivedSecretHex("cron")}`))).status).toBe(401);
     });
 
     it("refuse un jeton absent ou erroné", async () => {

@@ -19,7 +19,11 @@ const OVERRIDES = {
     "signature-salt": "SIGNATURE_SALT",
     "payment-secrets": "PAYMENT_SECRETS_KEY",
     cron: "CRON_SECRET",
+    metrics: "METRICS_TOKEN",
+    setup: "INITIAL_SETUP_TOKEN",
 };
+// La clé push (VAPID) se dérive aussi, mais au format des clés P-256 : voir
+// src/lib/push/config.ts (les abonnements push existants en dépendent).
 
 const master = (process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET)?.trim();
 if (!master || master.length < 32) {

@@ -40,6 +40,14 @@ export async function register() {
       await assertRlsEnforcedAtStartup(db, (message) => log.warn(message));
     }
 
+    // Installation pas encore faite : le jeton (dérivé du secret maître) est
+    // donné à l'exploitant dans ce journal, plus de variable à définir.
+    if (process.env.NODE_ENV === "production") {
+      const { logPendingSetup } = await import("./src/lib/auth/setup-token");
+      const { prismaBase } = await import("./src/lib/prisma");
+      await logPendingSetup(() => prismaBase.user.count(), (message) => log.warn(message)).catch(() => {});
+    }
+
     const { warmCache } = await import("./src/lib/cache/warm");
     warmCache().catch(() => {});
 
