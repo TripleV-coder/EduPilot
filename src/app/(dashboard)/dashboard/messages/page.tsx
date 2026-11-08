@@ -128,6 +128,8 @@ function MessagesPageContent() {
     const [sending, setSending] = useState(false);
     const [composing, setComposing] = useState(false);
     const [recipients, setRecipients] = useState<UserStub[]>([]);
+    const [recipientTotal, setRecipientTotal] = useState(0);
+    const [recipientQuery, setRecipientQuery] = useState("");
     const [recipientId, setRecipientId] = useState("");
     const [newSubject, setNewSubject] = useState("");
     const [newContent, setNewContent] = useState("");
@@ -340,19 +342,37 @@ function MessagesPageContent() {
         }
     };
 
-    const openCompose = async () => {
-        setComposing(true);
-        setError(null);
+    // Destinataires : recherche côté serveur (une école compte des milliers
+    // de comptes ; la liste en affiche au plus 50, triés par nom).
+    const loadRecipients = useCallback(async (query: string, signal?: AbortSignal) => {
         try {
-            const res = await fetch("/api/messages/recipients");
+            const res = await fetch(`/api/messages/recipients?q=${encodeURIComponent(query)}`, { signal });
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(body.error || "Destinataires indisponibles");
             const list: UserStub[] = body.data ?? [];
             setRecipients(list);
-            setRecipientId(list[0]?.id ?? "");
+            setRecipientTotal(typeof body.total === "number" ? body.total : list.length);
+            setRecipientId((current) => (list.some((person) => person.id === current) ? current : list[0]?.id ?? ""));
         } catch (err) {
+            if (err instanceof DOMException && err.name === "AbortError") return;
             setError(err instanceof Error ? err : new Error("Erreur inconnue"));
         }
+    }, []);
+
+    useEffect(() => {
+        if (!composing) return;
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => void loadRecipients(recipientQuery, controller.signal), recipientQuery ? 250 : 0);
+        return () => {
+            window.clearTimeout(timer);
+            controller.abort();
+        };
+    }, [composing, recipientQuery, loadRecipients]);
+
+    const openCompose = () => {
+        setError(null);
+        setRecipientQuery("");
+        setComposing(true);
     };
 
     const handleCreate = async () => {
@@ -403,7 +423,7 @@ function MessagesPageContent() {
                     ]}
                     actions={
                         <div className="flex items-center gap-2">
-                            <Button icon="plus" onClick={() => void openCompose()}>
+                            <Button icon="plus" onClick={openCompose}>
                                 Nouveau message
                             </Button>
                             <Button
@@ -428,6 +448,12 @@ function MessagesPageContent() {
                 {composing ? (
                     <Card padding={16} className="mb-4">
                         <div className="grid gap-3">
+                            <Input
+                                aria-label="Rechercher un destinataire"
+                                placeholder="Rechercher un destinataire (nom, prénom ou e-mail)"
+                                value={recipientQuery}
+                                onChange={(e) => setRecipientQuery(e.target.value)}
+                            />
                             <label className="grid gap-1 text-sm">
                                 Destinataire
                                 <select
@@ -438,14 +464,21 @@ function MessagesPageContent() {
                                     style={{ borderColor: "var(--eduflow-border-default)", background: "var(--eduflow-surface-card)" }}
                                 >
                                     {recipients.length === 0 ? (
-                                        <option value="">Aucun destinataire dans votre périmètre</option>
+                                        <option value="">
+                                            {recipientQuery.trim() ? "Aucun destinataire ne correspond" : "Aucun destinataire dans votre périmètre"}
+                                        </option>
                                     ) : null}
                                     {recipients.map((person) => (
                                         <option key={person.id} value={person.id}>
-                                            {person.firstName} {person.lastName} · {ROLE_LABEL[person.role] ?? person.role}
+                                            {person.firstName} {person.lastName} · {ROLE_LABEL[person.role] ?? person.role} · {person.email}
                                         </option>
                                     ))}
                                 </select>
+                                {recipientTotal > recipients.length ? (
+                                    <span className="text-xs" style={{ color: "var(--eduflow-text-secondary)" }}>
+                                        {recipients.length} affichés sur {recipientTotal} : précisez la recherche pour trouver une personne.
+                                    </span>
+                                ) : null}
                             </label>
                             <Input
                                 aria-label="Objet"

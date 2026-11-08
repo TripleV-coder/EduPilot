@@ -7,6 +7,12 @@
 
 Les nouveaux messages arrivent **en temps réel**, sans recharger la page : en général en moins d'une seconde, au plus 2 à 3 secondes. Si la connexion est coupée, la messagerie se remet à jour d'elle-même dès qu'elle revient.
 
+**Écrire à quelqu'un** : *Nouveau message*, puis tapez le nom, le prénom ou l'e-mail de la personne dans la recherche. Chaque personne est affichée avec son rôle et son e-mail, pour distinguer les homonymes. Qui peut écrire à qui :
+- la direction : toute personne de l'établissement ;
+- un enseignant : les élèves et les parents de ses classes, et la direction ;
+- un parent ou un élève : les enseignants des classes concernées, et la direction ;
+- le reste du personnel : la direction et les enseignants.
+
 Le comptable peut transmettre le journal comptable à la direction par la messagerie. Un organisateur de cagnotte peut écrire à tous les participants.
 
 ## 11.2 Annonces ✅
