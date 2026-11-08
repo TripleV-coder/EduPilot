@@ -8,7 +8,7 @@ import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { logger } from "@/lib/utils/logger";
 import { isZodError } from "@/lib/is-zod-error";
-import { nanoid } from "nanoid";
+import { randomId } from "@/lib/utils/random-id";
 
 const MANUAL_PAYMENT_METHODS = ["CASH", "CHECK", "BANK_TRANSFER", "OTHER"] as const;
 /**
@@ -84,7 +84,7 @@ export const POST = createApiHandler(
             receivedBy: session.user.id,
             paidAt: validatedData.paidAt || new Date(),
             notes: validatedData.notes,
-            reference: validatedData.reference || `MANUAL-${Date.now()}-${nanoid(6).toUpperCase()}`,
+            reference: validatedData.reference || `MANUAL-${Date.now()}-${randomId(6).toUpperCase()}`,
           },
         });
       });

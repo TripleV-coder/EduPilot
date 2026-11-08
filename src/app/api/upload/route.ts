@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import path from "path";
-import { nanoid } from "nanoid";
+import { randomId } from "@/lib/utils/random-id";
 import { listUploadsBy, saveUploadedFile, UPLOAD_TYPES, type UploadType } from "@/lib/storage/stored-files";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -100,7 +100,7 @@ export const POST = createApiHandler(async (request, context) => {
 
     // Nom unique ; l'extension est réduite à des caractères sûrs
     const ext = path.extname(file.name).replace(/[^a-zA-Z0-9.]/g, "").slice(0, 10);
-    const filename = `${nanoid()}_${Date.now()}${ext}`;
+    const filename = `${randomId()}_${Date.now()}${ext}`;
 
     // Convert file to buffer
     const bytes = await file.arrayBuffer();

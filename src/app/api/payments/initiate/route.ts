@@ -11,7 +11,7 @@ import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { z } from "zod";
 import { fcfaAmountSchema } from "@/lib/finance/money";
-import { nanoid } from "nanoid";
+import { randomId } from "@/lib/utils/random-id";
 import { EXPECTED_CURRENCY, getFeeBalance, lockStudentFee, startedAttemptConflict } from "@/lib/finance/online-payments";
 import { INIT_UNCERTAIN_NOTE, ProviderInitError } from "@/lib/finance/providers/init-error";
 import { appendNote } from "@/lib/finance/helpers";
@@ -205,7 +205,7 @@ export const POST = createApiHandler(
                         status: "PENDING",
                         provider: resolvedProvider,
                         paymentAccountId: resolved.account.id,
-                        reference: `PAY-${Date.now()}-${nanoid(6).toUpperCase()}`,
+                        reference: `PAY-${Date.now()}-${randomId(6).toUpperCase()}`,
                     },
                 });
                 return { kind: "attempt" as const, payment };
