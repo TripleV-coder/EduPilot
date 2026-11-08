@@ -21,7 +21,7 @@ import {
     type User,
     type UserRole,
 } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import { CONSENT_TERMS, LEGAL_TERMS_VERSION } from "../../src/lib/security/consent-defaults";
 
 const prisma = new PrismaClient();

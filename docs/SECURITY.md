@@ -22,7 +22,7 @@ Document de référence pour l'équipe de sécurité, les auditeurs externes et 
 ## 2. Authentification et session
 
 ### 2.1 Hachage des mots de passe
-- **Algorithme** : `bcryptjs` avec coût **12** rounds (`src/lib/auth/config.ts`)
+- **Algorithme** : `bcrypt` (module natif, calcul hors du thread des requêtes) avec coût **12** rounds (`src/lib/auth/password.ts`)
 - **Pepper** : non utilisé (à évaluer en V2)
 - **Politique de complexité** : `strongPasswordSchema` exige 8+ caractères, 1 majuscule, 1 minuscule, 1 chiffre
 - **Politique renforcée** : `veryStrongPasswordSchema` exige en plus 1 caractère spécial (utilisée pour les comptes admin via `schoolDeploymentSchema`)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import prisma from "./owner-db";
 import { GET as CHECK, POST } from "@/app/api/auth/first-login/route";
 import { POST as ISSUE } from "@/app/api/users/[id]/activation-link/route";

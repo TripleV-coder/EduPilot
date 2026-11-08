@@ -12,7 +12,7 @@ vi.mock("otplib", () => ({
 }));
 vi.mock("@/lib/utils/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import { logger } from "@/lib/utils/logger";
 import {
   generateSecret,

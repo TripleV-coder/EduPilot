@@ -14,7 +14,7 @@
  * Des enregistrements de test PEUVENT être créés (c'est le but du CRUD).
  */
 import { chromium, type BrowserContext, type Page } from "@playwright/test";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import fs from "node:fs";
 import path from "node:path";
 import prisma from "../../src/lib/prisma";
