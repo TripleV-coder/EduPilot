@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalLayout } from "@/components/layout/legal-layout";
+import { platformContactEmail } from "@/lib/system/platform-contact";
 
 export const metadata: Metadata = {
     title: "Conditions d'utilisation — EduPilot",
@@ -8,8 +9,7 @@ export const metadata: Metadata = {
         "Conditions générales d'utilisation d'EduPilot : règles d'usage, responsabilités, propriété intellectuelle.",
 };
 
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "EduPilot";
-const CONTACT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@edupilot.app";
+const APP_NAME = "EduPilot";
 
 const sectionTitleStyle: React.CSSProperties = {
     fontSize: 18,
@@ -31,7 +31,8 @@ const linkStyle: React.CSSProperties = {
     textDecoration: "underline",
 };
 
-export default function TermsPage() {
+export default async function TermsPage() {
+    const contactEmail = await platformContactEmail();
     return (
         <LegalLayout
             title="Conditions d'utilisation"
@@ -53,9 +54,13 @@ export default function TermsPage() {
                 <p>
                     L'utilisation de {APP_NAME} implique l'acceptation pleine et entière des présentes CGU.
                     Tout différend ou question peut être adressé à{" "}
-                    <a href={`mailto:${CONTACT_EMAIL}`} style={linkStyle}>
-                        {CONTACT_EMAIL}
-                    </a>
+                    {contactEmail ? (
+                        <a href={`mailto:${contactEmail}`} style={linkStyle}>
+                            {contactEmail}
+                        </a>
+                    ) : (
+                        "l'administrateur de la plateforme"
+                    )}
                     .
                 </p>
             </section>
@@ -137,9 +142,13 @@ export default function TermsPage() {
                     Les présentes CGU sont régies par le droit français. Tout litige relatif à leur
                     interprétation ou exécution relève de la compétence des tribunaux français. Pour toute
                     question, écrivez à{" "}
-                    <a href={`mailto:${CONTACT_EMAIL}`} style={linkStyle}>
-                        {CONTACT_EMAIL}
-                    </a>
+                    {contactEmail ? (
+                        <a href={`mailto:${contactEmail}`} style={linkStyle}>
+                            {contactEmail}
+                        </a>
+                    ) : (
+                        "l'administrateur de la plateforme"
+                    )}
                     .
                 </p>
             </section>
