@@ -39,6 +39,8 @@ export interface UserStatus {
   role: UserRole;
   roles: UserRole[];
   isActive: boolean;
+  /** Suivi par le jeton : activer/désactiver la 2FA s'applique sans reconnexion. */
+  isTwoFactorEnabled: boolean;
   school: { isActive: boolean } | null;
   access: UserAccess;
 }
@@ -65,6 +67,7 @@ export async function getUserStatus(userId: string): Promise<UserStatus | null> 
       role: true,
       roles: true,
       isActive: true,
+      isTwoFactorEnabled: true,
       schoolId: true,
       school: { select: { isActive: true } },
     },
@@ -115,6 +118,7 @@ export async function getUserStatus(userId: string): Promise<UserStatus | null> 
     role: user.role,
     roles: user.roles,
     isActive: user.isActive,
+    isTwoFactorEnabled: user.isTwoFactorEnabled,
     school: user.school,
     access,
   };

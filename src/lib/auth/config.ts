@@ -489,6 +489,12 @@ export const authConfig: NextAuthConfig = {
         token.role = userStatus.role;
         token.roles = effectiveRoles;
         token.permissions = getRolePermissions(effectiveRoles);
+        // 2FA activée ou désactivée pendant la session : l'écran Sécurité
+        // revenait à « Activée » après une désactivation réussie, jusqu'à la
+        // reconnexion. Sans risque : `isTwoFactorAuthenticated` ne bascule
+        // qu'avec un code vérifié, et une 2FA activée en cours de session ne
+        // coupe pas la session ouverte (vraie depuis la connexion).
+        if (typeof userStatus.isTwoFactorEnabled === "boolean") token.isTwoFactorEnabled = userStatus.isTwoFactorEnabled;
         // Devenu super-administrateur : la session longue ne le suit pas
         if (token.remember === true && !rememberAllowed(userStatus.role)) token.remember = false;
 

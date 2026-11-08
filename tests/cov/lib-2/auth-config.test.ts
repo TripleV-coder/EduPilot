@@ -515,6 +515,20 @@ describe("callback jwt — invalidation du jeton", () => {
     expect(token.permissions).toEqual(expect.arrayContaining(["analytics:view"]));
   });
 
+  it("2FA désactivée pendant la session : le jeton suit la base (écran Sécurité à jour)", async () => {
+    findUnique.mockResolvedValueOnce({ isActive: true, isTwoFactorEnabled: false, passwordChangedAt: null, roleChangedAt: null, role: "TEACHER", roles: [], schoolId: "school-1" } as never);
+    const token = await jwt({ token: { id: "mfa-off", role: "TEACHER", isTwoFactorEnabled: true, isTwoFactorAuthenticated: true } });
+    expect(token.isTwoFactorEnabled).toBe(false);
+    expect(token.isTwoFactorAuthenticated).toBe(true);
+  });
+
+  it("session en attente du second facteur : relire l'état ne la valide jamais", async () => {
+    findUnique.mockResolvedValueOnce({ isActive: true, isTwoFactorEnabled: true, passwordChangedAt: null, roleChangedAt: null, role: "TEACHER", roles: [], schoolId: "school-1" } as never);
+    const token = await jwt({ token: { id: "mfa-pending", role: "TEACHER", isTwoFactorEnabled: true, isTwoFactorAuthenticated: false }, trigger: "update" });
+    expect(token.isTwoFactorEnabled).toBe(true);
+    expect(token.isTwoFactorAuthenticated).toBe(false);
+  });
+
   it("garde un jeton valide et synchronise rôle et droits d'établissement", async () => {
     findUnique.mockResolvedValueOnce({ isActive: true, passwordChangedAt: new Date("2025-01-01"), roleChangedAt: new Date("2025-01-01"), role: "DIRECTOR", roles: [], schoolId: "school-1" } as never);
     const token = await jwt({ token: { id: "inv-5", role: "TEACHER", schoolId: "school-9", accessibleSchoolIds: ["school-9"], iat: Date.parse("2026-01-01") / 1000 } });

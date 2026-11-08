@@ -49,8 +49,11 @@ function MfaVerifyForm() {
                 const updated = await update({ twoFactorCode: value });
 
                 if (updated?.user?.isTwoFactorAuthenticated) {
-                    router.replace(callbackUrl);
-                    router.refresh();
+                    // Navigation COMPLÈTE : le routeur client gardait en cache
+                    // la redirection vers /mfa-verify reçue en préchargeant
+                    // la page cible avant validation, et y renvoyait
+                    // l'utilisateur malgré le code accepté (2026-11-08).
+                    window.location.replace(callbackUrl);
                     return;
                 }
 
@@ -67,7 +70,7 @@ function MfaVerifyForm() {
                 setIsLoading(false);
             }
         },
-        [update, router, callbackUrl]
+        [update, callbackUrl]
     );
 
     if (status === "loading") {
