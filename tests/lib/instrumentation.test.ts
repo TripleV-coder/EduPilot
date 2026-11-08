@@ -6,15 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * fermetures à exécuter à l'arrêt. Aucune dépendance facultative ne doit
  * pouvoir empêcher tout cela.
  *
- * Constaté à l'exécution : dans la sortie standalone (l'image de production),
- * l'initialisation de Sentry échouait sur un module absent, et l'erreur
- * emportait TOUT le hook — plus aucune fermeture n'était enregistrée.
+ * Sentry retiré (2026-11-08) : les erreurs non interceptées vont au journal
+ * des erreurs interne (onRequestError → recordError).
  */
 const mocks = vi.hoisted(() => ({
   validateEnv: vi.fn(),
   registerShutdownTask: vi.fn(),
   warmCache: vi.fn().mockResolvedValue(undefined),
-  initSentryServer: vi.fn(),
+  recordError: vi.fn().mockResolvedValue(undefined),
   disconnect: vi.fn().mockResolvedValue(undefined),
   closeCache: vi.fn().mockResolvedValue(undefined),
   assertRls: vi.fn().mockResolvedValue(undefined),
@@ -25,7 +24,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../src/lib/env", () => ({ validateEnv: mocks.validateEnv }));
 vi.mock("../../src/lib/system/shutdown", () => ({ registerShutdownTask: mocks.registerShutdownTask }));
 vi.mock("../../src/lib/cache/warm", () => ({ warmCache: mocks.warmCache }));
-vi.mock("../../src/lib/monitoring/sentry", () => ({ initSentryServer: mocks.initSentryServer, initSentryEdge: vi.fn() }));
+vi.mock("../../src/lib/monitoring/error-journal", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/lib/monitoring/error-journal")>()),
+  recordError: mocks.recordError,
+}));
 vi.mock("../../src/lib/prisma", () => ({ prisma: { $disconnect: mocks.disconnect }, default: { $disconnect: mocks.disconnect } }));
 vi.mock("../../src/lib/cache/service", () => ({ closeCache: mocks.closeCache }));
 vi.mock("../../src/lib/db/rls-guard", () => ({ assertRlsEnforcedAtStartup: mocks.assertRls }));
@@ -53,25 +55,18 @@ describe("démarrage du serveur", () => {
     expect(mocks.registerShutdownTask).toHaveBeenCalledTimes(2);
   });
 
-  it("n'essaie même pas de charger Sentry sans DSN", async () => {
-    const { register } = await import("../../instrumentation");
-
-    await register();
-
-    expect(mocks.initSentryServer).not.toHaveBeenCalled();
+  it("erreur non interceptée : inscrite au journal des erreurs avec son chemin", async () => {
+    const { onRequestError } = await import("../../instrumentation");
+    await onRequestError(new TypeError("x is undefined"), { path: "/dashboard/grades?eleve=42" });
+    expect(mocks.recordError).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "server", message: "TypeError: x is undefined", path: "/dashboard/grades?eleve=42" }),
+    );
   });
 
-  it("enregistre les fermetures même si Sentry ne peut pas se charger", async () => {
-    vi.stubEnv("SENTRY_DSN", "https://exemple@o0.ingest.sentry.io/1");
-    mocks.initSentryServer.mockImplementationOnce(() => {
-      throw new Error("Cannot find module 'require-in-the-middle'");
-    });
-
-    const { register } = await import("../../instrumentation");
-    await register();
-
-    expect(mocks.registerShutdownTask).toHaveBeenCalledTimes(2);
-    expect(mocks.warn).toHaveBeenCalled();
+  it("journal indisponible : onRequestError ne lève jamais", async () => {
+    mocks.recordError.mockRejectedValueOnce(new Error("base injoignable"));
+    const { onRequestError } = await import("../../instrumentation");
+    await expect(onRequestError(new Error("boom"), {})).resolves.toBeUndefined();
   });
 
   it("ferme réellement Prisma et le cache quand les tâches sont exécutées", async () => {

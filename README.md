@@ -357,7 +357,7 @@ JS gzip dashboards ~345–459 Ko. Ces chiffres ne sont **pas** des garanties SLA
 
 ### Monitoring
 
-- 📊 **Sentry** : Tracking d'erreurs en temps réel
+- 📊 **Journal des erreurs** : erreurs serveur et navigateur, alertes instantanées aux super-administrateurs
 - 📈 **Performance Metrics** : API intégrée de monitoring
 - 🔍 **Logs structurés** : Winston logger
 - ⚠️ **Alertes** : Email & Slack webhooks

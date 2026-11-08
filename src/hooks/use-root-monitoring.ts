@@ -54,6 +54,12 @@ export interface MonitoringData {
         last24h: number;
         recent: RecentError[];
         byType: { type: string; count: number }[];
+        /** Journal des erreurs serveur et navigateur (remplace Sentry). */
+        journal: {
+            last24h: number;
+            recent: { id: string; source: string; message: string; path: string | null; createdAt: string }[];
+            frequent: { fingerprint: string; count: number; lastSeen: string | null; source: string; message: string; path: string | null }[];
+        };
     };
     alerts: {
         level: string;

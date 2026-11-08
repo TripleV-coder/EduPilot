@@ -24,6 +24,7 @@ import { InvalidCursorError } from "@/lib/api/pagination";
 import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
 import { runWithDbContext } from "@/lib/db/db-context";
 import { dbContextForSession } from "@/lib/db/session-db-context";
+import { recordError, serverErrorReport } from "@/lib/monitoring/error-journal";
 
 // ============================================
 // CUID VALIDATION
@@ -618,6 +619,9 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             // personnelles (email, matricule) : seul le chemin est écrit.
             const path = request.nextUrl?.pathname ?? (request.url ? new URL(request.url).pathname : "/api");
             logger.error("Erreur non interceptée d'une route API", error, { module: "api", path });
+            // Journal des erreurs + alerte aux super-administrateurs (sans attendre :
+            // la réponse 500 part tout de suite ; le journal ne lève jamais).
+            void recordError(serverErrorReport(error, path));
 
             // Handle Prisma-specific errors with appropriate HTTP status codes
             if (

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { logger } from "@/lib/utils/logger";
+import { reportClientError } from "@/lib/monitoring/report-client-error";
 
 export default function DashboardError({
   error,
@@ -14,6 +15,7 @@ export default function DashboardError({
     retry: () => void;
 }) {
   useEffect(() => {
+    reportClientError(error);
     logger.error("Erreur de rendu interceptée", error, { module: "error-boundary/dashboard-root", digest: error.digest });
   }, [error]);
 

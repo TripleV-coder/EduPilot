@@ -236,7 +236,7 @@ Index sur `(userId)`, `(entity, entityId)`, `(createdAt)`. Consultable via `/das
 | A06 | Vulnerable Components | OK | `npm audit` en CI (fail on high), Dependabot hebdo, Trivy filesystem + image scan |
 | A07 | Auth Failures | OK | bcrypt + MFA + lockout + rate limit + session rotation |
 | A08 | Software/Data Integrity | OK | SBOM CycloneDX généré en CI, build provenance (`attest-build-provenance`), image GHCR signée |
-| A09 | Logging/Monitoring | OK | Pino logger structuré, Sentry (frontend + backend), audit log immuable |
+| A09 | Logging/Monitoring | OK | Logger structuré, journal des erreurs interne (serveur + navigateur), audit log immuable |
 | A10 | SSRF | OK | Pas d'URL utilisateur appelée côté serveur sans whitelist (uniquement webhooks signés) |
 
 ---
@@ -253,7 +253,7 @@ EduPilot stocke des données personnelles de **mineurs** (élèves) — vigilanc
 | Droit à la portabilité (Art.20) | Export JSON structuré identique au droit d'accès |
 | Limitation du traitement | Toggle `dataProcessingPaused` sur le compte parent |
 | Registre des traitements | `docs/data-registry.md` (à compléter pour l'auditeur DPO) |
-| Sous-traitants (DPA) | Vercel (hébergement), Upstash (cache), Sentry (monitoring), Resend (email), Stripe/Flutterwave (paiement). Tous DPA signés avant prod |
+| Sous-traitants (DPA) | Vercel (hébergement), Resend (email), Stripe/Flutterwave (paiement). Tous DPA signés avant prod |
 | Notification de breach | 72h vers CNIL via `bosco29962355977@gmail.com` (DPO interne) + email aux utilisateurs impactés. Procédure dans [`RUNBOOK.md`](./RUNBOOK.md#data-breach) |
 | Rétention | Voir tableau ci-dessous |
 
@@ -267,7 +267,7 @@ EduPilot stocke des données personnelles de **mineurs** (élèves) — vigilanc
 | Paiements / factures | 10 ans | Obligation comptable |
 | Audit logs | 12 mois en chaud, 5 ans en archive | Investigation + conformité |
 | Sessions | 30 jours glissants | Sécurité |
-| Logs applicatifs (Sentry) | 90 jours | Debug |
+| Journal des erreurs | 30 jours | Debug |
 
 ---
 

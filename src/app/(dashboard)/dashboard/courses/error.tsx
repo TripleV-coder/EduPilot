@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCcw, Home } from "lucide-react";
 import Link from "next/link";
 import { logger } from "@/lib/utils/logger";
+import { reportClientError } from "@/lib/monitoring/report-client-error";
 
 export default function CoursesError({
     error,
@@ -15,6 +16,7 @@ export default function CoursesError({
     retry: () => void;
 }) {
     useEffect(() => {
+        reportClientError(error);
         logger.error("Erreur de rendu interceptée", error, { module: "error-boundary/courses", digest: error.digest });
     }, [error]);
 

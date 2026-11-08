@@ -6,7 +6,7 @@ Manuel d'exploitation : déploiement, monitoring, sauvegardes, mise à l'échell
 
 ## 1. Topologie d'environnements
 
-| Environnement | URL | DB | Cache | Sentry | Branches |
+| Environnement | URL | DB | Cache | Erreurs | Branches |
 |---------------|-----|----|----|--------|----------|
 | Local dev | `http://localhost:3000` | Postgres local Docker | in-memory | désactivé | toute branche |
 | Staging | `https://staging.edupilot.app` | Postgres dédié | — (état partagé dans Postgres) | env `staging` | `main` (auto-deploy) |
@@ -24,8 +24,6 @@ Voir `.env.example` pour la liste complète. Les **critiques** :
 | `NEXTAUTH_URL` | URL | URL publique de l'app |
 | `NEXTAUTH_SECRET` | secret | Min 32 caractères — `openssl rand -base64 48` |
 | `TOTP_ENCRYPTION_KEY` | secret hex | 64 caractères hex — `openssl rand -hex 32` |
-| `SENTRY_DSN` | URL | DSN frontend + backend |
-| `SENTRY_AUTH_TOKEN` | secret | Pour upload des sourcemaps en CI |
 | `EMAIL_API_KEY` | secret | Emails transactionnels |
 | `STAGING_DEPLOY_COMMAND` | commande | Commande de déploiement staging exécutée par `ci-cd.yml` |
 | `PRODUCTION_DEPLOY_COMMAND` | commande | Commande de déploiement production exécutée par `ci-cd.yml` |
@@ -90,7 +88,7 @@ curl https://app.edupilot.bj/api/health
 ### 4.1 Stack
 | Couche | Outil | Cible |
 |--------|-------|-------|
-| Errors frontend + backend | Sentry | Taux d'erreur, traces, releases |
+| Errors frontend + backend | Journal des erreurs (Supervision) | Erreurs serveur et navigateur, regroupées |
 | Performance | Vercel Analytics / Web Vitals | LCP, INP, CLS |
 | Logs structurés | Pino → stdout → fournisseur (Vercel Logs / Datadog) | Recherche full-text |
 | Uptime | Better Uptime / UptimeRobot | `/api/health` toutes 60s |
@@ -106,8 +104,8 @@ curl https://app.edupilot.bj/api/health
 | Indicateur | Objectif | Mesure |
 |------------|----------|--------|
 | Disponibilité (`/api/health`) | 99.5 % mensuel | Better Uptime |
-| Latence p95 API | < 500 ms | Sentry traces |
-| Error rate (5xx) | < 0.5 % | Sentry |
+| Latence p95 API | < 500 ms | /api/metrics, tableau Performance |
+| Error rate (5xx) | < 0.5 % | Journal des erreurs |
 | Build → déploiement | < 15 min | GitHub Actions |
 
 ### 4.4 Alertes
@@ -115,7 +113,7 @@ curl https://app.edupilot.bj/api/health
 |-----------|-------|----------|
 | `/api/health` KO 3 fois consécutives | Email + SMS oncall | P0 |
 | Error rate > 2 % sur 5 min | Slack #alerts | P1 |
-| Sentry : nouveau issue Critical | Slack #alerts | P1 |
+| Nouvelle erreur distincte | Notification + e-mail aux super-administrateurs | P1 |
 | Latence p95 > 1.5 s sur 10 min | Slack #alerts | P2 |
 | Pool DB > 80 % connexions | Slack #alerts | P2 |
 | Disk DB > 80 % | Email | P2 |
@@ -235,7 +233,6 @@ Stockage : Vault (V2) ou GitHub Actions Secrets (V1). **Pas** d'AWS Secrets Mana
 |---------|------|------|
 | Vercel (hosting) | Pro | ~20 USD |
 | Postgres managé (Neon / Supabase) | Pro 2 vCPU | ~25 USD |
-| Sentry | Team | ~26 USD |
 | Resend (email) | 50K/mois | 20 USD |
 | Domaine + SSL | annuel | ~15 USD |
 | **Total V1** | | **~110 USD/mois** |

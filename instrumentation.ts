@@ -62,56 +62,22 @@ export async function register() {
     // inscrit dans tous les processus web (là où les notifications naissent).
     const { registerPushDispatch } = await import("./src/lib/push/dispatch");
     registerPushDispatch();
-
-    // Surveillance des erreurs — facultative, et chargée en dernier.
-    //
-    // Sentry entraîne avec lui l'instrumentation OpenTelemetry, dont les
-    // modules externes (`require-in-the-middle`) ne sont pas embarqués dans la
-    // sortie standalone. Une dépendance absente y faisait échouer TOUT ce
-    // hook : plus de validation d'environnement, plus de garde RLS, plus de
-    // fermetures à l'arrêt. Sans DSN, on ne la charge même pas ; avec DSN, un
-    // échec est signalé et le serveur démarre quand même.
-    if (process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN) {
-      try {
-        const { initSentryServer } = await import("./src/lib/monitoring/sentry");
-        initSentryServer();
-      } catch (error) {
-        log.warn("Sentry n'a pas pu être initialisé — le serveur démarre sans surveillance des erreurs.", {
-          module: "monitoring/sentry",
-          reason: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-  }
-
-  if (process.env.NEXT_RUNTIME === "edge") {
-    if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) return;
-    try {
-      const { initSentryEdge } = await import("./src/lib/monitoring/sentry");
-      initSentryEdge();
-    } catch {
-      // Runtime Edge : pas de journal applicatif ici, et l'absence de
-      // surveillance ne doit pas empêcher le middleware de tourner.
-    }
   }
 }
 
 /**
- * Capture des erreurs de rendu App Router (erreurs serveur non interceptées).
- * Requis par le SDK Sentry v10 pour un monitoring complet.
- * Note : le type du bundle edge n'expose pas ces helpers — cast contrôlé.
+ * Erreurs de rendu et de route non interceptées (App Router) : inscrites au
+ * journal des erreurs, avec alerte aux super-administrateurs (remplace
+ * Sentry, 2026-11-08). Les erreurs 500 des routes API passant par
+ * createApiHandler y sont inscrites par le gestionnaire lui-même.
  */
-export async function onRequestError(error: unknown, request: unknown, context: unknown) {
-  if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) return;
+export async function onRequestError(error: unknown, request: { path?: string } | unknown) {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
   try {
-    const Sentry = (await import("@sentry/nextjs")) as unknown as {
-      captureRequestError: (error: unknown, request: unknown, context: unknown) => void;
-      flush: (timeout?: number) => Promise<boolean>;
-    };
-    Sentry.captureRequestError(error, request, context);
-    await Sentry.flush(2000);
+    const { recordError, serverErrorReport } = await import("./src/lib/monitoring/error-journal");
+    const path = (request as { path?: string } | null)?.path ?? null;
+    await recordError(serverErrorReport(error, path));
   } catch {
-    // Surveillance indisponible : l'erreur d'origine a déjà été journalisée
-    // par l'application, il n'y a rien de plus à faire ici.
+    // Journal indisponible : l'erreur d'origine a déjà été écrite par Next
   }
 }

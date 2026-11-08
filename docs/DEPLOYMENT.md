@@ -352,7 +352,6 @@ EMAIL_PROVIDER="resend"
 EMAIL_API_KEY="re_xxxxx"
 
 # Monitoring (RECOMMANDÉ)
-SENTRY_DSN="https://xxxxx@sentry.io/xxxxx"
 ```
 
 ### Sécurité checklist
@@ -468,9 +467,11 @@ pm2 show edupilot
 pm2 logs edupilot --err
 ```
 
-### Sentry (Monitoring d'erreurs)
+### Erreurs et alertes
 
-Configuré automatiquement si `SENTRY_DSN` est défini.
+Rien à configurer : journal des erreurs interne (Supervision › Journal des
+erreurs) et alertes aux super-administrateurs (notification + e-mail). Voir
+[MONITORING.md](./MONITORING.md).
 
 ### Alertes
 

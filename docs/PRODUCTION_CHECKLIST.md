@@ -35,9 +35,7 @@ ALLOW_BACKUP_API_IN_PRODUCTION="false"
 # Notifications push web (recommandé : parents) — paire générée UNE fois :
 #   npx web-push generate-vapid-keys
 # Changer la paire oblige chaque appareil à se réabonner.
-VAPID_PUBLIC_KEY="B..."
-VAPID_PRIVATE_KEY="..."
-VAPID_SUBJECT="mailto:support@votredomaine.com"
+# Notifications push : rien à définir (clés dérivées du secret maître, adresse publique en HTTPS)
 
 # WhatsApp Business (Meta Cloud API) — facultatif ; le modèle doit être
 # APPROUVÉ par Meta avec un paramètre {{1}} (le texte de l'école)
@@ -51,7 +49,7 @@ VOICE_WEBHOOK_URL="https://voix.fournisseur.example/call"
 VOICE_API_KEY="..."
 ```
 
-> Sans `VAPID_*`, `WHATSAPP_*` ou `VOICE_WEBHOOK_URL`, les écrans concernés le disent et refusent l'envoi (503 explicite) : rien n'est simulé.
+> Sans adresse publique HTTPS (push), `WHATSAPP_*` ou `VOICE_WEBHOOK_URL`, les écrans concernés le disent et refusent l'envoi (503 explicite) : rien n'est simulé.
 
 ---
 
@@ -187,7 +185,7 @@ const logger = pino({
 ```
 
 #### B. Services de Monitoring Recommandés
-- **Sentry** : Error tracking (déjà intégré ?)
+- **Erreurs** : journal interne + alertes aux super-administrateurs (intégré, rien à configurer)
 - **Vercel Analytics** : Si déployé sur Vercel
 - **PostgreSQL logs** : Activer slow query log
 
@@ -340,7 +338,7 @@ curl https://edupilot.com/api/health
 
 ### Monitoring
 - [ ] Logs configurés et persistés
-- [ ] Sentry (ou équivalent) configuré
+- [ ] Un super-administrateur actif reçoit bien les alertes (e-mail configuré)
 - [ ] Health check endpoint testé
 - [ ] Alertes configurées (CPU, RAM, DB)
 

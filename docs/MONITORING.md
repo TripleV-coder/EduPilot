@@ -6,47 +6,33 @@ Stack et procédures pour surveiller la santé du système, identifier les régr
 
 ## 1. Stack
 
-```
-┌──────────┐    ┌─────────────┐    ┌──────────────┐    ┌──────────────┐
-│ EduPilot │───>│ Sentry      │    │ Web Vitals   │    │ Better       │
-│ (Next.js)│    │ FE + BE     │    │ Vercel/Edge  │    │ Uptime       │
-└────┬─────┘    └─────────────┘    └──────────────┘    └──────────────┘
-     │
-     ▼
-┌──────────┐    ┌─────────────┐
-│ pino     │───>│ Vercel Logs │
-│ (stdout) │    │  / Datadog  │
-└──────────┘    └─────────────┘
-```
+Tout est interne : aucun service tiers, aucune variable à configurer (2026-11-08).
 
 | Outil | Couche | Donnée capturée |
 |-------|--------|-----------------|
-| Sentry | Frontend + Backend | Erreurs, traces, releases, sourcemaps |
-| Web Vitals (`web-vitals`) | Frontend | LCP, INP, CLS, TTFB par route |
-| Pino + logger structuré | Backend | Logs JSON contextuels |
-| Better Uptime | Externe | Disponibilité, SSL, statut public |
-| GitHub Actions / Vercel | Build | Durées, succès/échecs |
+| Journal des erreurs (`error_logs`) | Serveur + navigateur | Erreurs 500 d'API, erreurs de rendu, écrans d'erreur du navigateur |
+| Alertes aux super-administrateurs | Plateforme | Notification instantanée + e-mail, une fois par incident et par période |
+| Web Vitals (`web-vitals`) | Navigateur | LCP, INP, CLS, FCP, TTFB par page (un envoi groupé par page) |
+| Logger structuré | Serveur | Journaux JSON contextuels (stdout) |
+| `/api/metrics` | Serveur | Métriques Prometheus (jeton dérivé du secret maître) |
 
 ---
 
-## 2. Sentry
+## 2. Journal des erreurs (remplace Sentry)
 
-### 2.1 Configuration
-- DSN : `SENTRY_DSN` (variable d'env), différent par environnement
-- `SENTRY_ENVIRONMENT` : `production`, `staging`, `dev`
-- `SENTRY_AUTH_TOKEN` (CI only) : pour uploader les sourcemaps
-- Sample rate prod : `tracesSampleRate: 0.1` (10 % des requêtes profilées), `errorSampleRate: 1.0`
+### 2.1 Ce qui est capturé
+- **Erreurs 500 des routes API** (`createApiHandler`) : Sentry ne les voyait pas.
+- **Erreurs de rendu et de route non interceptées** (`onRequestError`, `instrumentation.ts`).
+- **Erreurs affichées dans le navigateur** (`global-error.tsx` et écrans `error.tsx`) →
+  `POST /api/monitoring/client-error`, même avant la connexion (10/min par IP).
 
-### 2.2 Conventions
-- **Tag** chaque erreur backend avec : `userId`, `tenantId` (`schoolId`), `requestId`, `route`
-- **Context** ajouté pour les erreurs de paiement : `provider`, `transactionId`, `amount`
-- **Releases** : la SHA git est envoyée à Sentry à chaque déploiement (cf. `ci-cd.yml` étape "Notify Sentry of release")
-
-### 2.3 Filtrer le bruit
-Erreurs ignorées dans la config Sentry (`sentry.client.config.ts` et `sentry.server.config.ts`) :
-- `ResizeObserver loop limit exceeded` (bruit navigateur)
-- `Non-Error promise rejection captured` sans stack
-- 4xx volontaires (validation Zod) : capturés comme `breadcrumb`, pas comme erreur
+### 2.2 Garanties
+- **Sans donnée personnelle** : chemin sans chaîne de requête, identifiants remplacés par `:id`, textes tronqués.
+- **Regroupement** par empreinte (source + message sans nombres ni identifiants + chemin).
+- **Volume borné** : 60 inscriptions par minute et par processus ; purge après 30 jours (maintenance quotidienne).
+- **Alerte** : chaque erreur distincte prévient les super-administrateurs actifs (limités à `ROOT_USER_EMAILS`
+  si définie) par notification et e-mail, au plus une fois par 30 min (verrou partagé en base).
+- Consultation : **Supervision › Journal des erreurs** (les plus fréquentes sur 7 jours, les plus récentes sur 24 h).
 
 ---
 
@@ -102,7 +88,7 @@ period: last 1h
 | Paiements traités | Volume + montant | `Payment.amount` |
 | Taux de connexion parents | % parents s'étant connectés sur 30 jours | `User` role=PARENT + `Session` |
 | Engagement enseignants | Médiane des saisies par enseignant / semaine | `Grade.gradedBy` |
-| Erreurs critiques | Sentry P0/P1 / 24h | API Sentry |
+| Erreurs | Erreurs serveur et navigateur / 24h | `error_logs` (Supervision) |
 
 Dashboard : `/dashboard/admin/metrics` (SUPER_ADMIN uniquement).
 
@@ -116,7 +102,7 @@ Le package `web-vitals` capture en temps réel sur le client :
 - **CLS** : Cumulative Layout Shift (cible < 0.1)
 - **TTFB** : Time To First Byte (cible < 800ms)
 
-Les valeurs sont envoyées à Sentry via `Sentry.metrics.distribution()`.
+Les valeurs d'une page partent en un seul envoi (sendBeacon) vers `/api/analytics/web-vitals`, stockées en base (`PerformanceMetric`) et agrégées par le tableau Performance. Toujours actif, rien à configurer.
 
 Page cible à monitorer en priorité :
 1. `/login` (porte d'entrée)
@@ -151,14 +137,11 @@ Page cible à monitorer en priorité :
 | P2 | Slack #alerts | < 30 min |
 | P3 | Slack #monitoring | Non urgent |
 
-### 7.2 Règles d'alerte Sentry
-| Règle | Trigger | Sévérité |
-|-------|---------|----------|
-| Nouvelle issue marquée `level=fatal` | 1 occurrence | P0 |
-| Issue avec > 100 occurrences / 1h | volume | P1 |
-| Régression d'une issue résolue | resurrection | P1 |
-| Erreur sur route `/api/auth/*` | toute | P1 |
-| Erreur sur route `/api/payments/*` | toute | P0 |
+### 7.2 Alertes du journal des erreurs (intégrées)
+| Règle | Canal | Fréquence |
+|-------|-------|-----------|
+| Nouvelle erreur distincte (empreinte) | Notification + e-mail aux super-administrateurs | 1 fois / 30 min par erreur |
+| Seuils de performance dépassés | Notification + e-mail aux super-administrateurs | 1 fois / heure par combinaison |
 
 ### 7.3 Règles d'alerte Uptime
 | Règle | Sévérité |
@@ -197,16 +180,16 @@ Page cible à monitorer en priorité :
 À implémenter en V2 via OpenTelemetry :
 - Trace ID propagé via `X-Request-Id` (déjà en place côté API)
 - Trace inclut : route Next.js → service → query Prisma → cache hit/miss
-- Visualisation dans Sentry Performance ou Tempo
+- Visualisation dans Tempo (ou équivalent OpenTelemetry)
 
 ---
 
 ## 10. Checklist pre-incident
 
 Avant chaque release majeure, vérifier :
-- [ ] Sentry release créée et sourcemaps uploadées
+- [ ] Supervision › Journal des erreurs : aucune erreur nouvelle non expliquée
 - [ ] Alertes Better Uptime actives sur prod
-- [ ] DSN Sentry présent dans les env staging + prod
+- [ ] Au moins un super-administrateur actif reçoit les alertes (e-mail configuré)
 - [ ] Pas de nouveau secret manquant dans `.env.production`
 - [ ] Disque Postgres < 70 % d'occupation
 - [ ] Sauvegarde DB datée < 24h disponible

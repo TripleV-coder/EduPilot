@@ -49,8 +49,8 @@ function buildCsp(nonce: string): string {
     "img-src 'self' blob: data:",
     "font-src 'self' data:",
     IS_PROD
-      ? "connect-src 'self' https://*.upstash.io https://*.ingest.sentry.io https://api.fedapay.com https://sandbox-api.fedapay.com"
-      : "connect-src 'self' http://localhost:* https://*.upstash.io https://*.ingest.sentry.io https://api.fedapay.com https://sandbox-api.fedapay.com",
+      ? "connect-src 'self' https://api.fedapay.com https://sandbox-api.fedapay.com"
+      : "connect-src 'self' http://localhost:* https://api.fedapay.com https://sandbox-api.fedapay.com",
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -167,6 +167,11 @@ const PUBLIC_API_ROUTES = new Set([
   "/api/health",
   // Prometheus n'a pas de session : la route exige METRICS_TOKEN elle-même.
   "/api/metrics",
+  // Erreurs affichées dans le navigateur, y compris avant la connexion
+  // (limite par IP dans la route ; remplace Sentry côté client).
+  "/api/monitoring/client-error",
+  // Mesures de performance du navigateur, y compris sur /login (limite par IP dans la route)
+  "/api/analytics/web-vitals",
   "/api/system/automation",
   "/api/system/retention",
 ]);

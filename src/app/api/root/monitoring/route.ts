@@ -97,9 +97,37 @@ export const GET = createApiHandler(
 
       // Nombre RÉEL d'erreurs sur 24 h : `recentErrors` est plafonné à 50
       // par son `take`, il ne pouvait donc pas servir de compteur.
-      const errorCount = await prisma.auditLog.count({
+      const auditErrorCount = await prisma.auditLog.count({
         where: { action: { contains: "ERROR" }, createdAt: { gte: last24h } },
       });
+
+      // Journal des erreurs serveur et navigateur (remplace Sentry)
+      const [journalCount, journalRecent, journalTop] = await Promise.all([
+        prisma.errorLog.count({ where: { createdAt: { gte: last24h } } }),
+        prisma.errorLog.findMany({
+          where: { createdAt: { gte: last24h } },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: { id: true, source: true, message: true, path: true, createdAt: true },
+        }),
+        prisma.errorLog.groupBy({
+          by: ["fingerprint"],
+          where: { createdAt: { gte: last7d } },
+          _count: { _all: true },
+          _max: { createdAt: true },
+          orderBy: { _count: { fingerprint: "desc" } },
+          take: 5,
+        }),
+      ]);
+      const topSamples = journalTop.length
+        ? await prisma.errorLog.findMany({
+            where: { fingerprint: { in: journalTop.map((t) => t.fingerprint) } },
+            distinct: ["fingerprint"],
+            orderBy: { createdAt: "desc" },
+            select: { fingerprint: true, source: true, message: true, path: true },
+          })
+        : [];
+      const errorCount = auditErrorCount + journalCount;
 
       // État de la machine (Lot 7) : mémoire, disque, dernière sauvegarde.
       const host = await hostStatus();
@@ -134,6 +162,21 @@ export const GET = createApiHandler(
             type: e.action,
             count: e._count,
           })),
+          journal: {
+            last24h: journalCount,
+            recent: journalRecent.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() })),
+            frequent: journalTop.map((t) => {
+              const sample = topSamples.find((x) => x.fingerprint === t.fingerprint);
+              return {
+                fingerprint: t.fingerprint,
+                count: t._count._all,
+                lastSeen: t._max.createdAt?.toISOString() ?? null,
+                source: sample?.source ?? "server",
+                message: sample?.message ?? "",
+                path: sample?.path ?? null,
+              };
+            }),
+          },
         },
         alerts: [
           ...(dbHealth.status === "critical"

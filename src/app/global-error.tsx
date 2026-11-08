@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { reportClientError } from "@/lib/monitoring/report-client-error";
 
 /**
  * Erreur du layout racine : remplace tout le document (ni styles globaux, ni
  * polices, ni thème ne sont chargés ici), d'où les styles en ligne. Sans ce
  * fichier, Next affichait sa page brute en anglais et l'erreur ne remontait pas
- * au suivi des erreurs.
+ * au journal des erreurs (Supervision).
  */
 export default function GlobalError({ error, retry }: { error: unknown; retry: () => void }) {
     useEffect(() => {
-        Sentry.captureException(error);
+        reportClientError(error);
     }, [error]);
 
     return (

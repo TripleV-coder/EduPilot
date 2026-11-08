@@ -27,8 +27,6 @@ updates:
         patterns: ["@radix-ui/*"]
       testing:
         patterns: ["vitest", "@vitest/*", "@playwright/*", "playwright"]
-      sentry:
-        patterns: ["@sentry/*"]
     ignore:
       # Ignore Next 9.x downgrade suggestions from postcss advisories
       - dependency-name: "next"

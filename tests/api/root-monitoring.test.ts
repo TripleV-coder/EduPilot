@@ -10,6 +10,7 @@ vi.mock("@/lib/prisma", () => ({
     $queryRaw: vi.fn(),
     auditLog: { findMany: vi.fn(), groupBy: vi.fn(), count: vi.fn() },
     user: { count: vi.fn() },
+    errorLog: { count: vi.fn(), findMany: vi.fn(), groupBy: vi.fn() },
     dataAccessRequest: { count: vi.fn() },
     systemSetting: { findUnique: vi.fn() },
   },
@@ -18,6 +19,12 @@ vi.mock("@/lib/prisma", () => ({
 const ROOT = makeSession("SUPER_ADMIN", { id: "root1", email: "root@edupilot.app" });
 const isLoginFilter = (action: unknown) =>
   typeof action === "object" && action !== null && ((action as { in?: string[] }).in ?? []).includes("LOGIN_SUCCESS");
+
+beforeEach(() => {
+  vi.mocked(prisma.errorLog.count).mockResolvedValue(0);
+  vi.mocked(prisma.errorLog.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.errorLog.groupBy).mockResolvedValue([] as never);
+});
 
 describe("GET /api/root/monitoring", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -79,6 +86,7 @@ describe("GET /api/root/monitoring", () => {
     expect(body.errors.last24h).toBe(0);
     expect(body.errors.recent).toEqual([]);
     expect(body.errors.byType).toEqual([{ type: "LOGIN_ERROR", count: 3 }]);
+    expect(body.errors.journal).toEqual({ last24h: 0, recent: [], frequent: [] });
 
     expect(body.alerts.map((a: { message: string }) => a.message)).toContain("2 requête(s) de données en attente");
   });

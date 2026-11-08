@@ -9,6 +9,7 @@ import { reconcileStalePayments, type ReconcileReport } from "@/lib/finance/onli
 import { verifyOnSchoolAccount } from "@/lib/payments/school-accounts";
 import { logger } from "@/lib/utils/logger";
 import { purgeExpiredRevokedSessions } from "@/lib/auth/session-revocation";
+import { purgeOldErrors } from "@/lib/monitoring/error-journal";
 
 export class AutomationService {
     /**
@@ -47,6 +48,11 @@ export class AutomationService {
             // 4. Sessions fermées dont le jeton a expiré : la liste ne grossit pas
             await purgeExpiredRevokedSessions().catch((error) =>
                 logger.error("Purge des sessions fermées impossible", error as Error),
+            );
+
+            // 5. Journal des erreurs : 30 jours conservés
+            await purgeOldErrors().catch((error) =>
+                logger.error("Purge du journal des erreurs impossible", error as Error),
             );
 
             logger.info("✨ Daily maintenance complete!", results);

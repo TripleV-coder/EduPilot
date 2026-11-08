@@ -1174,6 +1174,26 @@ model Notification {
   @@map("notifications")
 }
 
+/// Journal des erreurs serveur et navigateur (remplace Sentry, 2026-11-08).
+/// Alimenté par src/lib/monitoring/error-journal.ts ; purgé après 30 jours.
+model ErrorLog {
+  id          String   @id @default(cuid())
+  /// "server" (route API, rendu) ou "client" (navigateur)
+  source      String
+  message     String
+  /// Empreinte stable (source + message normalisé + chemin) : regroupement et alertes
+  fingerprint String
+  path        String?
+  digest      String?
+  stack       String?
+  userId      String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([fingerprint, createdAt])
+  @@map("error_logs")
+}
+
 model AuditLog {
   id        String   @id @default(cuid())
   userId    String

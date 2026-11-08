@@ -13978,6 +13978,33 @@
         }
       }
     },
+    "/api/monitoring/client-error": {
+      "post": {
+        "summary": "POST /api/monitoring/client-error",
+        "description": "Accessible sans session.",
+        "tags": [
+          "monitoring"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
     "/api/notifications/{id}": {
       "get": {
         "summary": "GET /api/notifications/{id}",
