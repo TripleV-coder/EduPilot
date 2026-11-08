@@ -19,7 +19,7 @@ Besoin d'authentification multi-providers (credentials + futurs OAuth Google/Mic
 ## Décision
 **NextAuth v5** avec :
 - `CredentialsProvider` pour login email/password
-- `PrismaAdapter` pour persister sessions et users
+- ~~`PrismaAdapter` pour persister sessions et users~~ — retiré le 2026-11-08 : connexion par identifiants et sessions JWT, l'adaptateur n'était jamais sollicité (table `sessions` vide). L'activité des comptes se lit dans les connexions réussies du journal d'audit (`src/lib/audit/logins.ts`).
 - MFA TOTP implémenté en couche au-dessus (otplib + crypto AES-256-GCM)
 - Session DB (pas JWT only) pour pouvoir invalider à la révocation
 

@@ -4,6 +4,7 @@ import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { CONSENT_TERMS, LEGAL_TERMS_VERSION } from "@/lib/security/consent";
+import { LOGIN_ACTIONS, loggedInSince } from "@/lib/audit/logins";
 
 /**
  * GET /api/compliance/dashboard
@@ -36,17 +37,12 @@ export const GET = createApiHandler(async (request, context) => {
         where: schoolId ? { schoolId } : {},
       }),
 
-      // Active users (logged in last 30 days)
+      // Comptes connectés au cours des 30 derniers jours (journal d'audit :
+      // la table `sessions` n'est jamais alimentée, les sessions sont des JWT)
       prisma.user.count({
         where: {
           ...(schoolId ? { schoolId } : {}),
-          sessions: {
-            some: {
-              expires: {
-                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-              },
-            },
-          },
+          ...loggedInSince(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
         },
       }),
 
@@ -98,7 +94,7 @@ export const GET = createApiHandler(async (request, context) => {
       prisma.auditLog.count({
         where: {
           ...auditSchoolFilter,
-          action: "LOGIN",
+          action: { in: [...LOGIN_ACTIONS] },
           createdAt: {
             gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
           },
@@ -185,13 +181,7 @@ export const GET = createApiHandler(async (request, context) => {
       where: {
         ...(schoolId ? { schoolId } : {}),
         isActive: true,
-        sessions: {
-          none: {
-            expires: {
-              gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-            },
-          },
-        },
+        NOT: loggedInSince(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)),
       },
     });
 

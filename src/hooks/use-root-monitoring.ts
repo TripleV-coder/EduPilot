@@ -45,7 +45,8 @@ export interface MonitoringData {
     };
     system: {
         maintenanceMode: boolean;
-        activeSessions: number;
+        /** Comptes distincts connectés au cours des dernières 24 h. */
+        connectedAccounts24h: number;
         recentLogins: number;
         pendingDataRequests: number;
     };

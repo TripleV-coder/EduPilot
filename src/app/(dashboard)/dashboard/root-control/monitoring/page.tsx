@@ -62,7 +62,7 @@ function RootMonitoringContent() {
                                         </Badge>
                                     </div>
                                     <h3 className="font-semibold text-lg">Système principal</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">Sessions actives: {data.system.activeSessions}</p>
+                                    <p className="text-sm text-muted-foreground mt-1">Comptes connectés (24 h) : {data.system.connectedAccounts24h}</p>
                                     {data.system.maintenanceMode && (
                                         <Badge variant="destructive" className="mt-2 text-xs">Maintenance Active</Badge>
                                     )}

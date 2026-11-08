@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { LOGIN_ACTIONS, loggedInSince } from "@/lib/audit/logins";
 import { requireRoot } from "@/lib/security/require-root";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
@@ -60,20 +61,17 @@ export const GET = createApiHandler(
         _count: true,
       });
 
-      // Sessions actives
-      const activeSessions = await prisma.session.count({
-        where: {
-          expires: { gte: now },
-        },
-      });
-
-      // Utilisateurs connectés récemment (24h)
-      const recentLogins = await prisma.auditLog.count({
-        where: {
-          action: "LOGIN",
-          createdAt: { gte: last24h },
-        },
-      });
+      // Activité réelle (journal d'audit) : les sessions sont des JWT, la
+      // table `sessions` n'est jamais alimentée (ce compteur valait toujours 0)
+      const [connectedAccounts24h, recentLogins] = await Promise.all([
+        prisma.user.count({ where: loggedInSince(last24h) }),
+        prisma.auditLog.count({
+          where: {
+            action: { in: [...LOGIN_ACTIONS] },
+            createdAt: { gte: last24h },
+          },
+        }),
+      ]);
 
       // Requêtes de données en attente
       const pendingRequests = await prisma.dataAccessRequest.count({
@@ -124,7 +122,7 @@ export const GET = createApiHandler(
         cache: cacheStatus,
         system: {
           maintenanceMode,
-          activeSessions,
+          connectedAccounts24h,
           recentLogins,
           pendingDataRequests: pendingRequests,
         },
