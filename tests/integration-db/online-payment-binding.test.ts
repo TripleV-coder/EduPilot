@@ -1,23 +1,19 @@
-import { createHmac } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Webhook } from "fedapay";
+import { beforeAll, describe, expect, it } from "vitest";
 import prisma from "./owner-db";
-import { actAs, callRoute, createSchool, uniqueCode } from "./helpers";
+import { createSchool, uniqueCode } from "./helpers";
 import { runAsSystem } from "@/lib/db/db-context";
 import { confirmOnlinePayment, getFeeBalance } from "@/lib/finance/online-payments";
-import { POST as fedapayWebhook } from "@/app/api/payments/fedapay/webhook/route";
-import { POST as momoWebhook } from "@/app/api/payments/momo/webhook/route";
 
 /**
  * Lot S3 (audit de souveraineté, F-02) — confirmOnlinePayment retrouvait le
  * paiement par sa seule référence : il ne vérifiait ni que la notification
  * venait du fournisseur du paiement, ni que la transaction était celle
  * enregistrée à l'initiation, et il écrasait toujours l'identifiant de
- * transaction par celui reçu. Webhooks signés réels (FedaPay : SDK officiel,
- * MoMo : HMAC) ; aucun appel réseau.
+ * transaction par celui reçu. Ces règles vivent dans confirmOnlinePayment,
+ * appelée ici directement (2026-11-08 : webhooks globaux retirés ; le
+ * transport signé par compte d'école est éprouvé par school-payment-accounts).
+ * Les paiements MoMo restent des données historiques possibles.
  */
-const FEDAPAY_SECRET = "integration-s3-fedapay-secret";
-const MOMO_SECRET = "integration-s3-momo-secret";
 let schoolId: string;
 let studentId: string;
 
@@ -38,33 +34,14 @@ const balance = (feeId: string) => runAsSystem("test:s3", () => prisma.$transact
 const rejectionAlerts = (reference: string) =>
     prisma.notification.count({ where: { title: "Confirmation de paiement en ligne refusée", message: { contains: reference } } });
 
-/** Webhook FedaPay signé par le SDK officiel, appelé anonymement comme en production. */
-async function fedapayApproved(reference: string, transactionId?: number) {
-    const raw = JSON.stringify({
-        name: "transaction.approved",
-        entity: { ...(transactionId === undefined ? {} : { id: transactionId }), status: "approved", merchant_reference: reference, amount: 20000 },
-    });
-    actAs(null);
-    return callRoute(fedapayWebhook, {
-        method: "POST", path: "/api/payments/fedapay/webhook", rawBody: raw,
-        headers: { "x-fedapay-signature": Webhook.generateTestHeaderString({ payload: raw, secret: FEDAPAY_SECRET }) },
-    });
-}
-/** Webhook MoMo signé (HMAC), appelé anonymement. */
-async function momoSuccessful(reference: string, financialTransactionId: string) {
-    const raw = JSON.stringify({ financialTransactionId, externalId: reference, amount: "20000", currency: "XOF", status: "SUCCESSFUL" });
-    actAs(null);
-    return callRoute(momoWebhook, {
-        method: "POST", path: "/api/payments/momo/webhook", rawBody: raw,
-        headers: { "x-momo-signature": createHmac("sha256", MOMO_SECRET).update(raw).digest("hex") },
-    });
-}
+/** Notification FedaPay approuvée (identifiant numérique, ou absent). */
+const fedapayApproved = async (reference: string, transactionId?: number) => ({
+    body: await confirm(reference, "FEDAPAY", transactionId === undefined ? null : String(transactionId)),
+});
 const confirm = (reference: string, provider: "FEDAPAY" | "MOMO", providerTransactionId: string | null) =>
     runAsSystem("test:s3", () => confirmOnlinePayment({ reference, provider, receivedAmount: 20000, receivedCurrency: "XOF", providerTransactionId, source: "test S3" }));
 
 beforeAll(async () => {
-    process.env.FEDAPAY_WEBHOOK_SECRET = FEDAPAY_SECRET;
-    process.env.MOMO_WEBHOOK_SECRET = MOMO_SECRET;
     schoolId = (await createSchool("IT-S3")).id;
     const user = await prisma.user.create({
         data: { email: `${uniqueCode("eleve")}@integration.test`, password: "x", firstName: "Eleve", lastName: "S3", role: "STUDENT", schoolId },
@@ -75,10 +52,7 @@ beforeAll(async () => {
         data: { email: `${uniqueCode("compta")}@integration.test`, password: "x", firstName: "Compta", lastName: "S3", role: "ACCOUNTANT", schoolId },
     });
 });
-afterAll(() => {
-    delete process.env.FEDAPAY_WEBHOOK_SECRET;
-    delete process.env.MOMO_WEBHOOK_SECRET;
-});
+
 
 describe("Fournisseur : seul celui du paiement peut le confirmer", () => {
     it("FedaPay, bon fournisseur et même transaction : validé, identifiant inchangé", async () => {
@@ -131,21 +105,6 @@ describe("Transaction : jamais de substitution d'identifiant", () => {
         expect((await fedapayApproved(p.reference, 7373)).body).toMatchObject({ outcome: "CONFIRMED" });
         const after = await state(p.id);
         expect([after.status, after.providerTransactionId]).toEqual(["VERIFIED", "7373"]);
-    });
-
-    it("MoMo : le financialTransactionId (autre nature) valide sans écraser le X-Reference-Id de l'initiation", async () => {
-        const p = await pending({ provider: "MOMO", providerTransactionId: "x-reference-id-uuid" });
-        expect((await momoSuccessful(p.reference, "MTN-FIN-123")).status).toBe(200);
-        const after = await state(p.id);
-        expect([after.status, after.providerTransactionId]).toEqual(["VERIFIED", "x-reference-id-uuid"]);
-        expect(after.notes).toContain("MTN-FIN-123"); // tracé dans la note de confirmation
-    });
-
-    it("webhook MoMo authentifié sur un paiement initié chez FedaPay : refusé", async () => {
-        const p = await pending({ provider: "FEDAPAY", providerTransactionId: "4242" });
-        await momoSuccessful(p.reference, "MTN-FIN-999");
-        const after = await state(p.id);
-        expect([after.status, after.provider, after.providerTransactionId]).toEqual(["PENDING", "FEDAPAY", "4242"]);
     });
 });
 

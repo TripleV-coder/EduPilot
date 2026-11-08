@@ -8,7 +8,6 @@ import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { createAccountCheckout } from "@/lib/payments/fedapay-account-client";
 import { ONLINE_UNAVAILABLE_MESSAGE, resolveCollectingAccount } from "@/lib/payments/school-accounts";
-import { livePaymentsGuard } from "@/lib/payments/live-mode";
 import { ServiceUnavailableError, onlinePaymentPausedResponse } from "@/lib/resilience/errors";
 import { ONLINE_PAYMENT_TTL_MS, startedAttemptConflict } from "@/lib/finance/online-payments";
 import { INIT_UNCERTAIN_NOTE, ProviderInitError } from "@/lib/finance/providers/init-error";
@@ -26,11 +25,6 @@ const STAFF = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"];
  */
 export const POST = createApiHandler(async (request, context) => {
     const session = context.session;
-
-    // Règle 11 : une configuration d'argent réel non autorisée est refusée
-    // avant tout appel au fournisseur, session et paiement même valides.
-    const liveBlocked = livePaymentsGuard();
-    if (liveBlocked) return liveBlocked;
 
     const rate = await checkRateLimit(strictLimiter, `fedapay-initiate:${session.user.id}`);
     if (!rate.success) {

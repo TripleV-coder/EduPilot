@@ -1,9 +1,8 @@
-import { createHmac } from "node:crypto";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "./owner-db";
 import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helpers";
 import { runAsSystem } from "@/lib/db/db-context";
-import { getFeeBalance } from "@/lib/finance/online-payments";
+import { confirmOnlinePayment, getFeeBalance } from "@/lib/finance/online-payments";
 
 /**
  * Lot S3, reprise d'un essai (revue S3) — la reprise d'une même demande dans
@@ -30,11 +29,9 @@ vi.mock("@/lib/payments/fedapay-account-client", async (importOriginal) => ({
 
 import { POST as initiate } from "@/app/api/payments/initiate/route";
 import { POST as fedapayInitiate } from "@/app/api/payments/fedapay/initiate/route";
-import { POST as momoWebhook } from "@/app/api/payments/momo/webhook/route";
 import { INIT_UNCERTAIN_NOTE } from "@/lib/finance/providers/init-error";
 import { ensureActiveSchoolAccount } from "./fixtures/payment-account";
 
-const MOMO_SECRET = "integration-s3-retry-momo-secret";
 let schoolId: string;
 let studentId: string;
 let accountantId: string;
@@ -56,21 +53,14 @@ const historicalMomo = (feeId: string, extra: { status?: "PENDING" | "EXPIRED"; 
         },
     });
 
-async function momoSuccess(reference: string) {
-    const raw = JSON.stringify({ financialTransactionId: uniqueCode("MTN"), externalId: reference, amount: "20000", currency: "XOF", status: "SUCCESSFUL" });
-    actAs(null);
-    try {
-        return await callRoute(momoWebhook, {
-            method: "POST", path: "/api/payments/momo/webhook", rawBody: raw,
-            headers: { "x-momo-signature": createHmac("sha256", MOMO_SECRET).update(raw).digest("hex") },
-        });
-    } finally {
-        actAs(sessionFor("ACCOUNTANT", schoolId, accountantId));
-    }
-}
+/** Confirmation authentique de MoMo, fournisseur d'origine d'un essai historique (règle de confirmOnlinePayment). */
+const momoSuccess = async (reference: string) => ({
+    body: await runAsSystem("test:s3-retry", () =>
+        confirmOnlinePayment({ reference, provider: "MOMO", receivedAmount: 20000, receivedCurrency: "XOF", providerTransactionId: uniqueCode("MTN"), source: "test S3R" }),
+    ),
+});
 
 beforeAll(async () => {
-    process.env.MOMO_WEBHOOK_SECRET = MOMO_SECRET;
     schoolId = (await createSchool("IT-S3R")).id;
     await ensureActiveSchoolAccount(schoolId);
     const user = await prisma.user.create({
@@ -80,9 +70,6 @@ beforeAll(async () => {
     accountantId = (await prisma.user.create({
         data: { email: `${uniqueCode("compta")}@integration.test`, password: "x", firstName: "Compta", lastName: "S3R", role: "ACCOUNTANT", schoolId },
     })).id;
-});
-afterAll(() => {
-    delete process.env.MOMO_WEBHOOK_SECRET;
 });
 beforeEach(() => {
     actAs(sessionFor("ACCOUNTANT", schoolId, accountantId));
@@ -113,7 +100,7 @@ describe("Reprise d'un essai MoMo historique vers FedaPay", () => {
         const payment = await historicalMomo(feeId);
         await start(feeId, "FEDAPAY");
 
-        expect((await momoSuccess(payment.reference!)).status).toBe(200);
+        expect((await momoSuccess(payment.reference!)).body).toMatchObject({ outcome: "CONFIRMED" });
         const after = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
         expect([after.status, after.provider, after.providerTransactionId]).toEqual(["VERIFIED", "MOMO", payment.providerTransactionId]);
     });

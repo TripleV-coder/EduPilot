@@ -126,9 +126,8 @@ const PUBLIC_PREFIXES = [
   "/api/setup",
   "/api/explorer",
   "/api/docs",
-  "/api/payments/webhook",
-  "/api/payments/fedapay/webhook",
-  "/api/payments/momo/webhook",
+  // Webhooks FedaPay par compte d'école (/api/payments/fedapay/webhook/<compte>)
+  "/api/payments/fedapay/webhook/",
   // Vitrine publique (annuaire + fiche établissement) — lecture seule, sans auth.
   "/api/public",
   "/ecoles",

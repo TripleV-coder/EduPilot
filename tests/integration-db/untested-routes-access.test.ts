@@ -19,7 +19,6 @@ import * as setupStatus from "@/app/api/config/setup-status/route";
 import * as debugSession from "@/app/api/debug/session/route";
 import * as incidentNotifications from "@/app/api/incidents/notifications/route";
 import * as fedapay from "@/app/api/integrations/fedapay/route";
-import * as momo from "@/app/api/integrations/momo/route";
 import * as whatsapp from "@/app/api/integrations/whatsapp/route";
 import * as meSubjects from "@/app/api/me/subjects/route";
 import * as publicSchool from "@/app/api/public/schools/[code]/route";
@@ -93,7 +92,6 @@ beforeAll(async () => {
         { name: "incidents/notifications GET", handler: incidentNotifications.GET, path: "/api/incidents/notifications?limit=999999", allowed: "PARENT", denied: [] },
         { name: "incidents/notifications POST", handler: incidentNotifications.POST, method: "POST", path: "/api/incidents/notifications", body: {}, denied: ["PARENT", "STUDENT", "ACCOUNTANT"] },
         { name: "integrations/fedapay GET", handler: fedapay.GET, path: "/api/integrations/fedapay", allowed: "ACCOUNTANT", denied: ["PARENT", "STUDENT", "TEACHER", "STAFF"] },
-        { name: "integrations/momo GET", handler: momo.GET, path: "/api/integrations/momo", allowed: "ACCOUNTANT", denied: ["PARENT", "STUDENT", "TEACHER", "STAFF"] },
         { name: "integrations/whatsapp GET", handler: whatsapp.GET, path: "/api/integrations/whatsapp", allowed: "DIRECTOR", denied: ["PARENT", "STUDENT", "TEACHER", "ACCOUNTANT"] },
         // Direction admise (pages corrections et nouveau cours) : liste vide pour elle
         { name: "me/subjects GET", handler: meSubjects.GET, path: "/api/me/subjects", allowed: "TEACHER", denied: ["PARENT", "STUDENT", "ACCOUNTANT", "STAFF"] },

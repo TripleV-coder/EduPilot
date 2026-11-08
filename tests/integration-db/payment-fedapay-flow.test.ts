@@ -189,23 +189,19 @@ describe("Lot 7 — FedaPay : initiation → webhook signé → VERIFIED", () =>
 });
 
 describe("Lot 7 (règle 11) — aucune activation d'argent réel par inadvertance", () => {
-  it("refuse l'initiation quand la configuration vise la production sans autorisation", async () => {
-    const paymentId = await newPendingPayment();
+  it("d'anciennes variables de paiement globales « live » oubliées n'ont aucun effet : compte bac à sable de l'école", async () => {
+    // Variables retirées le 2026-11-08 : plus lues. Seul PAYMENTS_LIVE_ENABLED
+    // choisit l'environnement des comptes d'école (fermé par défaut).
     process.env.FEDAPAY_ENVIRONMENT = "live";
     process.env.FEDAPAY_SECRET_KEY = "sk_live_integration";
+    fetchMock.mockClear();
 
-    const res = await callRoute(initiate, {
-      method: "POST",
-      path: "/api/payments/fedapay/initiate",
-      body: { paymentId },
-    });
+    const paymentId = await newPendingPayment();
+    await initiateFedaPay(paymentId);
 
-    expect(res.status).toBe(503);
-    expect((res.body as { code: string }).code).toBe("PAYMENTS_LIVE_DISABLED");
-    // Rien n'a été envoyé au fournisseur, le paiement est intact.
-    expect(transactionCreate).not.toHaveBeenCalled();
-    const payment = await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
-    expect(payment.status).toBe("PENDING");
-    expect(payment.reference).toBeNull();
+    expect(transactionCreate).toHaveBeenCalledOnce();
+    const calledHosts = fetchMock.mock.calls.map(([input]) => new URL(String(input)).host);
+    expect(calledHosts.length).toBeGreaterThan(0);
+    expect(calledHosts.every((host) => host.startsWith("sandbox-"))).toBe(true);
   });
 });

@@ -4,7 +4,6 @@ import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { createAccountCheckout } from "@/lib/payments/fedapay-account-client";
 import { ONLINE_UNAVAILABLE_MESSAGE, SCHOOL_PAYMENT_PROVIDER, resolveCollectingAccount } from "@/lib/payments/school-accounts";
-import { livePaymentsGuard } from "@/lib/payments/live-mode";
 import { logger } from "@/lib/utils/logger";
 import { ServiceUnavailableError, onlinePaymentPausedResponse } from "@/lib/resilience/errors";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
@@ -59,11 +58,6 @@ function splitName(full: string | undefined): { firstname: string; lastname: str
 export const POST = createApiHandler(
     async (request, context) => {
         const session = context.session;
-
-        // Règle 11 : une configuration d'argent réel non autorisée est refusée
-        // avant tout appel au fournisseur.
-        const liveBlocked = livePaymentsGuard();
-        if (liveBlocked) return liveBlocked;
 
         try {
             const body = await request.json();

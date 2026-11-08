@@ -4,7 +4,6 @@ import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import { syncAllStudentsForSchool } from "@/lib/services/analytics-sync";
 import { createBulkNotifications } from "@/lib/services/notification.service";
 import { runInstallmentReminders } from "@/lib/finance/reminders";
-import { PaymentProviderFactory } from "@/lib/finance/factory";
 import { reconcileStalePayments, type ReconcileReport } from "@/lib/finance/online-payments";
 import { verifyOnSchoolAccount } from "@/lib/payments/school-accounts";
 import { logger } from "@/lib/utils/logger";
@@ -66,13 +65,13 @@ export class AutomationService {
     /** Réconciliation des paiements en ligne restés en attente plus de 24 h. */
     async reconcileOnlinePayments(): Promise<ReconcileReport> {
         try {
-            // Compte de l'école du paiement (S7) ; configuration globale pour les
-            // seuls paiements historiques sans compte
-            return await reconcileStalePayments((provider, transactionId, paymentAccountId) =>
-                paymentAccountId
-                    ? verifyOnSchoolAccount(paymentAccountId, transactionId)
-                    : PaymentProviderFactory.getProvider(provider).verifyPayment(transactionId),
-            );
+            // Compte de l'école du paiement (S7). Paiement historique sans compte
+            // (ancienne configuration globale, retirée le 2026-11-08) : plus
+            // interrogeable — il expire et passe « à rapprocher » à la main.
+            return await reconcileStalePayments(async (_provider, transactionId, paymentAccountId) => {
+                if (!paymentAccountId) throw new Error("paiement historique sans compte d'école : à rapprocher manuellement");
+                return verifyOnSchoolAccount(paymentAccountId, transactionId);
+            });
         } catch (error) {
             logger.error("Réconciliation des paiements en ligne en échec", error as Error);
             return { examined: 0, confirmed: 0, cancelled: 0, stillPending: 0, alerted: 0, mismatched: 0, failed: 0, blocked: 0, rejected: 0 };

@@ -14,7 +14,6 @@ import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helper
 import { enrollInCurrentYear } from "./fixtures/enrollment";
 import { POST as initiate } from "@/app/api/payments/initiate/route";
 import { POST as accountWebhook } from "@/app/api/payments/fedapay/webhook/[accountId]/route";
-import { POST as globalWebhook } from "@/app/api/payments/fedapay/webhook/route";
 import { GET as listAccounts, POST as createAccount } from "@/app/api/schools/[id]/payment-accounts/route";
 import { POST as accountAction } from "@/app/api/schools/[id]/payment-accounts/[accountId]/route";
 import { GET as onlineStatus } from "@/app/api/payments/online-status/route";
@@ -245,19 +244,6 @@ describe("Webhooks par compte", () => {
         const cancel = await sendWebhook(fx.A.accountId!, { name: "transaction.canceled", entity: { id: 1, merchant_reference: pb.reference } }, fx.A.webhookSecret);
         expect(cancel.body).toMatchObject({ cancelled: 0 });
         expect((await prisma.payment.findUniqueOrThrow({ where: { id: pb.id } })).status).toBe("PENDING");
-    });
-
-    it("ancienne route globale : ne valide pas un paiement lié au compte d'une école", async () => {
-        const p = await pendingPayment("A");
-        process.env.FEDAPAY_WEBHOOK_SECRET = "wh_global_synthetique";
-        try {
-            const { raw, header } = signed(approved(p), "wh_global_synthetique");
-            const res = await callRoute(globalWebhook, { method: "POST", path: "/api/payments/fedapay/webhook", rawBody: raw, headers: { "x-fedapay-signature": header } });
-            expect(res.body).toMatchObject({ outcome: "REJECTED" });
-        } finally {
-            delete process.env.FEDAPAY_WEBHOOK_SECRET;
-        }
-        expect((await prisma.payment.findUniqueOrThrow({ where: { id: p.id } })).status).toBe("PENDING");
     });
 
     it("montant différent : non validé (à rapprocher)", async () => {
