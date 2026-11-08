@@ -26,7 +26,7 @@ Une nouvelle notification s'affiche **aussitôt** dans un petit encadré en haut
 ### Notifications push sur le téléphone ✅
 Dans *Paramètres › Notifications*, **« Activer sur cet appareil »** : les notifications de l'école (absence, note, paiement, message…) arrivent sur le téléphone ou l'ordinateur **même application fermée**. Chaque appareil s'active séparément ; plusieurs notifications reçues ensemble deviennent un seul résumé. La déconnexion arrête le push sur l'appareil.
 - Sur **iPhone / iPad** : ajouter d'abord EduPilot à l'écran d'accueil (Partager › Sur l'écran d'accueil), puis l'ouvrir depuis son icône.
-- 🔧 La plateforme doit avoir ses clés de notification (VAPID) : sans elles, la page l'indique.
+- ✅ Aucune clé à configurer : il suffit que la plateforme soit servie en **HTTPS** (adresse publique en `https://`). Sinon, la page l'indique.
 - 🔧 Pas encore de choix par type de notification : c'est tout ou rien, par appareil.
 
 Les e-mails de sécurité (mot de passe oublié, lien d'activation) partent toujours. Les SMS, WhatsApp et messages vocaux sont envoyés par l'établissement selon ses règles : pour ne plus les recevoir, s'adresser à l'établissement.

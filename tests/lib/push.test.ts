@@ -6,7 +6,7 @@ vi.mock("@/lib/prisma", () => ({ default: {} }));
 
 import { isAllowedPushEndpoint, pushSubscriptionSchema } from "@/lib/push/endpoint";
 import { buildPushMessage, itemsFromNotificationWrite, safeAppPath, NOTIFICATIONS_PAGE, type PushItem } from "@/lib/push/message";
-import { pushConfig } from "@/lib/push/config";
+import { derivedVapidKeys, pushConfig } from "@/lib/push/config";
 import { sendPushToSubscription } from "@/lib/push/deliver";
 
 const KEYS = ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"] as const;
@@ -101,6 +101,24 @@ describe("configuration et envoi", () => {
         delete process.env.VAPID_PRIVATE_KEY;
         process.env.VAPID_SUBJECT = "mailto:support@edupilot.bj";
         expect(pushConfig().configured).toBe(false);
+    });
+
+    it("sans variable VAPID : paire dérivée du secret maître, contact = adresse publique HTTPS", () => {
+        for (const key of KEYS) delete process.env[key];
+        vi.stubEnv("NEXTAUTH_SECRET", "m".repeat(40));
+        vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+        vi.stubEnv("NEXTAUTH_URL", "https://ecole.example");
+        const cfg = pushConfig();
+        expect(cfg).toMatchObject({ configured: true, subject: "https://ecole.example", ...derivedVapidKeys("m".repeat(40)) });
+        // Adresse non HTTPS (développement) : push désactivé, jamais un contact invalide
+        vi.stubEnv("NEXTAUTH_URL", "http://localhost:3000");
+        expect(pushConfig().configured).toBe(false);
+        // Paire explicite : toujours prioritaire (abonnements existants)
+        process.env.VAPID_PUBLIC_KEY = "BPub";
+        process.env.VAPID_PRIVATE_KEY = "priv";
+        process.env.VAPID_SUBJECT = "mailto:support@edupilot.bj";
+        expect(pushConfig()).toMatchObject({ configured: true, publicKey: "BPub", privateKey: "priv" });
+        vi.unstubAllEnvs();
     });
 
     const sub = { id: "s1", userId: "u1", endpoint: "https://fcm.googleapis.com/fcm/send/abc", p256dh: "p", auth: "a" };
