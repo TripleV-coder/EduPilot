@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useReactToPrint } from "react-to-print";
+import { usePrintElement } from "@/hooks/use-print-element";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
@@ -234,19 +234,17 @@ function BulletinsPageContent() {
         }
     };
 
-    const handlePrint = useReactToPrint({
-        contentRef: printRef,
-        documentTitle: bulletin
-            ? `Bulletin_${bulletin.student.lastName}_${bulletin.period}`
-            : "Bulletin",
-    });
+    const handlePrint = usePrintElement(
+        printRef,
+        bulletin ? `Bulletin_${bulletin.student.lastName}_${bulletin.period}` : "Bulletin",
+    );
 
-    const handlePrintClass = useReactToPrint({
-        contentRef: classPrintRef,
-        documentTitle: `Bulletins_${classes.find((c) => c.id === selectedClass)?.name ?? "classe"}_${
+    const handlePrintClass = usePrintElement(
+        classPrintRef,
+        `Bulletins_${classes.find((c) => c.id === selectedClass)?.name ?? "classe"}_${
             periods.find((p) => p.id === selectedPeriod)?.name ?? ""
         }`,
-    });
+    );
 
     const generateClass = async () => {
         const ready: BulletinData[] = [];

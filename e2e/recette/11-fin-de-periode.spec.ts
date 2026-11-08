@@ -17,7 +17,7 @@ async function acteur(browser: Browser, scenario: string, key: string, label: st
     // L'impression passe par la boîte d'impression du navigateur : elle est interceptée et tracée.
     await a.context.addInitScript(() => {
         window.print = () => {
-            // react-to-print imprime depuis une iframe : la trace est posée sur la page principale.
+            // Impression native (usePrintElement) : depuis la page elle-même ; repli si un cadre l'appelle.
             try {
                 (window.top ?? window).document.documentElement.setAttribute("data-impression-demandee", String(Date.now()));
             } catch {
