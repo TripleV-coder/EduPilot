@@ -42,6 +42,21 @@ export function emailEnv(): Record<string, string | undefined> {
   };
 }
 
+/**
+ * Texte brut d'un e-mail HTML (repli SendGrid quand aucun texte n'est fourni) :
+ * balises retirées jusqu'à stabilité — une seule passe pouvait laisser un
+ * fragment de balise reconstitué (« <scr<script>ipt> »).
+ */
+export function htmlToPlainText(html: string): string {
+  let previous: string;
+  let current = html;
+  do {
+    previous = current;
+    current = current.replace(/<[^>]*>/g, "");
+  } while (current !== previous);
+  return current.replace(/[<>]/g, "");
+}
+
 /** « EduPilot <noreply@x.bj> » → { name, email } ; adresse seule acceptée. */
 export function parseSender(from: string): { name?: string; email: string } {
   const match = from.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
@@ -242,7 +257,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
           from: parseSender(emailFrom),
           subject,
           content: [
-            { type: "text/plain", value: text || html.replace(/<[^>]*>/g, "") },
+            { type: "text/plain", value: text || htmlToPlainText(html) },
             { type: "text/html", value: html },
           ],
         }),

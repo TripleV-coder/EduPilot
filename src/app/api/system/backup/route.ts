@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import fs from "fs/promises";
@@ -8,7 +8,8 @@ import { appEnv } from "@/lib/env";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { checkBackupPrerequisites } from "@/lib/system/backup-prerequisites";
 
-const execAsync = promisify(exec);
+// execFile : le script est lancé sans shell (chemin issu de l'environnement)
+const execFileAsync = promisify(execFile);
 
 function isBackupApiAllowed(): boolean {
   if (!appEnv.allowBackupApi) return false;
@@ -58,7 +59,7 @@ export const POST = createApiHandler(async (request, context) => {
     }
 
     // Exécuter le script de sauvegarde
-    const { stdout } = await execAsync(backupScript);
+    const { stdout } = await execFileAsync(backupScript);
 
     // Parser la sortie pour extraire les informations
     const sizeMatch = stdout.match(/Taille de la sauvegarde: (.*)/);

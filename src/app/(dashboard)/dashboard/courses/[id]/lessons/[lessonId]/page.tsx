@@ -1,5 +1,6 @@
 "use client";
 
+import { safeVideoLink, toEmbeddableVideoUrl } from "@/lib/utils/video-embed";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -152,18 +153,27 @@ function LessonViewerPageContent() {
                         </div>
 
                         {/* Video Player */}
-                        {lesson.type === "VIDEO" && lesson.videoUrl && (
+                        {lesson.type === "VIDEO" && lesson.videoUrl && (toEmbeddableVideoUrl(lesson.videoUrl) ? (
                             <div className="aspect-video w-full rounded-xl overflow-hidden bg-black border border-border">
                                 <iframe
-                                    src={lesson.videoUrl.includes("youtube.com") 
-                                        ? lesson.videoUrl.replace("watch?v=", "embed/") 
-                                        : lesson.videoUrl}
+                                    src={toEmbeddableVideoUrl(lesson.videoUrl)!}
                                     className="w-full h-full"
                                     allowFullScreen
                                     title={lesson.title}
                                 />
                             </div>
-                        )}
+                        ) : safeVideoLink(lesson.videoUrl) ? (
+                            <a
+                                href={safeVideoLink(lesson.videoUrl)!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex text-sm font-medium text-primary underline"
+                            >
+                                Ouvrir la vidéo dans un nouvel onglet
+                            </a>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">Adresse de la vidéo invalide (une adresse https:// est attendue).</p>
+                        ))}
 
                         {/* Content Body */}
                         <Card className="border-border shadow-sm overflow-hidden">

@@ -185,3 +185,11 @@ describe("parseSender : nom affiché accepté dans l'adresse d'expédition", () 
     expect(parseSender("<noreply@ecole.bj>")).toEqual({ email: "noreply@ecole.bj" });
   });
 });
+
+describe("htmlToPlainText : texte brut sans fragment de balise", () => {
+  it("retire les balises jusqu'à stabilité, y compris imbriquées", async () => {
+    const { htmlToPlainText } = await import("@/lib/email");
+    expect(htmlToPlainText("<p>Bonjour <b>Awa</b></p>")).toBe("Bonjour Awa");
+    expect(htmlToPlainText("<scr<script>ipt>alert(1)</script>")).not.toMatch(/<|>/);
+  });
+});
