@@ -19,7 +19,7 @@
  *
  * Lancé par `npm run build` après le nettoyage de la sortie standalone.
  */
-import { readdir, readFile, stat } from "node:fs/promises";
+import { open, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -109,8 +109,15 @@ export async function scanArtifacts(projectRoot, targets, secrets) {
             }
             if (KEY_FILE.test(name)) findings.push({ file: relative, kind: "fichier de clé" });
 
-            if ((await stat(file)).size > MAX_SCANNED_BYTES) continue;
-            const content = await readFile(file);
+            // Un seul descripteur pour la taille et la lecture (pas de course stat/lecture)
+            const handle = await open(file, "r");
+            let content;
+            try {
+                if ((await handle.stat()).size > MAX_SCANNED_BYTES) continue;
+                content = await handle.readFile();
+            } finally {
+                await handle.close();
+            }
             if (PRIVATE_KEY_BLOCK.test(content.toString("latin1"))) {
                 findings.push({ file: relative, kind: "bloc de clé privée" });
             }

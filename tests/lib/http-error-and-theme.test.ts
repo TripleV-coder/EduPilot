@@ -80,3 +80,9 @@ describe("thème", () => {
         expect(readStoredTheme()).toBeNull();
     });
 });
+
+describe("THEME_BOOT_SCRIPT — clé écrite en littéral", () => {
+    it("utilise exactement THEME_STORAGE_KEY, sans interpolation", () => {
+        expect(THEME_BOOT_SCRIPT).toContain(`var k="${THEME_STORAGE_KEY}";`);
+    });
+});

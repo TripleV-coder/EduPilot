@@ -13,7 +13,9 @@ export function isThemeValue(value: unknown): value is ThemeValue {
  * la préférence du système en mode « system » et les changements faits dans un
  * autre onglet. Sans stockage disponible (navigation privée), il ne fait rien.
  */
-export const THEME_BOOT_SCRIPT = `(function(){try{var k=${JSON.stringify(THEME_STORAGE_KEY)};var m=window.matchMedia("(prefers-color-scheme: dark)");var a=function(){var t=null;try{t=localStorage.getItem(k)}catch(e){}t=t||"system";document.documentElement.classList.toggle("dark",t==="dark"||(t==="system"&&m.matches))};a();m.addEventListener("change",a);window.addEventListener("storage",function(e){if(e.key===k)a()})}catch(e){}})();`;
+// Clé écrite en littéral (aucune interpolation dans un script inline, alerte
+// CodeQL js/bad-code-sanitization) ; un test vérifie qu'elle égale THEME_STORAGE_KEY.
+export const THEME_BOOT_SCRIPT = `(function(){try{var k="edupilot-theme";var m=window.matchMedia("(prefers-color-scheme: dark)");var a=function(){var t=null;try{t=localStorage.getItem(k)}catch(e){}t=t||"system";document.documentElement.classList.toggle("dark",t==="dark"||(t==="system"&&m.matches))};a();m.addEventListener("change",a);window.addEventListener("storage",function(e){if(e.key===k)a()})}catch(e){}})();`;
 
 export function readStoredTheme(): ThemeValue | null {
     try {

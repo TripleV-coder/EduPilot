@@ -649,7 +649,7 @@ function CahierDeNotesPageContent() {
                                                                 <>
                                                                     <div className="px-5 pb-2" style={{ fontSize: 12 }}>
                                                                         <Link
-                                                                            href={`/dashboard/grades/entry?classId=${selectedClass}&classSubjectId=${ev.classSubjectId}&evaluationId=${ev.id}`}
+                                                                            href={`/dashboard/grades/entry?${new URLSearchParams({ classId: selectedClass, classSubjectId: ev.classSubjectId, evaluationId: ev.id })}`}
                                                                             style={{ color: "var(--brand-700)", fontWeight: 600 }}
                                                                         >
                                                                             Modifier les notes (correction, recomposition, absence justifiée)

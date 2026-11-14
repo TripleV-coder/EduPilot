@@ -49,7 +49,7 @@ describe("createAccountCheckout", () => {
         expect(b.transactionId).toBe("202");
         for (const [url, init] of fetchMock.mock.calls) {
             const auth = new Headers(init!.headers).get("authorization")!;
-            if (String(url).startsWith("https://api.fedapay.com")) expect(auth).toBe(`Bearer ${B.secretKey}`);
+            if (new URL(String(url)).host === "api.fedapay.com") expect(auth).toBe(`Bearer ${B.secretKey}`);
             else expect(auth).toBe(`Bearer ${A.secretKey}`);
         }
     });

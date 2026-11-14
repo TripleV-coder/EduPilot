@@ -39,7 +39,7 @@ function example(formula: string): string {
 }
 
 export function SubjectFormulaCard({ classSubjectId }: { classSubjectId: string }) {
-    const key = `/api/class-subjects/${classSubjectId}/formula`;
+    const key = `/api/class-subjects/${encodeURIComponent(classSubjectId)}/formula`;
     const { data, error, mutate } = useSWR<FormulaInfo>(key, fetcher);
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState("");
