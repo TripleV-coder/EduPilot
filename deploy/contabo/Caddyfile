@@ -1,0 +1,9 @@
+# Caddy : certificat HTTPS obtenu et renouvelé automatiquement (Let's Encrypt).
+# Le DNS de {$DOMAIN} doit pointer vers l'adresse IP du VPS AVANT le démarrage.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000 {
+		# Notifications en temps réel (flux SSE) : pas de mise en tampon
+		flush_interval -1
+	}
+}
