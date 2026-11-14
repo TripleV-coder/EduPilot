@@ -146,6 +146,7 @@ function InscriptionPageContent() {
     const validateFamille = (): string | null => {
         if (!form.parentLastName.trim() || !form.parentFirstName.trim())
             return "Nom et prénom du responsable obligatoires.";
+        if (!form.parentPhone.trim()) return "Le téléphone du responsable est requis.";
         if (!/^(\+229)?[0-9]{8,10}$/.test(form.parentPhone.replace(/\s/g, "")))
             return "Téléphone du responsable invalide (8 à 10 chiffres, +229 facultatif).";
         return null;

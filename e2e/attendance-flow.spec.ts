@@ -35,9 +35,10 @@ test.describe("Attendance flow (TEACHER)", () => {
         // We don't click the tab (it might be a custom button) — we just verify
         // that the keyword shows up somewhere on the page.
         await page.goto("/dashboard/attendance");
-        await page.waitForLoadState("networkidle");
-        const bodyText = await page.locator("body").innerText().catch(() => "");
-        expect(/justification|absent|retard/i.test(bodyText)).toBe(true);
+        // Pas de "networkidle" : le flux temps réel des notifications
+        // (/api/notifications/stream) reste ouvert, il n'est jamais atteint.
+        // On attend le contenu lui-même.
+        await expect(page.locator("body")).toContainText(/justification|absent|retard/i, { timeout: 20_000 });
     });
 
     test("calendar page renders for teachers", async ({ page }) => {
