@@ -8,8 +8,9 @@
  * personne. Le module natif calcule dans le pool de threads libuv
  * (`UV_THREADPOOL_SIZE`), en parallèle et hors du thread des requêtes.
  *
- * Format identique (`$2a$`/`$2b$`) : les empreintes existantes, produites par
- * bcryptjs, restent valides sans migration.
+ * Format identique (`$2a$`/`$2b$`) : les empreintes produites autrefois par
+ * bcryptjs restent valides sans migration. bcryptjs est retiré du projet
+ * (2026-11-07) : seeds, scripts et tests utilisent aussi le module natif.
  */
 import bcrypt from "bcrypt";
 

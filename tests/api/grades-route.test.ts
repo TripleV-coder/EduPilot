@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Classes enseignées (MS-02) : précisées par chaque test
+vi.mock("@/lib/teachers/taught-classes", () => ({ taughtClassIds: vi.fn(async () => []) }));
 vi.mock("@/lib/prisma", () => ({
   default: {
     grade: { findMany: vi.fn(), groupBy: vi.fn() },
@@ -18,6 +20,7 @@ vi.mock("@/lib/academic/class-averages", () => ({
 }));
 
 import prisma from "@/lib/prisma";
+import { taughtClassIds } from "@/lib/teachers/taught-classes";
 import { studentAveragesSummary } from "@/lib/academic/class-averages";
 import { GET } from "@/app/api/grades/route";
 
@@ -79,8 +82,19 @@ describe("GET /api/grades", () => {
     expect(response.status).toBe(403);
   });
 
+  it("enseignant : classe qu'il n'enseigne pas refusée (403, MS-02), aucune note lue", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    vi.mocked(taughtClassIds).mockResolvedValue(["autre-classe"]);
+
+    const response = await GET(makeRequest(`http://localhost:3000/api/grades?classId=${classId}`));
+
+    expect(response.status).toBe(403);
+    expect(prisma.grade.findMany).not.toHaveBeenCalled();
+  });
+
   it("filtre par école pour un TEACHER et retourne les notes formatées", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    vi.mocked(taughtClassIds).mockResolvedValue([classId]);
     vi.mocked(prisma.grade.findMany).mockResolvedValue([gradeListRow(14)] as unknown as Grade[]);
 
     const response = await GET(

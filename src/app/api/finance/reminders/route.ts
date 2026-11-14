@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
-import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { computePlanlessExpected } from "@/lib/finance/expected-fees";
 import { createNotifications } from "@/lib/services/notification.service";
-import { isSmsProviderConfigured } from "@/lib/notifications/sms-service";
+import { queueFamilyMessages, type FamilyMessage } from "@/lib/notifications/family-channel";
 import { enqueueJobs } from "@/lib/jobs/queue";
 import type { NewJob } from "@/lib/jobs/types";
 import { Permission } from "@/lib/rbac/permissions";
@@ -20,10 +20,10 @@ const escapeHtml = (value: string) =>
  */
 export const POST = createApiHandler(
     async (_request, { session }) => {
-        const schoolId = getActiveSchoolId(session);
-        if (!schoolId) {
-            return NextResponse.json({ error: "Aucun établissement actif associé au compte." }, { status: 400 });
-        }
+        // S6 : école active vérifiée (existence, périmètre) et accès audité
+        const scope = await resolveFinanceSchool(session, null, "finance:reminders");
+        if (!scope.ok) return scope.response;
+        const schoolId = scope.schoolId;
 
         const now = new Date();
         const plans = await prisma.paymentPlan.findMany({
@@ -80,11 +80,10 @@ export const POST = createApiHandler(
 
         const seen = new Set<string>();
         const title = "Relance de scolarité";
-        const smsEnabled = isSmsProviderConfigured();
         const notifications: Parameters<typeof createNotifications>[0] = [];
         const jobs: NewJob[] = [];
+        const family: FamilyMessage[] = [];
         let emailsQueued = 0;
-        let smsQueued = 0;
         for (const link of links) {
             const user = link.parent.user;
             const studentName = `${link.student.user.firstName} ${link.student.user.lastName}`.trim();
@@ -102,13 +101,9 @@ export const POST = createApiHandler(
                 });
                 emailsQueued += 1;
             }
-            if (user.phone && smsEnabled) {
-                jobs.push({
-                    type: "sms.send",
-                    schoolId,
-                    payload: { phoneNumber: user.phone, message, smsType: "REMINDER", schoolId },
-                });
-                smsQueued += 1;
+            // WhatsApp d'abord (modèle « paiement »), SMS en secours
+            if (user.phone) {
+                family.push({ phone: user.phone, message, kind: "PAYMENT", schoolId, userId: user.id, smsFallback: true });
             }
         }
 
@@ -117,20 +112,23 @@ export const POST = createApiHandler(
         // File d'abord : si elle refuse (503, saturée), rien n'est créé et la
         // relance peut être relancée sans notifier deux fois les familles.
         await enqueueJobs(jobs);
+        const { whatsapp: whatsappQueued, sms: smsQueued } = await queueFamilyMessages(family);
         const { count: reminded } = await createNotifications(notifications);
 
         const channels = [
             emailsQueued > 0 ? `${emailsQueued} e-mail${emailsQueued > 1 ? "s" : ""}` : null,
+            whatsappQueued > 0 ? `${whatsappQueued} WhatsApp` : null,
             smsQueued > 0 ? `${smsQueued} SMS` : null,
         ].filter(Boolean);
 
         return NextResponse.json({
             reminded,
             emailsQueued,
+            whatsappQueued,
             smsQueued,
             message:
                 reminded > 0
-                    ? `${reminded} famille${reminded > 1 ? "s" : ""} relancée${reminded > 1 ? "s" : ""} dans l'application${channels.length > 0 ? ` ; ${channels.join(" et ")} en cours d'envoi` : ""}.`
+                    ? `${reminded} famille${reminded > 1 ? "s" : ""} relancée${reminded > 1 ? "s" : ""} dans l'application${channels.length > 0 ? ` ; ${channels.length > 1 ? `${channels.slice(0, -1).join(", ")} et ${channels.at(-1)}` : channels[0]} en cours d'envoi` : ""}.`
                     : "Aucune famille à relancer : aucun parent rattaché à ces élèves.",
         });
     },

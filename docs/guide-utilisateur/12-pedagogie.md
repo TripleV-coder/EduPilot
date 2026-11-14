@@ -40,4 +40,4 @@
 *Évaluations par compétences* : suivi des acquis par compétence, en complément des notes. Les notes sont ramenées sur 20 avant d'être interprétées.
 
 ## 12.7 Récompenses et classements ✅ (module à activer)
-*Gamification & récompenses* : points et badges de mérite gagnés par les élèves, classement. Ce classement est distinct du **rang officiel** du bulletin (chapitre 5).
+*Gamification & récompenses* : points et badges de mérite gagnés par les élèves, classement. Dix badges sont prêts dès l'installation (félicitations, tableau d'honneur, encouragements, progrès, assiduité, travail soigné, participation, entraide…). Ce classement est distinct du **rang officiel** du bulletin (chapitre 5).

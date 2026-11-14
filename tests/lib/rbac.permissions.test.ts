@@ -18,6 +18,11 @@ describe("RBAC permissions", () => {
       expect(hasPermission("SUPER_ADMIN", Permission.SCHOOL_CREATE)).toBe(true);
     });
 
+    it("SUPER_ADMIN peut lire et saisir les présences (l'API /api/attendance l'exige)", () => {
+      expect(hasPermission("SUPER_ADMIN", Permission.ATTENDANCE_READ)).toBe(true);
+      expect(hasPermission("SUPER_ADMIN", Permission.ATTENDANCE_CREATE)).toBe(true);
+    });
+
     it("TEACHER does not have SCHOOL_CREATE", () => {
       expect(hasPermission("TEACHER", Permission.SCHOOL_CREATE)).toBe(false);
     });
@@ -96,6 +101,11 @@ describe("RBAC permissions", () => {
       expect(canManageRole("SCHOOL_ADMIN", "TEACHER")).toBe(true);
     });
 
+    it("NETWORK_ADMIN can manage SCHOOL_ADMIN but not another NETWORK_ADMIN", () => {
+      expect(canManageRole("NETWORK_ADMIN", "SCHOOL_ADMIN")).toBe(true);
+      expect(canManageRole("NETWORK_ADMIN", "NETWORK_ADMIN")).toBe(false);
+    });
+
     it("TEACHER cannot manage anyone", () => {
       expect(canManageRole("TEACHER", "STUDENT")).toBe(false);
     });
@@ -142,9 +152,10 @@ describe("RBAC permissions", () => {
   });
 
   describe("rolePermissions coverage", () => {
-    it("all 8 roles have permissions defined", () => {
+    it("all 9 roles have permissions defined", () => {
       const roles: UserRole[] = [
         "SUPER_ADMIN",
+        "NETWORK_ADMIN",
         "SCHOOL_ADMIN",
         "DIRECTOR",
         "TEACHER",

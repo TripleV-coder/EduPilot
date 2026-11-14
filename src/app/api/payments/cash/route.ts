@@ -3,10 +3,12 @@ import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { paymentSchema } from "@/lib/validations/finance";
-import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { assertReferenceFree, assertWithinAvailable, runFeeMutation } from "@/lib/finance/collection";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { logger } from "@/lib/utils/logger";
-import { nanoid } from "nanoid";
+import { isZodError } from "@/lib/is-zod-error";
+import { randomId } from "@/lib/utils/random-id";
 
 const MANUAL_PAYMENT_METHODS = ["CASH", "CHECK", "BANK_TRANSFER", "OTHER"] as const;
 /**
@@ -35,7 +37,7 @@ export const POST = createApiHandler(
         return NextResponse.json({ error: "Mode de paiement manuel invalide" }, { status: 400 });
       }
 
-      const [student, fee, paymentPlan] = await Promise.all([
+      const [student, fee] = await Promise.all([
         prisma.studentProfile.findUnique({
           where: { id: validatedData.studentId },
           select: { id: true, schoolId: true },
@@ -44,9 +46,6 @@ export const POST = createApiHandler(
           where: { id: validatedData.feeId },
           select: { id: true, schoolId: true },
         }),
-        prisma.paymentPlan.findFirst({
-          where: { studentId: validatedData.studentId, feeId: validatedData.feeId, status: { not: "CANCELLED" } }
-        })
       ]);
 
       if (!student) {
@@ -64,17 +63,18 @@ export const POST = createApiHandler(
         return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
       }
 
-      if (paymentPlan) {
-        const remainingBalance = Number(paymentPlan.totalAmount) - Number(paymentPlan.paidAmount);
-        if (validatedData.amount > remainingBalance) {
-          return NextResponse.json({
-            error: `Le montant saisi (${validatedData.amount}) dépasse le solde restant à payer (${remainingBalance})`
-          }, { status: 400 });
-        }
+      // Intégrité (lot 3f) : un paiement n'impute jamais le frais d'une autre école
+      if (fee.schoolId !== student.schoolId) {
+        return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
       }
+      const outOfScope = await superAdminTargetOutOfScope(session, fee.schoolId, "payments:cash");
+      if (outOfScope) return outOfScope;
 
-      const payment = await prisma.$transaction(async (tx) => {
-        const createdPayment = await tx.payment.create({
+      // Plafond relu sous verrou, avec ou sans échéancier (lot 3b)
+      const result = await runFeeMutation(validatedData.studentId, validatedData.feeId, async (tx, balance) => {
+        assertWithinAvailable(balance.available, validatedData.amount);
+        await assertReferenceFree(tx, validatedData.reference);
+        return tx.payment.create({
           data: {
             amount: validatedData.amount,
             method: validatedData.method,
@@ -84,13 +84,12 @@ export const POST = createApiHandler(
             receivedBy: session.user.id,
             paidAt: validatedData.paidAt || new Date(),
             notes: validatedData.notes,
-            reference: validatedData.reference || `MANUAL-${Date.now()}-${nanoid(6).toUpperCase()}`,
+            reference: validatedData.reference || `MANUAL-${Date.now()}-${randomId(6).toUpperCase()}`,
           },
         });
-
-        await syncPaymentPlanLedger(tx, validatedData.studentId, validatedData.feeId);
-        return createdPayment;
       });
+      if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
+      const payment = result.value;
 
       await Promise.all([
         invalidateByPath(CACHE_PATHS.payments).catch(() => { }),
@@ -102,6 +101,9 @@ export const POST = createApiHandler(
 
       return NextResponse.json(payment);
     } catch (error) {
+      // Corps illisible ou invalide : faute du client. createApiHandler le
+      // convertit en 400 détaillé ; l'interception générique répondait 500.
+      if (isZodError(error) || (error instanceof SyntaxError && /JSON/i.test(error.message))) throw error;
       logger.error("Cash payment failed", error instanceof Error ? error : new Error(String(error)), { module: "api/payments/cash" });
       return NextResponse.json({ error: "Impossible d'enregistrer le paiement" }, { status: 500 });
     }

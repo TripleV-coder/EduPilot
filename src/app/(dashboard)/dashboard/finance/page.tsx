@@ -14,6 +14,7 @@ import { useSchool } from "@/components/providers/school-provider";
 import { PageGuard } from "@/components/guard/page-guard";
 import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { ParentFinanceView } from "@/components/dashboard/finance/parent-finance-view";
+import { RefundPaymentDialog, type RefundablePayment } from "@/components/finance/refund-payment-dialog";
 import { Permission } from "@/lib/rbac/permissions";
 
 import {
@@ -31,6 +32,7 @@ import { PageError, PageLoading } from "@/components/layout/page-states";
 
 
 import { CHART_COLORS } from "@/components/charts/chart-theme";
+import { chronologicalCoverage } from "@/lib/finance/installment-coverage";
 
 // Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
 // dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
@@ -55,6 +57,8 @@ type Payment = {
     amount: number;
     status: string;
     createdAt: string;
+    /** Remboursement : ligne négative liée au paiement remboursé. */
+    refundOfId: string | null;
     student: { user: { firstName: string; lastName: string } };
     fee: { name: string };
 };
@@ -103,9 +107,19 @@ const PAYMENT_STATUS: Record<string, { label: string; variant: "success" | "warn
     RECONCILED: { label: "Rapproché", variant: "success" },
     PENDING: { label: "À valider", variant: "warning" },
     CANCELLED: { label: "Annulé", variant: "neutral" },
+    EXPIRED: { label: "Expiré · à rapprocher", variant: "warning" },
 };
 
 export default function FinanceDashboardPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]} >
+            <FinanceDashboardPageContent />
+        </PageGuard>
+    );
+}
+
+function FinanceDashboardPageContent() {
     const { data: session } = useSession();
     const { schoolId: activeSchoolId } = useSchool();
     // Le parent a sa propre vue (ParentFinanceView) : aucune requête du tableau
@@ -116,6 +130,10 @@ export default function FinanceDashboardPage() {
     const [selectedPeriodId, setSelectedPeriodId] = useState<string>("ALL");
     const [payingInstallment, setPayingInstallment] = useState<string | null>(null);
     const [reminding, setReminding] = useState(false);
+    const [refundTarget, setRefundTarget] = useState<RefundablePayment | null>(null);
+    const canRefund = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "NETWORK_ADMIN"].includes(
+        session?.user?.role ?? "",
+    );
 
     const { data: academicYears } = useSWR<AcademicYear[]>(
         schoolId ? `/api/academic-years?schoolId=${schoolId}` : null,
@@ -215,10 +233,7 @@ export default function FinanceDashboardPage() {
     if (session?.user?.role === "PARENT") return <ParentFinanceView />;
 
     return (
-        <PageGuard
-            permission={[Permission.FINANCE_READ]}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Finances"
@@ -229,7 +244,7 @@ export default function FinanceDashboardPage() {
                     ]}
                     actions={
                         <RoleActionGuard
-                            allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "ACCOUNTANT"]}
+                            allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
                         >
                             <div className="flex flex-wrap gap-2">
                                 <Link href="/dashboard/finance/bulk-invoice">
@@ -272,7 +287,7 @@ export default function FinanceDashboardPage() {
                 </FilterBar>
 
                 {dashError ? (
-                    <PageError
+                    <PageError error={dashError}
                         message="Impossible de récupérer les indicateurs financiers."
                         onRetry={() => void mutateDash()}
                     />
@@ -357,12 +372,15 @@ export default function FinanceDashboardPage() {
                                     <ul className="m-0 list-none p-0">
                                         {dashData.recentPayments.slice(0, 6).map((p, i) => {
                                             const status = PAYMENT_STATUS[p.status] ?? PAYMENT_STATUS.PENDING;
+                                            const isRefund = Boolean(p.refundOfId);
+                                            const refundable =
+                                                canRefund && !isRefund && p.amount > 0 && (p.status === "VERIFIED" || p.status === "RECONCILED");
                                             return (
                                                 <li
                                                     key={p.id}
                                                     className="grid items-center gap-3 py-2.5"
                                                     style={{
-                                                        gridTemplateColumns: "minmax(0, 1fr) auto auto",
+                                                        gridTemplateColumns: "minmax(0, 1fr) auto auto auto",
                                                         borderTop: i > 0 ? "1px solid var(--eduflow-border-subtle)" : "none",
                                                     }}
                                                 >
@@ -383,15 +401,42 @@ export default function FinanceDashboardPage() {
                                                     <span className="eduflow-tabular text-sm font-semibold">
                                                         {formatCurrency(p.amount)}
                                                     </span>
-                                                    <Badge variant={status.variant} size="sm">
-                                                        {status.label}
+                                                    <Badge variant={isRefund ? "neutral" : status.variant} size="sm">
+                                                        {isRefund ? "Remboursement" : status.label}
                                                     </Badge>
+                                                    {refundable ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            aria-label={`Rembourser le paiement de ${p.student.user.firstName} ${p.student.user.lastName}`}
+                                                            onClick={() =>
+                                                                setRefundTarget({
+                                                                    id: p.id,
+                                                                    amount: p.amount,
+                                                                    studentName: `${p.student.user.firstName} ${p.student.user.lastName}`,
+                                                                    feeName: p.fee.name,
+                                                                })
+                                                            }
+                                                        >
+                                                            Rembourser
+                                                        </Button>
+                                                    ) : (
+                                                        <span aria-hidden="true" />
+                                                    )}
                                                 </li>
                                             );
                                         })}
                                     </ul>
                                 )}
                             </Block>
+                            <RefundPaymentDialog
+                                payment={refundTarget}
+                                open={refundTarget !== null}
+                                onOpenChange={(open) => {
+                                    if (!open) setRefundTarget(null);
+                                }}
+                                onRefunded={() => void Promise.all([mutateDash(), mutatePlans()])}
+                            />
                             <Block id="fin-overdue" title="Impayés à relancer">
                                 <div className="mb-3 flex justify-end">
                                     <Button
@@ -447,7 +492,7 @@ export default function FinanceDashboardPage() {
                                         </h2>
                                         <p
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 margin: "2px 0 0",
                                             }}
@@ -488,7 +533,7 @@ export default function FinanceDashboardPage() {
                                                             key={h}
                                                             style={{
                                                                 padding: "10px 16px",
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 fontWeight: 700,
                                                                 color: "var(--eduflow-text-tertiary)",
                                                             }}
@@ -505,9 +550,12 @@ export default function FinanceDashboardPage() {
                                                     (i) => i.status === "PAID"
                                                 ).length;
                                                 const ratio = (paidCount / plan.installments) * 100;
-                                                const next = plan.installmentPayments.find(
-                                                    (i) => i.status === "PENDING"
-                                                );
+                                                // Échéance que réglera l'encaissement : la plus ancienne non
+                                                // soldée, en retard comprise (même règle que le serveur, lot 3c)
+                                                const next = chronologicalCoverage(
+                                                    plan.installmentPayments,
+                                                    Number(plan.paidAmount)
+                                                ).find((c) => c.outstanding > 0);
                                                 return (
                                                     <tr
                                                         key={plan.id}
@@ -537,7 +585,7 @@ export default function FinanceDashboardPage() {
                                                                 </div>
                                                                 <div
                                                                     style={{
-                                                                        fontSize: 11,
+                                                                        fontSize: 12,
                                                                         color: "var(--eduflow-text-tertiary)",
                                                                     }}
                                                                 >
@@ -597,7 +645,7 @@ export default function FinanceDashboardPage() {
                                                                 <span
                                                                     className="eduflow-tabular"
                                                                     style={{
-                                                                        fontSize: 11,
+                                                                        fontSize: 12,
                                                                         fontWeight: 600,
                                                                         color: "var(--eduflow-text-secondary)",
                                                                     }}
@@ -623,16 +671,17 @@ export default function FinanceDashboardPage() {
                                                                     size="sm"
                                                                     variant="secondary"
                                                                     icon={
-                                                                        payingInstallment === next.id
+                                                                        payingInstallment === next.installment.id
                                                                             ? undefined
                                                                             : "money"
                                                                     }
-                                                                    loading={payingInstallment === next.id}
+                                                                    loading={payingInstallment === next.installment.id}
+                                                                    title={`Échéance du ${new Date(next.installment.dueDate).toLocaleDateString("fr-FR", { timeZone: "UTC" })}`}
                                                                     onClick={() =>
-                                                                        handlePayInstallment(plan.id, next.id)
+                                                                        handlePayInstallment(plan.id, next.installment.id)
                                                                     }
                                                                 >
-                                                                    Encaisser
+                                                                    {`Encaisser ${formatCurrency(next.outstanding)}`}
                                                                 </Button>
                                                             ) : null}
                                                         </td>
@@ -647,7 +696,7 @@ export default function FinanceDashboardPage() {
                     </>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 
@@ -676,7 +725,7 @@ function FilterPill({
         >
             <span
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 500,
                     color: "var(--eduflow-text-tertiary)",
                 }}

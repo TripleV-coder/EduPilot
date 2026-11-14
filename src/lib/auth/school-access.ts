@@ -30,9 +30,49 @@ export function getAccessibleSchoolIdsForUser(input: SchoolAccessInput) {
   return runAsSystem("auth:school-access", () => computeAccessibleSchoolIds(input));
 }
 
+/**
+ * Périmètre d'établissement par fonction assignée. L'union sert à changer
+ * d'école ; chaque permission sensible n'est utilisable que dans les écoles
+ * que les rôles qui l'accordent ouvrent (TEACHER+ACCOUNTANT : finance à
+ * l'école principale, pas aux rattachements d'enseignement).
+ */
+export async function getSchoolAccessForAssignedRoles(input: {
+  userId: string;
+  roles: UserRole[];
+  primarySchoolId: string | null;
+}): Promise<{ accessibleSchoolIds: string[]; schoolIdsByRole: Partial<Record<UserRole, string[]>> }> {
+  const roles = Array.from(new Set(input.roles.filter(Boolean)));
+  if (roles.length === 0) {
+    return {
+      accessibleSchoolIds: uniqueSchoolIds([input.primarySchoolId]),
+      schoolIdsByRole: {},
+    };
+  }
+
+  const entries = await Promise.all(
+    roles.map(async (role) => {
+      const ids = await getAccessibleSchoolIdsForUser({
+        userId: input.userId,
+        role,
+        primarySchoolId: input.primarySchoolId,
+      });
+      return [role, ids] as const;
+    }),
+  );
+
+  const schoolIdsByRole: Partial<Record<UserRole, string[]>> = {};
+  for (const [role, ids] of entries) {
+    schoolIdsByRole[role] = ids;
+  }
+
+  return {
+    accessibleSchoolIds: uniqueSchoolIds(...entries.map(([, ids]) => ids)),
+    schoolIdsByRole,
+  };
+}
+
 async function computeAccessibleSchoolIds(input: SchoolAccessInput) {
   const { userId, role, primarySchoolId } = input;
-  const organizationAccess = await getOrganizationAccessForUser(userId);
 
   // P2: SUPER_ADMIN intentionally gets an empty array here.
   // SUPER_ADMIN bypasses school-level filtering via getSchoolFilter() returning {} (no schoolId filter).
@@ -41,28 +81,24 @@ async function computeAccessibleSchoolIds(input: SchoolAccessInput) {
     return primarySchoolId ? [primarySchoolId] : [];
   }
 
-  if (role === "TEACHER") {
-    const [teacherSchoolIds, classSubjects, mainClasses] = await Promise.all([
-      getTeacherSchoolIdsForUser({
-        userId,
-        primarySchoolId,
-      }),
-      prisma.classSubject.findMany({
-        where: { teacher: { userId } },
-        select: { class: { select: { schoolId: true } } },
-      }),
-      prisma.class.findMany({
-        where: { mainTeacher: { userId } },
-        select: { schoolId: true },
-      }),
-    ]);
+  // Souveraineté des écoles (S5) : l'adhésion à une organisation n'ouvre les
+  // données des écoles du réseau qu'au NETWORK_ADMIN, patron du groupe
+  // (spécification 2026-07-02). Pour tout autre rôle — y compris un
+  // propriétaire ou gestionnaire d'organisation SCHOOL_ADMIN ou DIRECTOR —
+  // l'adhésion ne donne que des fonctions organisationnelles, jamais l'accès
+  // aux élèves, notes, frais ou paiements d'une école voisine.
+  if (role === "NETWORK_ADMIN") {
+    const organizationAccess = await getOrganizationAccessForUser(userId);
+    return uniqueSchoolIds(organizationAccess.accessibleSchoolIds, [primarySchoolId], await annexesOf(primarySchoolId));
+  }
 
-    return uniqueSchoolIds(
-      organizationAccess.accessibleSchoolIds,
-      [primarySchoolId, ...teacherSchoolIds],
-      classSubjects.map((assignment) => assignment.class.schoolId),
-      mainClasses.map((schoolClass) => schoolClass.schoolId)
-    );
+  // Un rattachement actif (ou l'école principale) est NÉCESSAIRE : les cours
+  // et classes confiés ne donnent jamais, à eux seuls, accès à une école dont
+  // le rattachement a été désactivé (audit MS-01). Ils déterminent ensuite,
+  // dans chaque route, les classes accessibles.
+  if (role === "TEACHER") {
+    const teacherSchoolIds = await getTeacherSchoolIdsForUser({ userId, primarySchoolId });
+    return uniqueSchoolIds([primarySchoolId, ...teacherSchoolIds]);
   }
 
   if (role === "PARENT") {
@@ -80,7 +116,6 @@ async function computeAccessibleSchoolIds(input: SchoolAccessInput) {
     });
 
     return uniqueSchoolIds(
-      organizationAccess.accessibleSchoolIds,
       [primarySchoolId],
       (parentProfile?.parentStudents || []).map((link) => link.student.schoolId)
     );
@@ -92,28 +127,25 @@ async function computeAccessibleSchoolIds(input: SchoolAccessInput) {
       select: { schoolId: true },
     });
 
-    return uniqueSchoolIds(organizationAccess.accessibleSchoolIds, [primarySchoolId, studentProfile?.schoolId]);
+    return uniqueSchoolIds([primarySchoolId, studentProfile?.schoolId]);
   }
 
-  if (role === "SCHOOL_ADMIN" || role === "DIRECTOR" || role === "NETWORK_ADMIN") {
-    if (!primarySchoolId) return uniqueSchoolIds(organizationAccess.accessibleSchoolIds);
-    
-    // Check if this school has annexes/children
-    const school = await prisma.school.findUnique({
-      where: { id: primarySchoolId },
-      select: { siteType: true, childSchools: { select: { id: true } } }
-    });
-
-    if (school?.siteType === "MAIN" && school.childSchools.length > 0) {
-      return uniqueSchoolIds(
-        organizationAccess.accessibleSchoolIds,
-        [primarySchoolId],
-        school.childSchools.map(c => c.id)
-      );
-    }
+  // Site principal : ses annexes font partie du même établissement
+  if (role === "SCHOOL_ADMIN" || role === "DIRECTOR") {
+    return uniqueSchoolIds([primarySchoolId], await annexesOf(primarySchoolId));
   }
 
-  return uniqueSchoolIds(organizationAccess.accessibleSchoolIds, [primarySchoolId]);
+  return uniqueSchoolIds([primarySchoolId]);
+}
+
+/** Annexes d'un site principal (même établissement) ; aucune pour une annexe ou une école simple. */
+async function annexesOf(schoolId: string | null): Promise<string[]> {
+  if (!schoolId) return [];
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: { siteType: true, childSchools: { select: { id: true } } },
+  });
+  return school?.siteType === "MAIN" ? school.childSchools.map((child) => child.id) : [];
 }
 
 export function resolveActiveSchoolId(input: {

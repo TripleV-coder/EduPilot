@@ -1,258 +1,103 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
-import { toast } from "sonner";
-import { z } from "zod";
-import { Bell, CheckCircle, Mail, Save, Smartphone } from "lucide-react";
+import { Bell, Mail } from "lucide-react";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader } from "@/components/layout/page-shell";
-import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { PushDeviceCard } from "@/components/settings/push-device-card";
+import { AUTHENTICATED_DASHBOARD_ROLES } from "@/lib/rbac/permissions";
 import { fetcher } from "@/lib/fetcher";
-
-const notificationPreferencesSchema = z.object({
-  securityNewLogin: z.boolean(),
-  securityUpdates: z.boolean(),
-  weeklyDigest: z.boolean(),
-  productUpdates: z.boolean(),
-  inAppMessages: z.boolean(),
-  criticalSms: z.boolean(),
-});
-
-type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;
-
-type ProfileResponse = {
-  preferences?: Record<string, unknown> | null;
-};
 
 type NotificationsResponse = {
   unreadCount?: number;
 };
 
-const defaultPreferences: NotificationPreferences = {
-  securityNewLogin: true,
-  securityUpdates: true,
-  weeklyDigest: true,
-  productUpdates: false,
-  inAppMessages: true,
-  criticalSms: true,
-};
-
+/**
+ * Notifications : uniquement des réglages qui ont un effet. Les six
+ * interrupteurs d'avant (résumé hebdomadaire, alerte de nouvelle connexion,
+ * SMS critiques…) étaient enregistrés sans que rien ne les lise.
+ */
 export default function NotificationsSettingsPage() {
-  const { data: profileData, mutate, error: profileError } = useSWR<ProfileResponse>("/api/user/profile", fetcher, {
-    revalidateOnFocus: false,
-  });
-  const { data: notificationsData } = useSWR<NotificationsResponse>("/api/notifications?unread=true&limit=1", fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 30000,
-  });
-  const [preferences, setPreferences] = useState<NotificationPreferences>(defaultPreferences);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    const storedPreferences =
-      profileData?.preferences?.notifications &&
-      typeof profileData.preferences.notifications === "object"
-        ? profileData.preferences.notifications
-        : null;
-
-    if (!storedPreferences) return;
-
-    const parsed = notificationPreferencesSchema.safeParse(storedPreferences);
-    if (parsed.success) {
-      setPreferences(parsed.data);
-    }
-  }, [profileData]);
-
-  const unreadCount = useMemo(() => notificationsData?.unreadCount || 0, [notificationsData]);
-
-  const updatePreference = (key: keyof NotificationPreferences, value: boolean) => {
-    setPreferences((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    const validatedPreferences = notificationPreferencesSchema.parse(preferences);
-
-    const currentPreferences =
-      profileData?.preferences && typeof profileData.preferences === "object"
-        ? profileData.preferences
-        : {};
-
-    try {
-      // Seule la section « notifications » est envoyée : le serveur fusionne.
-      const res = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preferences: { notifications: validatedPreferences } }),
-      }).catch(() => null);
-
-      if (!res?.ok) {
-        toast.error("Vos préférences n'ont pas été enregistrées. Réessayez.");
-        return;
-      }
-
-      await mutate(
-        { ...(profileData || {}), preferences: { ...currentPreferences, notifications: validatedPreferences } },
-        false
-      );
-      setSaved(true);
-      window.setTimeout(() => setSaved(false), 2200);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
+  // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
   return (
     <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
-      <div className="space-y-6 max-w-4xl mx-auto">
-        <PageHeader
-          title="Préférences de notifications"
-          description="Choisissez quels signaux vous recevez et sur quels canaux ils sont transmis."
-          breadcrumbs={[
-            { label: "Tableau de bord", href: "/dashboard" },
-            { label: "Paramètres", href: "/dashboard/settings" },
-            { label: "Notifications" },
-          ]}
-        />
-
-        {/* Sans ce cas, une panne affichait les préférences par défaut :
-            la personne croyait ses réglages perdus, ou les réenregistrait
-            par-dessus les vrais. */}
-        {profileError ? (
-          <PageError
-            message="Impossible de charger vos préférences."
-            onRetry={() => void mutate()}
-          />
-        ) : null}
-
-        {saved ? (
-          <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--success-border))] bg-[hsl(var(--success-bg))] px-4 py-3 text-sm text-[hsl(var(--success))]">
-            <CheckCircle className="h-4 w-4" />
-            Préférences enregistrées avec succès.
-          </div>
-        ) : null}
-
-        <Card className="border-border shadow-sm">
-          <CardHeader className="border-b border-border bg-muted/10">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Bell className="h-5 w-5 text-primary" />
-              Centre in-app
-            </CardTitle>
-            <CardDescription>
-              {unreadCount > 0
-                ? `${unreadCount} notification(s) non lue(s) dans votre centre de notifications.`
-                : "Aucune notification non lue pour le moment."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 pt-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label className="text-base text-foreground">Messages et annonces in-app</Label>
-                <p className="text-sm text-muted-foreground">
-                  Active l'affichage temps réel dans le centre de notifications et les badges du header.
-                </p>
-              </div>
-              <Switch aria-label="Messages et annonces in-app"
-                checked={preferences.inAppMessages}
-                onCheckedChange={(checked) => updatePreference("inAppMessages", checked)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border shadow-sm">
-          <CardHeader className="border-b border-border bg-muted/10">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Mail className="h-5 w-5 text-primary" />
-              Email
-            </CardTitle>
-            <CardDescription>
-              Les emails de sécurité restent recommandés. Les autres préférences sont stockées sur votre profil.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 pt-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label className="text-base text-foreground">Nouvelle connexion détectée</Label>
-                <p className="text-sm text-muted-foreground">Email lors d'une connexion inhabituelle.</p>
-              </div>
-              <Switch aria-label="Nouvelle connexion détectée"
-                checked={preferences.securityNewLogin}
-                onCheckedChange={(checked) => updatePreference("securityNewLogin", checked)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label className="text-base text-foreground">Alertes de sécurité et conformité</Label>
-                <p className="text-sm text-muted-foreground">Maintenance, RGPD et évènements sensibles de compte.</p>
-              </div>
-              <Switch aria-label="Alertes de sécurité et conformité"
-                checked={preferences.securityUpdates}
-                onCheckedChange={(checked) => updatePreference("securityUpdates", checked)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label className="text-base text-foreground">Digest hebdomadaire</Label>
-                <p className="text-sm text-muted-foreground">Résumé académique et vie scolaire de la semaine.</p>
-              </div>
-              <Switch aria-label="Digest hebdomadaire"
-                checked={preferences.weeklyDigest}
-                onCheckedChange={(checked) => updatePreference("weeklyDigest", checked)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label className="text-base text-foreground">Nouveautés EduPilot</Label>
-                <p className="text-sm text-muted-foreground">Communications produit non critiques.</p>
-              </div>
-              <Switch aria-label="Nouveautés EduPilot"
-                checked={preferences.productUpdates}
-                onCheckedChange={(checked) => updatePreference("productUpdates", checked)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border shadow-sm">
-          <CardHeader className="border-b border-border bg-muted/10">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Smartphone className="h-5 w-5 text-primary" />
-              SMS d'urgence
-            </CardTitle>
-            <CardDescription>
-              Réservé aux alertes critiques de l'établissement, incident grave ou dette critique.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between pt-6">
-            <div className="space-y-1">
-              <Label className="text-base text-foreground">Activer les SMS critiques</Label>
-              <p className="text-sm text-muted-foreground">
-                Les SMS classiques restent gérés par les campagnes dédiées et les droits métier.
-              </p>
-            </div>
-            <Switch aria-label="Activer les SMS critiques"
-              checked={preferences.criticalSms}
-              onCheckedChange={(checked) => updatePreference("criticalSms", checked)}
-            />
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-end">
-          <Button className="gap-2" onClick={() => void handleSave()} disabled={isSaving || !profileData}>
-            <Save className="h-4 w-4" />
-            {isSaving ? "Enregistrement..." : "Enregistrer les préférences"}
-          </Button>
-        </div>
-      </div>
+      <NotificationsSettingsPageContent />
     </PageGuard>
+  );
+}
+
+function NotificationsSettingsPageContent() {
+  const { data: notificationsData, error: notificationsError } = useSWR<NotificationsResponse>(
+    "/api/notifications?unread=true&limit=1",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 30000 },
+  );
+  const unreadCount = notificationsData?.unreadCount ?? 0;
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6">
+      <PageHeader
+        title="Notifications"
+        description="Où et comment l'établissement vous prévient."
+        breadcrumbs={[
+          { label: "Tableau de bord", href: "/dashboard" },
+          { label: "Paramètres", href: "/dashboard/settings" },
+          { label: "Notifications" },
+        ]}
+      />
+
+      <PushDeviceCard />
+
+      <Card className="border-border shadow-sm">
+        <CardHeader className="border-b border-border bg-muted/10">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Bell className="h-5 w-5 text-primary" aria-hidden="true" />
+            Centre de notifications
+          </CardTitle>
+          <CardDescription>
+            {notificationsError
+              ? "Le nombre de notifications non lues n'a pas pu être chargé."
+              : notificationsData === undefined
+                ? "Chargement…"
+                : unreadCount > 0
+                  ? `${unreadCount} notification${unreadCount > 1 ? "s" : ""} non lue${unreadCount > 1 ? "s" : ""}.`
+                  : "Aucune notification non lue."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+          <p className="text-sm text-muted-foreground">
+            Toutes les notifications restent consultables ici, qu&apos;elles soient arrivées en push ou non.
+          </p>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/notifications">Ouvrir le centre</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border shadow-sm">
+        <CardHeader className="border-b border-border bg-muted/10">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Mail className="h-5 w-5 text-primary" aria-hidden="true" />
+            E-mails, SMS et messages de l&apos;établissement
+          </CardTitle>
+          <CardDescription>Ces envois ne se règlent pas ici.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 pt-6 text-sm text-muted-foreground">
+          <p>
+            <span className="font-medium text-foreground">E-mails de sécurité</span> — réinitialisation du mot de passe,
+            lien d&apos;activation du compte : toujours envoyés, ils protègent votre accès.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">SMS, WhatsApp et messages vocaux</span> — envoyés par votre
+            établissement (absences, rappels de paiement, convocations) selon ses propres règles. Pour ne plus les
+            recevoir, adressez-vous à l&apos;établissement.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

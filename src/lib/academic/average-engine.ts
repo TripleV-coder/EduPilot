@@ -506,6 +506,12 @@ export interface AnnualAverages {
     periodsWithAverage: number;
     missing: MissingGrade[];
     complete: boolean;
+    /**
+     * Moyennes de chaque période (dans l'ordre de `periods`), telles que les
+     * calcule le bulletin de la période : AVANT le report de la moyenne de
+     * l'établissement d'origine. Évite de recalculer la classe par période.
+     */
+    periods: StudentAverages[];
 }
 
 export interface AnnualOptions extends AverageOptions {
@@ -534,6 +540,7 @@ export function computeAnnualAverages(
     expected: MissingGrade[] = [],
     options: AnnualOptions = {},
 ): AnnualAverages {
+    const computedPeriods: StudentAverages[] = [];
     const perPeriod = periods.map((period) => {
         const frozen = options.coefficientsByPeriod?.get(period.id);
         const frozenFormulas = options.formulasByPeriod?.get(period.id);
@@ -552,6 +559,7 @@ export function computeAnnualAverages(
                 studentFormulas: options.studentFormulasByPeriod?.get(period.id),
             },
         );
+        computedPeriods.push(computed);
         const external = options.externalGenerals?.get(period.id);
         if (computed.general === null && external !== undefined && external !== null) {
             return { ...computed, general: Rational.from(external) };
@@ -592,6 +600,7 @@ export function computeAnnualAverages(
         periodsWithAverage: generals.filter((g) => g !== null).length,
         missing,
         complete: missing.length === 0 && generals.every((g) => g !== null),
+        periods: computedPeriods,
     };
 }
 

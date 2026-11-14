@@ -4,7 +4,6 @@
  */
 
 const { withSerwist } = require("@serwist/turbopack");
-const { withSentryConfig } = require("@sentry/nextjs");
 
 /** @type {import('next').NextConfig} */
 const isProd = process.env.NODE_ENV === "production";
@@ -56,12 +55,12 @@ const nextConfig = {
   
   images: {
     // Domaines autorisés
-    remotePatterns: [
-      { protocol: "https", hostname: "res.cloudinary.com" },
-      { protocol: "https", hostname: "avatars.githubusercontent.com" },
-      { protocol: "https", hostname: "lh3.googleusercontent.com" },
-      { protocol: "https", hostname: "*.amazonaws.com" },
-    ],
+    // Aucune image distante : logos et photos sont téléversés sur EduPilot
+    // (/api/uploads) ou en data:. L'ancien « *.amazonaws.com » faisait de
+    // l'optimiseur d'images un relais ouvert vers tout hôte AWS (et aucun
+    // stockage S3, Cloudinary ou connexion Google/GitHub n'existe). Ajouter
+    // ici l'hôte EXACT d'un futur stockage, jamais un joker.
+    remotePatterns: [],
     // Formats modernes
     formats: ["image/avif", "image/webp"],
     // Tailles prédéfinies pour optimisation
@@ -209,17 +208,4 @@ const nextConfig = {
 // par le route handler app/serwist/[path]/route.ts et servi en /serwist/sw.js
 // ─────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────
-// SENTRY — SDK actif dès que SENTRY_DSN / NEXT_PUBLIC_SENTRY_DSN
-// est présent. Source maps non uploadées : aucun token CI requis.
-// Télémétrie du plugin désactivée : le build n'envoie rien à Sentry.
-// ─────────────────────────────────────────────────────────────
-const withSentry = (config) =>
-  withSentryConfig(config, {
-    hideSourceMaps: true,
-    widenClientFileUpload: true,
-    sourcemaps: { disable: true },
-    telemetry: false,
-  });
-
-module.exports = withSentry(withSerwist(nextConfig));
+module.exports = withSerwist(nextConfig);

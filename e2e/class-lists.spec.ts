@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import path from "node:path";
 
 /**
  * N25 — listes de classes illisibles sur trois écrans.
@@ -24,6 +25,14 @@ test.describe("Listes de classes (N25)", () => {
         await expect(page.getByText("Sélectionner une classe")).toBeVisible();
         await expect(page.getByText("Aucune classe disponible")).toHaveCount(0);
     });
+
+});
+
+// Depuis 7261d3c (2026-10-14), seul l'enseignant de la matière crée ses
+// évaluations : le bouton n'existe pas pour l'administrateur. Même vérification
+// N25 (la fiche propose les classes), avec le compte enseignant.
+test.describe("Listes de classes (N25) — enseignant", () => {
+    test.use({ storageState: path.join(__dirname, ".auth", "teacher.json") });
 
     test("page Notes : la fiche « Nouvelle évaluation » s'ouvre et propose les classes", async ({ page }) => {
         const errors: string[] = [];

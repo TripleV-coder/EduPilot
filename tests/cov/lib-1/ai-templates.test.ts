@@ -6,7 +6,6 @@ import {
   generateAtRiskAlerts,
   generateOrientationSynthesis,
   generateActionPlan,
-  generateChatFallback,
   buildStudentTemplateContext,
 } from "@/lib/ai/templates";
 
@@ -305,40 +304,3 @@ describe("gabarits IA — plan d'action", () => {
   });
 });
 
-describe("gabarits IA — chat de secours", () => {
-  it("salue différemment le public et les utilisateurs connectés", () => {
-    expect(generateChatFallback("Bonjour", "PUBLIC")).toContain("expliquer les fonctionnalités d'EduPilot");
-    expect(generateChatFallback("salut !", "TEACHER")).toContain("même sans connexion à un service cloud");
-  });
-
-  it("explique la notation selon le rôle", () => {
-    expect(generateChatFallback("Quelle est ma moyenne ?", "TEACHER")).toContain("Saisie des évaluations");
-    expect(generateChatFallback("mes notes", "PARENT")).toContain("notes de votre enfant");
-    expect(generateChatFallback("bulletin", "STUDENT")).toContain("enregistrées par vos enseignants");
-  });
-
-  it("décrit les prédictions selon le rôle", () => {
-    expect(generateChatFallback("quel risque ?", "DIRECTOR")).toContain("tableau de bord IA");
-    expect(generateChatFallback("prédiction", "STUDENT")).toContain("votre historique scolaire");
-  });
-
-  it("répond sur l'orientation", () => {
-    expect(generateChatFallback("quelle filière choisir", "STUDENT")).toContain("système béninois");
-  });
-
-  it("répond par défaut en tronquant la question à 50 caractères", () => {
-    const long = "x".repeat(80);
-    const pub = generateChatFallback(long, "PUBLIC");
-    expect(pub).toContain(`« ${"x".repeat(50)}... »`);
-    expect(pub).toContain("mode autonome");
-    // intention reconnue mais sans gabarit dédié (présences) → réponse générique
-    expect(generateChatFallback("absence", "TEACHER")).toContain("Précisez votre besoin");
-  });
-
-  it.skip("BUG: une question de notes contenant « hi » (philosophie) ne doit pas être prise pour une salutation", () => {
-    // detectIntent teste les motifs par sous-chaîne : « hi » (salutation) est
-    // trouvé dans « philosophie », « chimie », « historique »… et la salutation
-    // passe avant les notes.
-    expect(generateChatFallback("Quelle est ma moyenne en philosophie ?", "STUDENT")).toContain("Système de notation");
-  });
-});

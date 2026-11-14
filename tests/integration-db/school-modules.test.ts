@@ -39,7 +39,7 @@ beforeAll(async () => {
 /** Les fonctions devenues réglables par la migration d'extension. */
 const EXTENDED_MODULE_IDS = [
   "library", "gamification", "orientation", "events", "appointments",
-  "documents", "wellbeing", "benchmark", "voice-notifications",
+  "documents", "wellbeing", "voice-notifications",
 ];
 
 const asAdmin = () => actAs(sessionFor("SCHOOL_ADMIN", school, users.ADMIN));
@@ -103,18 +103,20 @@ describe("Lot 6 — modules activés par établissement", () => {
     const existing = await createSchool("IT-MOD-MIG");
     await ownerDb.school.update({ where: { id: existing.id }, data: { enabledModules: before } });
 
-    const sql = readFileSync(
-      path.resolve("prisma/migrations/20260917140000_school_modules_extended/migration.sql"),
-      "utf-8",
-    );
+    const migration = (name: string) => readFileSync(path.resolve(`prisma/migrations/${name}/migration.sql`), "utf-8");
+    // Extension du catalogue, puis retrait du module « benchmark » (2026-11-06)
+    const sql = migration("20260917140000_school_modules_extended");
+    const removal = migration("20261106130000_remove_benchmark_module");
     await ownerDb.$executeRawUnsafe(sql);
+    await ownerDb.$executeRawUnsafe(removal);
 
     const after = await ownerDb.school.findUniqueOrThrow({ where: { id: existing.id }, select: { enabledModules: true } });
     // Elles étaient toujours actives : elles le restent, et rien n'est retiré.
     expect([...after.enabledModules].sort()).toEqual([...ALL_MODULE_IDS].sort());
 
-    // Rejouée, la migration ne change plus rien.
+    // Rejouées dans l'ordre, les migrations ne changent plus rien.
     await ownerDb.$executeRawUnsafe(sql);
+    await ownerDb.$executeRawUnsafe(removal);
     const replay = await ownerDb.school.findUniqueOrThrow({ where: { id: existing.id }, select: { enabledModules: true } });
     expect([...replay.enabledModules].sort()).toEqual([...ALL_MODULE_IDS].sort());
   });

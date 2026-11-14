@@ -35,6 +35,7 @@ vi.mock("@/lib/teachers/school-assignments", () => ({
 vi.mock("@/lib/api/cache-helpers", () => ({
   withCache: (handler: () => unknown) => handler(),
   generateCacheKey: () => "teachers:list:test",
+  cacheScope: (s: { user: { id: string; schoolId?: string | null } }) => `${s.user.id}:${s.user.schoolId ?? "sans-ecole"}`,
   invalidateByPath: vi.fn().mockResolvedValue(undefined),
   CACHE_PATHS: { teachers: "/api/teachers" },
   CACHE_TTL_MEDIUM: 120,
@@ -156,7 +157,10 @@ describe("POST /api/teachers", () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "other" } as never);
     const res = await POST(makeRequest("http://localhost/api/teachers", { method: "POST", body: TEACHER_CREATE_BODY }));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Un utilisateur existe déjà avec cet email");
+    const body = await res.json();
+    // Message neutre qui oriente vers le code d'invitation (enseignant multi-écoles)
+    expect(body.code).toBe("EMAIL_UNAVAILABLE");
+    expect(body.error).toContain("code d'invitation");
   });
 
   it("should return 400 on invalid body", async () => {

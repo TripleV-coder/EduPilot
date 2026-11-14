@@ -8,7 +8,7 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => {
   const prismaMock: Record<string, unknown> = {
     examTemplate: { findUnique: vi.fn() },
-    examSession: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), upsert: vi.fn(), update: vi.fn() },
+    examSession: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), upsert: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     examAnswer: { deleteMany: vi.fn(), createMany: vi.fn() },
     studentProfile: { findUnique: vi.fn() },
     enrollment: { findFirst: vi.fn() },
@@ -33,6 +33,7 @@ function examTemplate(overrides: Record<string, unknown> = {}) {
   return {
     id: examId,
     isPublished: true,
+    duration: 60,
     totalPoints: 20,
     passingScore: 10,
     questions: [
@@ -90,21 +91,46 @@ describe("POST /api/exams/[id]/start", () => {
     expect(response.status).toBe(403);
   });
 
-  it("rejette un examen déjà commencé (400)", async () => {
+  function startAs(existing: Record<string, unknown> | null) {
     vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     mockExamLookups(examTemplate());
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
       id: FIXTURES.studentA,
     } as unknown as StudentProfile);
-    vi.mocked(prisma.examSession.findFirst).mockResolvedValue({ id: examSessionId } as unknown as ExamSession);
-
-    const response = await POST_START(
+    vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: cuid("inscription1") } as unknown as Enrollment);
+    vi.mocked(prisma.examSession.findFirst).mockResolvedValue(existing as unknown as ExamSession);
+    return POST_START(
       makeRequest(`http://localhost:3000/api/exams/${examId}/start`, { method: "POST" }),
       routeParams
     );
+  }
 
-    expect(response.status).toBe(400);
+  it("reprend une session ouverte : même heure de départ, échéance du serveur (200)", async () => {
+    const startedAt = new Date(Date.now() - 10 * 60_000);
+    const response = await startAs({ id: examSessionId, startedAt, submittedAt: null });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
     expect(prisma.examSession.create).not.toHaveBeenCalled();
+    // 60 min de durée : échéance = départ + 60 min, le minuteur ne repart pas de zéro
+    expect(Date.parse(body.deadline)).toBe(startedAt.getTime() + 60 * 60_000);
+    expect(typeof body.serverNow).toBe("string");
+  });
+
+  it("refuse de rouvrir une copie déjà soumise (409)", async () => {
+    const response = await startAs({ id: examSessionId, startedAt: new Date(), submittedAt: new Date() });
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("EXAM_ALREADY_SUBMITTED");
+  });
+
+  it("refuse de rouvrir une session dont le temps est écoulé (409)", async () => {
+    const response = await startAs({
+      id: examSessionId,
+      startedAt: new Date(Date.now() - 3 * 60 * 60_000),
+      submittedAt: null,
+    });
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("EXAM_TIME_EXPIRED");
   });
 
   it("masque un examen non publié (404)", async () => {
@@ -148,6 +174,7 @@ describe("POST /api/exams/[id]/start", () => {
     vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: cuid("inscription1") } as unknown as Enrollment);
     vi.mocked(prisma.examSession.create).mockImplementation(async (args: Prisma.ExamSessionCreateArgs) => ({
       id: examSessionId,
+      startedAt: new Date(),
       ...args.data,
       examTemplate: { questions: [{ id: questionA }, { id: questionB }] },
     }) as unknown as ExamSession);
@@ -170,7 +197,7 @@ describe("POST /api/exams/[id]/start", () => {
     );
   });
 
-  it("convertit un conflit P2002 (double clic) en 400 « déjà commencé »", async () => {
+  it("convertit un conflit P2002 (double clic) sans session reprenable en 409 « déjà commencé »", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("STUDENT"));
     mockExamLookups(examTemplate());
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
@@ -188,7 +215,7 @@ describe("POST /api/exams/[id]/start", () => {
     );
     const body = await response.json();
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
     expect(body.error).toContain("déjà commencé");
   });
 });
@@ -227,8 +254,12 @@ describe("POST /api/exams/[id]/submit", () => {
     } as unknown as StudentProfile);
     mockExamLookups(examTemplate());
     vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: "enr-1" } as unknown as Enrollment);
-    vi.mocked(prisma.examSession.findUnique).mockResolvedValue(null);
-    vi.mocked(prisma.examSession.upsert).mockResolvedValue({ id: examSessionId } as unknown as ExamSession);
+    vi.mocked(prisma.examSession.findUnique).mockResolvedValue({
+      id: examSessionId,
+      submittedAt: null,
+      startedAt: new Date(Date.now() - 5 * 60_000),
+    } as unknown as ExamSession);
+    vi.mocked(prisma.examSession.updateMany).mockResolvedValue({ count: 1 } as unknown as Prisma.BatchPayload);
     vi.mocked(prisma.examAnswer.deleteMany).mockResolvedValue({ count: 0 } as unknown as Prisma.BatchPayload);
     vi.mocked(prisma.examAnswer.createMany).mockResolvedValue({ count: 2 } as unknown as Prisma.BatchPayload);
     vi.mocked(prisma.examSession.update).mockImplementation(async (args: Prisma.ExamSessionUpdateArgs) => ({
@@ -269,8 +300,12 @@ describe("POST /api/exams/[id]/submit", () => {
     } as unknown as StudentProfile);
     mockExamLookups(examTemplate());
     vi.mocked(prisma.enrollment.findFirst).mockResolvedValue({ id: "enr-1" } as unknown as Enrollment);
-    vi.mocked(prisma.examSession.findUnique).mockResolvedValue(null);
-    vi.mocked(prisma.examSession.upsert).mockResolvedValue({ id: examSessionId } as unknown as ExamSession);
+    vi.mocked(prisma.examSession.findUnique).mockResolvedValue({
+      id: examSessionId,
+      submittedAt: null,
+      startedAt: new Date(Date.now() - 5 * 60_000),
+    } as unknown as ExamSession);
+    vi.mocked(prisma.examSession.updateMany).mockResolvedValue({ count: 1 } as unknown as Prisma.BatchPayload);
     vi.mocked(prisma.examAnswer.deleteMany).mockResolvedValue({ count: 0 } as unknown as Prisma.BatchPayload);
     vi.mocked(prisma.examAnswer.createMany).mockResolvedValue({ count: 2 } as unknown as Prisma.BatchPayload);
     vi.mocked(prisma.examSession.update).mockImplementation(async (args: Prisma.ExamSessionUpdateArgs) => ({

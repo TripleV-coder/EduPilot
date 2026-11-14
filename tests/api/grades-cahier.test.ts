@@ -3,6 +3,12 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Classes enseignées (MS-02) : l'enseignant de ces tests enseigne la classe testée
+vi.mock("@/lib/teachers/taught-classes", () => ({
+  taughtClassIds: vi.fn(async () => ["class-a"]),
+  teacherTeachesStudent: vi.fn(async () => true),
+}));
+
 vi.mock("@/lib/security/tenant", () => ({ assertModelAccess: vi.fn().mockResolvedValue(null) }));
 vi.mock("@/lib/prisma", () => ({
   default: {

@@ -1,14 +1,14 @@
 /**
  * Badges d'accès — génération et résolution du code scanné.
  */
-import { nanoid } from "nanoid";
+import { randomId } from "@/lib/utils/random-id";
 
 /** Préfixe du QR encodant le matricule (cf. page contrôle d'accès). */
 const MATRICULE_QR_PREFIX = "EDUPILOT:STUDENT:";
 
 /** Génère un code de badge unique (token opaque). */
 export function makeBadgeCode(): string {
-    return `BDG-${nanoid(16)}`;
+    return `BDG-${randomId(16)}`;
 }
 
 /** Construit le QR encodant le matricule, reconnu par le scanner d'accès. */

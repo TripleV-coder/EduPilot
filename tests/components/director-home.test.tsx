@@ -84,4 +84,12 @@ describe("Accueil direction — vue d'ensemble", () => {
       "/dashboard/grades/bulletins",
     ]);
   });
+
+  it("paiement en ligne en attente : suivi, jamais présenté comme « à valider »", () => {
+    renderHome({ ...DATA, pendingPayments: 0, pendingOnlinePayments: 5_000 });
+    expect(screen.getByText("Paiements en ligne en cours")).toBeInTheDocument();
+    expect(screen.queryByText("Paiements à valider")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Suivre" })).toHaveAttribute("href", "/dashboard/finance");
+    expect(screen.queryByRole("link", { name: "Valider" })).not.toBeInTheDocument();
+  });
 });

@@ -17,7 +17,7 @@ Procédures opérationnelles pour les incidents les plus courants. Chaque runboo
 
 ### Détection
 - Better Uptime alerte sur `/api/health` → 503 ou timeout
-- Sentry : error rate > 5 % sur 1 minute
+- Journal des erreurs : pic d'erreurs (alertes reçues par les super-administrateurs)
 - Plaintes utilisateur sur le canal support
 
 ### Diagnostic (< 5 min)
@@ -51,7 +51,7 @@ Obligatoire sous 48h, modèle `docs/post-mortems/YYYY-MM-DD-app-down.md`.
 
 ### Détection
 - Parent signale paiement effectué mais non visible dans EduPilot
-- Sentry : `Webhook signature invalid` répété
+- Journal des erreurs : `Webhook signature invalid` répété
 - Dashboard Flutterwave / Stripe : transactions `successful` mais EduPilot ne confirme pas
 
 ### Diagnostic
@@ -62,7 +62,7 @@ Obligatoire sous 48h, modèle `docs/post-mortems/YYYY-MM-DD-app-down.md`.
    SELECT * FROM "WebhookDelivery" WHERE eventType LIKE 'payment%' AND payload::text LIKE '%<tx_ref>%';
    ```
 3. Vérifier la validité de la signature HMAC : le secret Flutterwave a-t-il changé sans MAJ du `.env` ?
-4. Vérifier les logs Sentry filtrés par `webhook` ces dernières heures
+4. Vérifier Supervision › Journal des erreurs (chemins `webhook`) ces dernières heures
 
 ### Mitigation
 - **Réconciliation manuelle** : un admin avec rôle `ACCOUNTANT` peut entrer le paiement via `/dashboard/finance/reconciliation` avec la référence du provider
@@ -121,7 +121,7 @@ Non obligatoire sauf si > 10 comptes touchés simultanément (signal d'attaque c
 **Impact** : Conformité RGPD, réputation, légal
 
 ### Détection
-- Alerte Sentry sur exfiltration anormale (volumes de requêtes)
+- Alerte sur exfiltration anormale (volumes de requêtes)
 - Signalement externe (chercheur, utilisateur, presse)
 - Audit log : pattern d'accès massif (`VIEW` répétés sur des entités d'un autre tenant)
 
@@ -160,11 +160,11 @@ Obligatoire, exhaustif, partagé en interne ET en externe (transparence). Plan d
 **Impact** : UX dégradée, taux d'abandon ↑
 
 ### Détection
-- Sentry traces : p95 > 2s sur 10 min
+- Tableau Performance / `/api/metrics` : p95 > 2s sur 10 min
 - Plaintes utilisateurs ("c'est lent")
 
 ### Diagnostic
-1. Identifier l'endpoint coupable : Sentry → Performance → trier par `p95 latency`
+1. Identifier l'endpoint coupable : tableau Performance (root) → trier par latence
 2. Slow queries Postgres :
    ```sql
    SELECT query, mean_exec_time, calls
@@ -197,7 +197,7 @@ Obligatoire si > 1h. Inclure le nouveau plan de capacité.
 ### Détection
 - Plainte utilisateur
 - Resend dashboard : `bounced` ou `failed` augmente
-- Sentry : `Resend API error` répété
+- Journal des erreurs : `Resend API error` répété
 
 ### Diagnostic
 1. Statut Resend : https://status.resend.com
@@ -285,7 +285,6 @@ curl https://app.edupilot.bj/api/health  # Doit retourner 200 JSON
 - Statut Vercel : https://vercel-status.com
 - Statut Postgres (Neon) : https://neonstatus.com
 - Statut Upstash : https://upstash.com/status
-- Statut Sentry : https://status.sentry.io
 - Statut Stripe : https://status.stripe.com
 - Statut Flutterwave : https://status.flutterwave.com
 
@@ -308,6 +307,5 @@ SELECT * FROM pg_locks l JOIN pg_stat_activity a ON l.pid = a.pid WHERE NOT l.gr
 |------|-------|
 | `MAINTENANCE_MODE=true` | Mode maintenance (V2) |
 | `READ_ONLY_MODE=true` | Lecture seule globale (V2) |
-| `DISABLE_AI=true` | Coupe les appels Gemini |
 | `DISABLE_EMAIL=true` | Coupe Resend (utile en test) |
 | `DEBUG=true` | Logs verbeux Pino |

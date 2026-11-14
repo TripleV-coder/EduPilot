@@ -35,6 +35,9 @@ L'application refuse une période :
 | Active | l'année en cours |
 | Clôturée / Archivée | l'année est **figée** : plus aucune évaluation, note ni modification n'est possible |
 
+### Modifier ou supprimer ✅
+Classes, niveaux, années, créneaux d'emploi du temps, évaluations, événements du calendrier, livres, lignes de transport, points de passage, cagnottes et menus se **modifient** à tout moment (sauf dans une année clôturée). La **suppression** est prudente : refusée, avec la liste de ce qui y est rattaché, tant que des données en dépendent (une classe qui a des élèves, une année qui a des notes…). Exception : une évaluation se supprime **avec ses notes**, après confirmation, tant que sa période n'est pas close ; l'opération est journalisée.
+
 ## 3.4 Les classes
 *Classes → Créer une classe* : nom, niveau, capacité, professeur principal. On ne peut créer qu'une classe d'un cycle offert par l'école.
 
@@ -146,6 +149,7 @@ Pour chaque série (A1 à G3, EA, MIA, HR) : les disciplines **indispensables**,
 | Examens et orientation | matière forte, mention « Bien » au CEP, candidats à risque ou confiants, points forts de l'orientation |
 | Compétences | seuils Acquis / En cours, valeur enregistrée de chaque niveau |
 | Finance | rappel avant échéance, retard critique, échéance minimum |
+| Discipline | gravité d'incident à partir de laquelle l'attestation de bonne conduite est refusée (par défaut : « majeur ») |
 | Communication et services | signature du carnet de liaison, code parent, tickets de cantine, durée d'un prêt de bibliothèque |
 
 **Comment faire :**

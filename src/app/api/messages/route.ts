@@ -3,8 +3,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
-import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
-import { withHttpCache } from "@/lib/api/cache-http";
+import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 
@@ -24,105 +23,98 @@ const createMessageSchema = z.object({
 /** GET /api/messages — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(async (request, context) => {
   try {
-    // Cache key based on user and query params
-    const url = new URL(request.url);
-    const cacheKey = generateCacheKey("/api/messages", url.searchParams, context.session.user.id);
+    // Pas de cache serveur (2026-11-08) : il était propre à chaque processus,
+    // et un message reçu restait invisible jusqu'à 30 s quand la liste était
+    // relue sur un autre processus que celui de l'envoi. La notification
+    // temps réel déclenche cette relecture : elle doit être exacte.
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get("type") || "inbox"; // inbox | sent | archived
+    const unreadOnly = searchParams.get("unreadOnly") === "true";
+    // Lot 3 : curseur sur la date par défaut, ?page= toléré (ancien format).
+    const list = getListWindow(request, { sortField: "createdAt", direction: "desc", defaultLimit: 20, maxLimit: 100 });
 
-    const cachedHandler = cacheMiddleware({ ttl: 30, key: cacheKey }); // 30s cache for messages
+    interface MessageWhereFilter {
+      senderId?: string;
+      recipientId?: string;
+      deletedBySender?: boolean;
+      deletedByRecipient?: boolean;
+      isRead?: boolean;
+      isArchived?: boolean;
+    }
 
-    const handler = async () => {
-      const { searchParams } = new URL(request.url);
-      const type = searchParams.get("type") || "inbox"; // inbox | sent | archived
-      const unreadOnly = searchParams.get("unreadOnly") === "true";
-      // Lot 3 : curseur sur la date par défaut, ?page= toléré (ancien format).
-      const list = getListWindow(request, { sortField: "createdAt", direction: "desc", defaultLimit: 20, maxLimit: 100 });
+    const where: MessageWhereFilter = {};
 
-      interface MessageWhereFilter {
-        senderId?: string;
-        recipientId?: string;
-        deletedBySender?: boolean;
-        deletedByRecipient?: boolean;
-        isRead?: boolean;
-        isArchived?: boolean;
+    if (type === "inbox") {
+      where.recipientId = context.session.user.id;
+      where.deletedByRecipient = false;
+      if (unreadOnly) {
+        where.isRead = false;
       }
+    } else if (type === "sent") {
+      where.senderId = context.session.user.id;
+      where.deletedBySender = false;
+    } else if (type === "archived") {
+      where.recipientId = context.session.user.id;
+      where.isArchived = true;
+    }
 
-      const where: MessageWhereFilter = {};
-
-      if (type === "inbox") {
-        where.recipientId = context.session.user.id;
-        where.deletedByRecipient = false;
-        if (unreadOnly) {
-          where.isRead = false;
-        }
-      } else if (type === "sent") {
-        where.senderId = context.session.user.id;
-        where.deletedBySender = false;
-      } else if (type === "archived") {
-        where.recipientId = context.session.user.id;
-        where.isArchived = true;
-      }
-
-      const [messages, total, unreadCount] = await Promise.all([
-        prisma.message.findMany({
-          where: list.where(where),
-          select: {
-            id: true,
-            subject: true,
-            content: true,
-            isRead: true,
-            isArchived: true,
-            createdAt: true,
-            sender: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                role: true,
-              },
-            },
-            recipient: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                role: true,
-              },
-            },
-            parent: {
-              select: {
-                id: true,
-                subject: true,
-              },
-            },
-            _count: {
-              select: {
-                replies: true,
-              },
+    const [messages, total, unreadCount] = await Promise.all([
+      prisma.message.findMany({
+        where: list.where(where),
+        select: {
+          id: true,
+          subject: true,
+          content: true,
+          isRead: true,
+          isArchived: true,
+          createdAt: true,
+          sender: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
             },
           },
-          orderBy: list.orderBy,
-          skip: list.skip,
-          take: list.take,
-        }),
-        list.needsTotal ? prisma.message.count({ where }) : Promise.resolve(undefined),
-        type === "inbox"
-          ? prisma.message.count({
-            where: {
-              recipientId: context.session.user.id,
-              isRead: false,
-              deletedByRecipient: false,
+          recipient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
             },
-          })
-          : Promise.resolve(0),
-      ]);
+          },
+          parent: {
+            select: {
+              id: true,
+              subject: true,
+            },
+          },
+          _count: {
+            select: {
+              replies: true,
+            },
+          },
+        },
+        orderBy: list.orderBy,
+        skip: list.skip,
+        take: list.take,
+      }),
+      list.needsTotal ? prisma.message.count({ where }) : Promise.resolve(undefined),
+      type === "inbox"
+        ? prisma.message.count({
+          where: {
+            recipientId: context.session.user.id,
+            isRead: false,
+            deletedByRecipient: false,
+          },
+        })
+        : Promise.resolve(0),
+    ]);
 
-      return NextResponse.json({ ...list.page(messages, (message) => message.createdAt, total), unreadCount });
-    };
-
-    const response = await cachedHandler(handler, request);
-    return withHttpCache(response, request, { private: true, maxAge: 30, staleWhileRevalidate: 15 });
+    return NextResponse.json({ ...list.page(messages, (message) => message.createdAt, total), unreadCount });
   } catch (error) {
     logger.error(" fetching messages:", error as Error);
     return NextResponse.json(
@@ -240,8 +232,7 @@ export const POST = createApiHandler(async (request, context) => {
       },
     });
 
-    // Notification destinataire — createNotification publie aussi sur Redis
-    // (publisher singleton, livraison SSE immédiate si REDIS_URL configuré)
+    // Notification destinataire (relevée en base par le flux SSE)
     await createNotification({
       userId: validatedData.recipientId,
       type: "MESSAGE",

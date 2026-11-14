@@ -6,17 +6,11 @@
 /**
  * Nombre de processus (analyse de capacité 2026-10-01, G1) : un processus Node
  * n'exécute le code applicatif que sur un cœur. WEB_CONCURRENCY=N ou « max ».
- * Au-delà de 1, les limites de débit et les compteurs d'échecs de connexion
- * doivent être partagés par REDIS_URL : sans lui, on reste à 1 processus.
+ * Les limites de débit et les compteurs d'échecs de connexion sont partagés
+ * par PostgreSQL (src/lib/shared-state) : aucun service de plus n'est requis.
  */
-const sharedStore = Boolean(
-  process.env.REDIS_URL || (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
-);
 const requested = (process.env.WEB_CONCURRENCY || '1').trim();
-const instances = sharedStore ? (requested === 'max' ? 'max' : Math.max(1, Number(requested) || 1)) : 1;
-if (!sharedStore && requested !== '1') {
-  console.warn(`[ecosystem] WEB_CONCURRENCY=${requested} ignoré : REDIS_URL absent, un seul processus.`);
-}
+const instances = requested === 'max' ? 'max' : Math.max(1, Number(requested) || 1);
 
 module.exports = {
   apps: [
@@ -25,16 +19,13 @@ module.exports = {
       // Serveur standalone produit par `next build` (output: standalone).
       script: '.next/standalone/server.js',
       // Adresse client fiable pour le rate-limit (audit H3) + arrêt propre
-      // sur SIGTERM (Lot 7 : fin des requêtes en cours, puis Prisma et Redis).
+      // sur SIGTERM (Lot 7 : fin des requêtes en cours, puis Prisma).
       node_args: '--require ./scripts/server/client-ip-preload.cjs --require ./scripts/server/graceful-shutdown.cjs',
       // Laisse le temps à l'arrêt propre de se dérouler avant le SIGKILL
       // (20 s de drainage + 5 s de fermetures, cf. graceful-shutdown.cjs).
       kill_timeout: 30000,
-      // Plusieurs processus seulement avec un magasin partagé (REDIS_URL) :
-      // sans lui, rate-limit et compteurs d'échecs en mémoire seraient
-      // multipliés par processus (décision du 2026-09-12, levée le 2026-10-01).
-      // Mode cluster PM2 : les processus partagent le port et le disque
-      // (téléversements dans ./uploads).
+      // Mode cluster PM2 : les processus partagent le port ; limites et
+      // fichiers envoyés vivent dans PostgreSQL, communs à tous.
       instances,
       exec_mode: 'cluster',
 

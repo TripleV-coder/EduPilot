@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { t } from "@/lib/i18n";
 import { HelpCircle } from "lucide-react";
 import {
@@ -10,6 +9,7 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import { SectionHeader } from "./SectionHeader";
+import { Reveal } from "./Reveal";
 
 const faqKeys = ["q1", "q2", "q3", "q4", "q5", "q6"];
 
@@ -27,13 +27,7 @@ export function FAQSection() {
                     subtitle={t("landing.faq.subtitle")}
                 />
 
-                <motion.div
-                    className="max-w-3xl mx-auto"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.7, delay: 0.15 }}
-                >
+                <Reveal className="max-w-3xl mx-auto" dy={20} duration={700} delay={150}>
                     <Accordion type="single" collapsible className="space-y-4">
                         {faqKeys.map((key, idx) => (
                             <AccordionItem
@@ -50,7 +44,7 @@ export function FAQSection() {
                             </AccordionItem>
                         ))}
                     </Accordion>
-                </motion.div>
+                </Reveal>
             </div>
         </section>
     );

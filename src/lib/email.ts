@@ -1,15 +1,13 @@
 /**
- * Email Service for EduPilot
+ * Envoi d'e-mails : Resend, SendGrid ou SMTP (Nodemailer).
  *
- * This module provides email sending functionality.
- * In production, integrate with a real email provider like:
- * - Resend (recommended)
- * - SendGrid
- * - AWS SES
- * - Nodemailer with SMTP ("smtp")
+ * Réglage (2026-11-12) : console root › Intégrations › E-mail (clé d'API ou
+ * SMTP_URL, et adresse d'expédition), chiffré en base et appliqué sans
+ * redémarrage. Une variable d'environnement du même nom reste prioritaire.
  */
 
 import { logger } from "@/lib/utils/logger";
+import { getIntegrationSetting } from "@/lib/system/integration-settings";
 import nodemailer from "nodemailer";
 import { CIRCUITS, circuitFetch, getCircuitBreaker } from "@/lib/resilience/circuit-breaker";
 import { CircuitOpenError } from "@/lib/resilience/errors";
@@ -31,20 +29,96 @@ export function maskEmail(email: string): string {
 /** Un fournisseur qui ne répond pas ne doit pas retenir une requête ni une tâche. */
 const EMAIL_API_TIMEOUT_MS = 15_000;
 
+/**
+ * Configuration e-mail effective : variables d'environnement, complétées par
+ * les réglages de la console root (EMAIL_API_KEY, SMTP_URL, EMAIL_FROM).
+ */
+export function emailEnv(): Record<string, string | undefined> {
+  return {
+    ...process.env,
+    EMAIL_API_KEY: getIntegrationSetting("EMAIL_API_KEY"),
+    SMTP_URL: getIntegrationSetting("SMTP_URL"),
+    EMAIL_FROM: getIntegrationSetting("EMAIL_FROM"),
+  };
+}
+
+/**
+ * Texte brut d'un e-mail HTML (repli SendGrid quand aucun texte n'est fourni) :
+ * balises retirées jusqu'à stabilité — une seule passe pouvait laisser un
+ * fragment de balise reconstitué (« <scr<script>ipt> »).
+ */
+export function htmlToPlainText(html: string): string {
+  let previous: string;
+  let current = html;
+  do {
+    previous = current;
+    current = current.replace(/<[^>]*>/g, "");
+  } while (current !== previous);
+  return current.replace(/[<>]/g, "");
+}
+
+/** « EduPilot <noreply@x.bj> » → { name, email } ; adresse seule acceptée. */
+export function parseSender(from: string): { name?: string; email: string } {
+  const match = from.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  if (!match) return { email: from.trim() };
+  const name = match[1].trim();
+  return name ? { name, email: match[2].trim() } : { email: match[2].trim() };
+}
+
 let smtpTransport: { key: string; transporter: ReturnType<typeof nodemailer.createTransport> } | null = null;
 
 /**
  * Transporteur SMTP réutilisé (connexions mutualisées) : en créer un par
  * message ouvrait une connexion et une négociation TLS à chaque envoi.
  */
-function getSmtpTransport() {
-  const config = {
-    host: process.env.SMTP_HOST || "localhost",
-    port: parseInt(process.env.SMTP_PORT || "587", 10),
-    secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+export interface SmtpSettings {
+  host: string;
+  port: number;
+  secure: boolean;
+  user?: string;
+  pass?: string;
+}
+
+/**
+ * Réglages SMTP. Une seule variable (2026-11-08) :
+ *   SMTP_URL=smtps://utilisateur:mot-de-passe@smtp.exemple.bj        (TLS, port 465 par défaut)
+ *   SMTP_URL=smtp://utilisateur:mot-de-passe@smtp.exemple.bj:587     (STARTTLS)
+ * (caractères spéciaux du mot de passe encodés : @ → %40, : → %3A…).
+ * Les anciennes variables SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER,
+ * SMTP_PASS restent acceptées quand SMTP_URL est absente.
+ */
+export function smtpSettings(env: Record<string, string | undefined> = emailEnv()): SmtpSettings | null {
+  const raw = env.SMTP_URL?.trim();
+  if (raw) {
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      return null;
+    }
+    if (url.protocol !== "smtp:" && url.protocol !== "smtps:") return null;
+    const secure = url.protocol === "smtps:";
+    return {
+      host: url.hostname,
+      port: url.port ? Number(url.port) : secure ? 465 : 587,
+      secure,
+      user: url.username ? decodeURIComponent(url.username) : undefined,
+      pass: url.password ? decodeURIComponent(url.password) : undefined,
+    };
+  }
+  const host = env.SMTP_HOST?.trim();
+  if (!host) return null;
+  return {
+    host,
+    port: parseInt(env.SMTP_PORT || "587", 10),
+    secure: env.SMTP_SECURE === "true",
+    user: env.SMTP_USER,
+    pass: env.SMTP_PASS,
   };
+}
+
+function getSmtpTransport(env: Record<string, string | undefined>) {
+  const config = smtpSettings(env) ?? { host: "localhost", port: 587, secure: false };
   const key = JSON.stringify(config);
   if (smtpTransport?.key === key) return smtpTransport.transporter;
 
@@ -80,6 +154,23 @@ interface WelcomeEmailParams {
 /**
  * Send an email using the configured email provider
  */
+export type EmailProvider = "smtp" | "resend" | "sendgrid";
+
+/**
+ * Fournisseur d'e-mail : EMAIL_PROVIDER s'il est défini, sinon déduit de la
+ * configuration présente (une variable de moins à renseigner) :
+ * clé « re_… » → Resend, « SG.… » → SendGrid, SMTP_URL (ou SMTP_HOST) → SMTP.
+ */
+export function resolveEmailProvider(env: Record<string, string | undefined> = emailEnv()): EmailProvider | null {
+  const explicit = env.EMAIL_PROVIDER?.trim().toLowerCase();
+  if (explicit === "smtp" || explicit === "resend" || explicit === "sendgrid") return explicit;
+  const key = env.EMAIL_API_KEY?.trim() ?? "";
+  if (key.startsWith("re_")) return "resend";
+  if (key.startsWith("SG.")) return "sendgrid";
+  if (env.SMTP_URL?.trim() || env.SMTP_HOST?.trim()) return "smtp";
+  return null;
+}
+
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const { to, subject, html, text } = options;
 
@@ -87,11 +178,13 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const isDev = process.env.NODE_ENV === "development";
 
   // Check if email service is configured
-  const emailProvider = process.env.EMAIL_PROVIDER;
-  const emailApiKey = process.env.EMAIL_API_KEY;
-  const emailFrom = process.env.EMAIL_FROM || "noreply@edupilot.bj";
+  const env = emailEnv();
+  const emailProvider = resolveEmailProvider(env);
+  const emailApiKey = env.EMAIL_API_KEY;
+  const emailFrom = env.EMAIL_FROM?.trim() || "noreply@edupilot.bj";
 
-  const isSmtpIncomplete = emailProvider === "smtp" && (!process.env.SMTP_HOST || !process.env.SMTP_PORT);
+  // Le port a un défaut : seul le serveur est indispensable
+  const isSmtpIncomplete = emailProvider === "smtp" && !smtpSettings(env);
   const isApiIncomplete = (emailProvider === "resend" || emailProvider === "sendgrid") && !emailApiKey;
 
   if (!emailProvider || isSmtpIncomplete || isApiIncomplete) {
@@ -115,7 +208,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     // En production : l'email n'est pas configuré — erreur explicite
     // (validateEnv() en instrumentation.ts devrait avoir bloqué le démarrage avant d'arriver ici)
     logger.error(
-      "Service email non configuré en production. Définir EMAIL_PROVIDER, EMAIL_API_KEY et EMAIL_FROM.",
+      "Service e-mail non configuré : console root › Intégrations › E-mail (clé Resend « re_… » ou SendGrid « SG.… », ou serveur SMTP, et adresse d'expédition).",
       undefined,
       { module: "email", to: maskEmail(to), subject }
     );
@@ -161,10 +254,10 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         },
         body: JSON.stringify({
           personalizations: [{ to: [{ email: to }] }],
-          from: { email: emailFrom },
+          from: parseSender(emailFrom),
           subject,
           content: [
-            { type: "text/plain", value: text || html.replace(/<[^>]*>/g, "") },
+            { type: "text/plain", value: text || htmlToPlainText(html) },
             { type: "text/html", value: html },
           ],
         }),
@@ -182,7 +275,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     // SMTP (Nodemailer) integration
     if (emailProvider === "smtp") {
       await getCircuitBreaker(CIRCUITS.email).execute(
-        () => getSmtpTransport().sendMail({ from: emailFrom, to, subject, html, text }),
+        () => getSmtpTransport(env).sendMail({ from: emailFrom, to, subject, html, text }),
         { isFailureError: isSmtpOutage },
       );
 
@@ -351,4 +444,96 @@ export async function sendWelcomeEmail(params: WelcomeEmailParams): Promise<bool
   `.trim();
 
   return sendEmail({ to: email, subject, html });
+}
+
+interface ActivationEmailParams {
+  email: string;
+  firstName: string;
+  schoolName: string | null;
+  activationUrl: string;
+  expiresInHours: number;
+}
+
+/** Échappe le texte saisi (nom, établissement) avant de l'insérer dans le HTML. */
+function escapeEmailHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Lien d'activation envoyé par la direction : le titulaire choisit son mot de
+ * passe définitif sans mot de passe provisoire (voir lib/auth/activation-link).
+ */
+export async function sendActivationEmail(params: ActivationEmailParams): Promise<boolean> {
+  const { email, firstName, schoolName, activationUrl, expiresInHours } = params;
+  const name = escapeEmailHtml(firstName);
+  const school = schoolName ? escapeEmailHtml(schoolName) : null;
+  const subject = "Activez votre compte EduPilot";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activez votre compte</title>
+</head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 28px;">🎓 EduPilot</h1>
+    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Système de Gestion Scolaire</p>
+  </div>
+
+  <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
+    <h2 style="color: #333; margin-top: 0;">Bonjour ${name},</h2>
+
+    <p>${school ? `L'établissement <strong>${school}</strong> vous a créé un compte EduPilot.` : "Un compte EduPilot vous a été créé."}</p>
+
+    <p>Cliquez sur le bouton ci-dessous pour choisir votre mot de passe et activer votre compte :</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${activationUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;">
+        Activer mon compte
+      </a>
+    </div>
+
+    <p style="color: #666; font-size: 14px;">
+      <strong>Important :</strong> ce lien est valable <strong>${expiresInHours} heures</strong> et ne sert qu'une fois.
+      Passé ce délai, demandez un nouveau lien à votre établissement.
+    </p>
+
+    <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+
+    <p style="color: #999; font-size: 12px; margin-bottom: 0;">
+      Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>
+      <a href="${activationUrl}" style="color: #667eea; word-break: break-all;">${activationUrl}</a>
+    </p>
+  </div>
+
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>© ${new Date().getFullYear()} EduPilot. Tous droits réservés.</p>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  const text = `
+Bonjour ${firstName},
+
+${schoolName ? `L'établissement ${schoolName} vous a créé un compte EduPilot.` : "Un compte EduPilot vous a été créé."}
+
+Choisissez votre mot de passe et activez votre compte avec ce lien :
+${activationUrl}
+
+Ce lien est valable ${expiresInHours} heures et ne sert qu'une fois.
+
+---
+© ${new Date().getFullYear()} EduPilot. Tous droits réservés.
+  `.trim();
+
+  return sendEmail({ to: email, subject, html, text });
 }

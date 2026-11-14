@@ -1,22 +1,22 @@
 /**
  * Chiffrement/déchiffrement AES-256-GCM pour les secrets sensibles (TOTP, etc.)
  *
- * Variable d'environnement requise :
- *   TOTP_ENCRYPTION_KEY  — 64 caractères hexadécimaux (= 32 octets)
- *   Générer avec : openssl rand -hex 32
+ * Clé : TOTP_ENCRYPTION_KEY (64 caractères hexadécimaux) si elle est définie,
+ * sinon dérivée de NEXTAUTH_SECRET (lib/security/derived-secrets.ts).
  *
  * Format stocké en DB : "<iv_hex>:<authTag_hex>:<ciphertext_hex>"
  */
 
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { resolveSecret } from "@/lib/security/derived-secrets";
 
 const ALGORITHM = "aes-256-gcm";
 
 function getEncryptionKey(): Buffer {
-    const hex = process.env.TOTP_ENCRYPTION_KEY;
-    if (!hex || hex.length !== 64) {
+    const hex = resolveSecret("totp-encryption");
+    if (!hex || !/^[0-9a-fA-F]{64}$/.test(hex)) {
         throw new Error(
-            "TOTP_ENCRYPTION_KEY doit être définie comme 64 caractères hexadécimaux (openssl rand -hex 32)"
+            "Clé de chiffrement 2FA indisponible : définir NEXTAUTH_SECRET (32 caractères au moins) ou TOTP_ENCRYPTION_KEY (64 caractères hexadécimaux)"
         );
     }
     return Buffer.from(hex, "hex");

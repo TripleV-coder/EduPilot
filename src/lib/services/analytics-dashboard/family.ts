@@ -2,7 +2,7 @@
 // lors de la découpe par rôle (P3.1, 2026-06-11). Logique inchangée.
 
 import prisma from "@/lib/prisma";
-import { computeStudentFeeDues } from "@/lib/finance/expected-fees";
+import { getChildFinance } from "@/lib/finance/family-finance";
 import { roundTo } from "@/lib/analytics/helpers";
 
 export async function getStudentDashboardData(userId: string, yearId: string) {
@@ -81,89 +81,66 @@ export async function getParentDashboardData(userId: string, yearId: string) {
     parentProfile.parentStudents.map(async (ps) => {
       const data = await getStudentDashboardData(ps.student.userId, yearId);
       return {
+        // La carte de l'accueil ouvre le dossier de CET enfant (lien vérifié par l'API)
+        studentId: ps.student.id,
         name: `${ps.student.user.firstName} ${ps.student.user.lastName}`,
         ...data,
       };
     })
   );
 
-  // Aggregate payment installments across all children for the parent view.
+  // Échéances et reste à payer : MÊME source que la page Paiements
+  // (getChildFinance → getFeeBalance + couverture chronologique). L'accueil
+  // faisait son propre calcul : échéances déjà payées affichées « à payer »,
+  // montant entier d'une échéance partiellement couverte, rien au-delà de 60 j.
   const studentIds = parentProfile.parentStudents.map((ps) => ps.student.id);
-  const studentFirstName = new Map(
-    parentProfile.parentStudents.map((ps) => [ps.student.id, ps.student.user.firstName ?? ""]),
+  const finances = (await Promise.all(studentIds.map((id) => getChildFinance(prisma, id)))).filter(
+    (f): f is NonNullable<typeof f> => f !== null,
   );
 
-  const installments = studentIds.length
-    ? await prisma.installmentPayment.findMany({
-        where: { paymentPlan: { studentId: { in: studentIds } } },
-        include: {
-          paymentPlan: {
-            select: {
-              studentId: true,
-              fee: { select: { name: true } },
-            },
-          },
-        },
-        orderBy: { dueDate: "asc" },
-      })
-    : [];
-
   const today = new Date();
-  const horizonDays = 60;
-  const horizon = new Date(today.getTime() + horizonDays * 24 * 60 * 60 * 1000);
+  const horizon = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
 
   type ParentPayment = {
     id: string;
+    studentId: string;
     childName: string;
     label: string;
     amount: number;
     dueDate: string | null;
-    state: "paid" | "due" | "overdue";
+    state: "due" | "overdue";
   };
 
-  const allPayments: ParentPayment[] = installments
-    .filter((i) => {
-      if (i.status === "PAID") return true;
-      const d = new Date(i.dueDate);
-      return d <= horizon;
-    })
-    .map((i) => {
-      const paid = i.status === "PAID";
-      const overdue = !paid && new Date(i.dueDate) < today;
-      return {
-        id: i.id,
-        childName: studentFirstName.get(i.paymentPlan.studentId) ?? "Enfant",
-        label: i.paymentPlan.fee.name,
-        amount: Number(i.amount),
-        dueDate: paid && i.paidAt ? i.paidAt.toISOString() : i.dueDate.toISOString(),
-        state: paid ? "paid" : overdue ? "overdue" : "due",
-      } satisfies ParentPayment;
-    });
-
-  // Frais facturés sans échéancier : sans eux, un parent qui devait des frais
-  // voyait « 0 FCFA » à payer.
-  const feeDues = await computeStudentFeeDues(studentIds);
-  for (const due of feeDues) {
-    if (due.dueDate && due.dueDate > horizon) continue;
-    allPayments.push({
-      id: `due:${due.feeId}:${due.studentId}`,
-      childName: studentFirstName.get(due.studentId) ?? "Enfant",
-      label: due.feeName,
-      amount: due.remaining,
-      dueDate: due.dueDate ? due.dueDate.toISOString() : null,
-      state: due.dueDate && due.dueDate < today ? "overdue" : "due",
-    });
+  const allPayments: ParentPayment[] = [];
+  for (const finance of finances) {
+    const { studentId, firstName } = finance.child;
+    for (const fee of finance.fees) {
+      if (fee.remaining <= 0) continue;
+      const rows = fee.installments
+        ? fee.installments.filter((row) => row.outstanding > 0).map((row) => ({ id: row.id, amount: row.outstanding, dueDate: row.dueDate as Date | null }))
+        : [{ id: `due:${fee.feeId}:${studentId}`, amount: fee.remaining, dueDate: fee.dueDate }];
+      for (const row of rows) {
+        allPayments.push({
+          id: row.id,
+          studentId,
+          childName: firstName ?? "Enfant",
+          label: fee.name,
+          amount: row.amount,
+          dueDate: row.dueDate ? row.dueDate.toISOString() : null,
+          state: row.dueDate && row.dueDate < today ? "overdue" : "due",
+        });
+      }
+    }
   }
+  allPayments.sort((a, b) => (a.dueDate ? new Date(a.dueDate).getTime() : Infinity) - (b.dueDate ? new Date(b.dueDate).getTime() : Infinity));
 
-  // Total calculé sur toute la liste, avant la troncature d'affichage.
-  const totalDue = allPayments
-    .filter((p) => p.state !== "paid")
-    .reduce((acc, p) => acc + p.amount, 0);
-  const pendingPayments = allPayments.slice(0, 12);
+  // Total : reste canonique de chaque enfant (sans troncature ni horizon)
+  const totalDue = finances.reduce((sum, f) => sum + f.totals.remaining, 0);
+  // Liste affichée : retards et échéances des 60 prochains jours
+  const pendingPayments = allPayments.filter((p) => !p.dueDate || new Date(p.dueDate) <= horizon).slice(0, 12);
 
-  // « Prochaine » échéance = la plus proche À VENIR ; les échéances passées
-  // sont comptées à part comme retards (sinon « prochaine : 15 septembre »
-  // s'affichait le 25).
+  // « Prochaine » échéance = la plus proche À VENIR ; les passées sont comptées
+  // à part comme retards.
   const nextDueDate = allPayments
     .filter((p) => p.state === "due" && p.dueDate)
     .map((p) => new Date(p.dueDate as string).getTime())

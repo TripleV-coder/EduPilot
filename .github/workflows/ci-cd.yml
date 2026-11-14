@@ -278,11 +278,3 @@ jobs:
           done
           exit 1
 
-      - name: Notify Sentry of release
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.SENTRY_AUTH_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            "https://sentry.io/api/0/organizations/${{ vars.SENTRY_ORG }}/releases/" \
-            -d '{"version":"${{ env.DEPLOY_SHA }}","projects":["${{ vars.SENTRY_PROJECT }}"]}'
-        continue-on-error: true

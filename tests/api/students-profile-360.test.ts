@@ -24,6 +24,9 @@ function makeStudent(overrides: Record<string, unknown> = {}) {
   return {
     id: STUDENT_ID,
     matricule: "E00001",
+    // École de la fiche : c'est elle qui fonde l'accès (pas celle du compte)
+    schoolId: FIXTURES.schoolA,
+    userId: cuid("user1"),
     user: {
       id: cuid("user1"),
       firstName: "Jean",

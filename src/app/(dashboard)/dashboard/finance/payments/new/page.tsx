@@ -44,6 +44,15 @@ type PaymentRecord = {
 };
 
 export default function NewPaymentPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+            <NewPaymentPageContent />
+        </PageGuard>
+    );
+}
+
+function NewPaymentPageContent() {
     const [students, setStudents] = useState<StudentOption[]>([]);
     const [fees, setFees] = useState<FeeBalance[]>([]);
     const [pinnedStudent, setPinnedStudent] = useState<StudentOption | null>(null);
@@ -122,7 +131,24 @@ export default function NewPaymentPage() {
 
         const searchStudents = async () => {
             try {
-                setStudents(await fetchStudentList<StudentOption>(`search=${encodeURIComponent(searchTerm)}&limit=10`));
+                // La liste porte la classe dans les inscriptions : sans cela, « Aucune classe » partout
+                const list = await fetchStudentList<StudentOption & { enrollments?: Array<{ status?: string; class?: { name?: string } | null }> }>(
+                    `search=${encodeURIComponent(searchTerm)}&limit=10`,
+                );
+                const mapped = list.map((stu) => ({
+                        ...stu,
+                        class: stu.class ?? (stu.enrollments?.find((e) => e.status === "ACTIVE") ?? stu.enrollments?.[0])?.class ?? null,
+                    }));
+                // Un seul élève trouvé (3 caractères au moins) : sélectionné d'office ; sa fiche
+                // (nom, matricule, classe) reste affichée pour vérification, × pour changer
+                if (mapped.length === 1 && searchTerm.trim().length >= 3) {
+                    setPinnedStudent(mapped[0]);
+                    setSelectedStudentId(mapped[0].id);
+                    setSearchTerm("");
+                    setStudents([]);
+                    return;
+                }
+                setStudents(mapped);
             } catch {
                 setError("Erreur lors de la recherche d'élèves.");
             }
@@ -262,7 +288,7 @@ export default function NewPaymentPage() {
     const selectedBalance = fees.find(f => f.feeId === selectedFeeId);
 
     return (
-        <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+        <>
             <PageShell>
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/finance">
@@ -331,7 +357,8 @@ export default function NewPaymentPage() {
                                             <button
                                                 type="button"
                                                 key={stu.id}
-                                                onClick={() => { setSelectedStudentId(stu.id); setSearchTerm(""); }}
+                                                // Épinglé : vider la recherche vidait aussi la fiche affichée (nom, matricule, classe)
+                                                onClick={() => { setPinnedStudent(stu); setSelectedStudentId(stu.id); setSearchTerm(""); }}
                                                 className="block w-full text-left p-3 border-b last:border-0 hover:bg-muted/50 focus-visible:bg-muted/50 cursor-pointer text-sm"
                                             >
                                                 <div className="font-medium">{stu.user?.firstName} {stu.user?.lastName}</div>
@@ -361,7 +388,7 @@ export default function NewPaymentPage() {
                                         <div>
                                             <h4 className="font-bold text-sm">{selectedStudent?.user?.firstName} {selectedStudent?.user?.lastName}</h4>
                                             <p className="text-xs text-muted-foreground">Mat: {selectedStudent?.matricule}</p>
-                                            <span className="inline-block mt-1 text-[11px] bg-background border px-1.5 py-0.5 rounded shadow-sm font-medium">
+                                            <span className="inline-block mt-1 text-xs bg-background border px-1.5 py-0.5 rounded shadow-sm font-medium">
                                                 {selectedStudent?.class?.name || "Classe N/A"}
                                             </span>
                                         </div>
@@ -390,7 +417,9 @@ export default function NewPaymentPage() {
                                                 aria-label="Sélectionner une ligne tarifaire"
                                                 value={selectedFeeId}
                                                 onChange={e => setSelectedFeeId(e.target.value)}
-                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                                                // Plusieurs frais : liste dépliée, un seul clic pour choisir (au lieu d'ouvrir puis choisir)
+                                                size={fees.length > 1 ? Math.min(fees.length + 1, 6) : undefined}
+                                                className={`flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${fees.length > 1 ? "h-auto" : "h-10"}`}
                                                 required
                                                 disabled={!selectedStudentId}
                                             >
@@ -413,7 +442,7 @@ export default function NewPaymentPage() {
                                                 <p className="text-xs text-muted-foreground">
                                                     Facturé {fcfa(selectedBalance.billed)} · payé {fcfa(selectedBalance.paid)}
                                                     {selectedBalance.pending > 0
-                                                        ? ` · ${fcfa(selectedBalance.pending)} déjà déclarés, en attente de validation`
+                                                        ? ` · ${fcfa(selectedBalance.pending)} déjà en attente (paiement en ligne ou déclaré non encore confirmé)`
                                                         : ""}
                                                 </p>
                                             ) : null}
@@ -434,7 +463,7 @@ export default function NewPaymentPage() {
                                                 />
                                                 <Banknote className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
                                             </div>
-                                            <p className="text-[11px] text-muted-foreground">Modifier le montant en cas de paiement partiel ou de tranche.</p>
+                                            <p className="text-xs text-muted-foreground">Modifier le montant en cas de paiement partiel ou de tranche.</p>
                                         </div>
 
                                         <div className="space-y-2">
@@ -466,7 +495,7 @@ export default function NewPaymentPage() {
                                                     onChange={e => setPayerPhone(e.target.value)}
                                                     placeholder="Ex: 22990000000"
                                                 />
-                                                <p className="text-[11px] text-muted-foreground">
+                                                <p className="text-xs text-muted-foreground">
                                                     Transfert déjà reçu : saisissez sa référence ci-dessous, il sera encaissé directement.
                                                     Sinon, une demande de paiement est envoyée sur ce numéro.
                                                 </p>
@@ -509,6 +538,6 @@ export default function NewPaymentPage() {
                     </div>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

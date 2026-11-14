@@ -16,6 +16,7 @@ vi.mock("@/lib/api/cache-helpers", () => ({
   CACHE_PATHS: { classes: "classes" },
   CACHE_TTL_MEDIUM: 60,
   generateCacheKey: vi.fn(() => "k"),
+  cacheScope: (s: { user: { id: string; schoolId?: string | null } }) => `${s.user.id}:${s.user.schoolId ?? "sans-ecole"}`,
   withCache: vi.fn((_k: unknown, fn: () => unknown) => fn()),
 }));
 vi.mock("@/lib/api/cache-http", () => ({ withHttpCache: vi.fn((_r: unknown, res: unknown) => res) }));

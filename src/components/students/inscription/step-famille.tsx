@@ -40,13 +40,13 @@ export function StepFamille({
                 className="form-grid"
             >
                 <Field
-                    label="Nom du responsable"
+                    label="Nom du responsable *"
                     value={form.parentLastName}
                     onChange={(v) => set("parentLastName", v)}
                     placeholder="HOUNSOU"
                 />
                 <Field
-                    label="Prénom du responsable"
+                    label="Prénom du responsable *"
                     value={form.parentFirstName}
                     onChange={(v) => set("parentFirstName", v)}
                     placeholder="Patrick"
@@ -64,7 +64,7 @@ export function StepFamille({
                     placeholder="Choisir…"
                 />
                 <Field
-                    label="Téléphone responsable"
+                    label="Téléphone du responsable *"
                     value={form.parentPhone}
                     onChange={(v) => set("parentPhone", v)}
                     placeholder="+229 97 12 34 56"

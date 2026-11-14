@@ -11,9 +11,12 @@ import { fetcher } from "@/lib/fetcher";
 
 import { Badge, Button, Card, Icon, Input, Progress } from "@/components/edu";
 import { GroupMessageButton } from "@/components/cagnotte/group-message-button";
+import { ContributionReviewQueue } from "@/components/cagnotte/contribution-review-queue";
 import { SubLabel } from "@/components/edu-homes/_shared";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError, PageLoading } from "@/components/layout/page-states";
+import { ResourceActions } from "@/components/shared/resource-actions";
+import { toast } from "sonner";
 
 type JournalRow = {
     id: string;
@@ -27,9 +30,24 @@ type JournalRow = {
 type ContributionRow = {
     id: string;
     isMine: boolean;
+    status: "PENDING" | "CONFIRMED" | "REJECTED";
+    parentName: string | null;
+    paymentRef: string | null;
+    reviewNote: string | null;
     initials: string;
     amountFcfa: string;
     paidAt: string;
+};
+
+/** Libellés du journal public (types CagnotteJournalKind). */
+const JOURNAL_LABELS: Record<string, string> = {
+    CREATED: "Cagnotte ouverte",
+    CONTRIBUTION_DECLARED: "Contribution déclarée (en attente de vérification)",
+    CONTRIBUTION_PAID: "Contribution reçue",
+    CONTRIBUTION_REJECTED: "Contribution non validée",
+    CONTRIBUTION_REFUNDED: "Contribution remboursée",
+    CLOSED: "Cagnotte clôturée",
+    DISBURSED: "Fonds versés",
 };
 
 type CagnotteDetail = {
@@ -43,7 +61,13 @@ type CagnotteDetail = {
     targetFcfa: string;
     raisedFcfa: string;
     myContributionFcfa: string;
+    myPendingFcfa: string;
     hasContributed: boolean;
+    canReview: boolean;
+    /** Organisateur ou école. */
+    canManage?: boolean;
+    pendingCount: number;
+    pendingFcfa: string;
     participantCount: number;
     expectedParticipants: number | null;
     deadline: string;
@@ -70,7 +94,7 @@ export default function CagnotteDetailPage() {
     return (
         <PageGuard
             permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "TEACHER"]}
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "PARENT", "TEACHER"]}
         >
             <CagnotteDetailContent />
         </PageGuard>
@@ -88,11 +112,36 @@ function CagnotteDetailContent() {
         { revalidateOnFocus: false },
     );
 
+    const [statusBusy, setStatusBusy] = React.useState(false);
+    // Clôturer / rouvrir : statut tracé dans le journal public de la cagnotte
+    const changeStatus = async (status: "OPEN" | "CLOSED") => {
+        if (!data) return;
+        setStatusBusy(true);
+        try {
+            const res = await fetch(`/api/cagnottes/${data.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status }),
+            });
+            const body = (await res.json().catch(() => ({}))) as { error?: string };
+            if (!res.ok) {
+                toast.error(body.error || "Le statut de la cagnotte n'a pas changé.");
+                return;
+            }
+            toast.success(status === "CLOSED" ? "Cagnotte clôturée." : "Cagnotte rouverte.");
+            await mutate();
+        } catch {
+            toast.error("Connexion impossible : le statut n'a pas changé.");
+        } finally {
+            setStatusBusy(false);
+        }
+    };
+
     const [amount, setAmount] = React.useState("");
     const [paymentRef, setPaymentRef] = React.useState("");
     const [submitting, setSubmitting] = React.useState(false);
     const [contribError, setContribError] = React.useState<string | null>(null);
-    const [justPaid, setJustPaid] = React.useState(false);
+    const [justDeclared, setJustDeclared] = React.useState(false);
 
     async function handleContribute(e: React.FormEvent) {
         e.preventDefault();
@@ -113,7 +162,7 @@ function CagnotteDetailContent() {
                 setContribError(json.error ?? "Erreur lors de l'enregistrement.");
                 return;
             }
-            setJustPaid(true);
+            setJustDeclared(true);
             setAmount("");
             setPaymentRef("");
             await mutate();
@@ -179,13 +228,48 @@ function CagnotteDetailContent() {
                             variant={data.status === "OPEN" ? "brand" : "neutral"}
                             icon={data.status === "OPEN" ? undefined : "check"}
                         >
-                            {data.status === "OPEN" ? `J−${data.daysLeft}` : "Clôturée"}
+                            {data.status === "OPEN" ? `J−${data.daysLeft}` : data.status === "CANCELLED" ? "Annulée" : "Clôturée"}
                         </Badge>
+                        {data.canManage ? (
+                            <>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    loading={statusBusy}
+                                    onClick={() => void changeStatus(data.status === "OPEN" ? "CLOSED" : "OPEN")}
+                                >
+                                    {data.status === "OPEN" ? "Clôturer" : "Rouvrir"}
+                                </Button>
+                                {data.status === "OPEN" ? (
+                                    <ResourceActions
+                                        endpoint={`/api/cagnottes/${data.id}`}
+                                        resourceLabel={`La cagnotte « ${data.title} »`}
+                                        fields={[
+                                            { name: "title", label: "Titre", type: "text", required: true, maxLength: 160 },
+                                            { name: "description", label: "Description (facultatif)", type: "textarea", maxLength: 2000 },
+                                            { name: "targetFcfa", label: "Objectif (FCFA)", type: "number", required: true, min: 1, integer: true },
+                                            { name: "deadline", label: "Échéance", type: "date", required: true },
+                                            { name: "expectedParticipants", label: "Familles attendues (facultatif)", type: "number", min: 1, integer: true },
+                                        ]}
+                                        initial={{
+                                            title: data.title,
+                                            description: data.description,
+                                            targetFcfa: Number(data.targetFcfa),
+                                            deadline: data.deadline,
+                                            expectedParticipants: data.expectedParticipants,
+                                        }}
+                                        onChanged={() => void mutate()}
+                                        onDeleted={() => router.push("/dashboard/cagnotte")}
+                                        deleteDescription="Une cagnotte qui a reçu des contributions ne se supprime pas : clôturez-la, son journal reste visible des familles."
+                                    />
+                                ) : null}
+                            </>
+                        ) : null}
                     </div>
                 }
             />
 
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 14 }}>
+            <div className="grid grid-cols-1 gap-3.5 md:grid-cols-[1.4fr_1fr]">
                 {/* Colonne principale : progression + journal */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     <Card padding={24}>
@@ -269,7 +353,7 @@ function CagnotteDetailContent() {
                                 </h2>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         margin: "2px 0 0",
                                     }}
@@ -305,28 +389,26 @@ function CagnotteDetailContent() {
                                     }}
                                 >
                                     <Icon
-                                        name={j.kind === "CONTRIBUTION" ? "money" : "sms"}
+                                        name={j.kind.startsWith("CONTRIBUTION") ? "money" : "sms"}
                                         size={16}
                                         color={
-                                            j.kind === "CONTRIBUTION"
+                                            j.kind === "CONTRIBUTION_PAID"
                                                 ? "var(--eduflow-success-600)"
                                                 : "var(--eduflow-text-tertiary)"
                                         }
                                     />
                                     <div>
                                         <div style={{ fontSize: 12, fontWeight: 600 }}>
-                                            {j.kind === "CONTRIBUTION"
-                                                ? "Contribution reçue"
-                                                : (j.message ?? "Note")}
+                                            {JOURNAL_LABELS[j.kind] ?? j.message ?? "Note"}
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
                                             {FR_DATETIME.format(new Date(j.createdAt))}
-                                            {j.kind === "CONTRIBUTION" && j.message
+                                            {j.kind in JOURNAL_LABELS && j.message
                                                 ? ` · ${j.message}`
                                                 : ""}
                                         </div>
@@ -337,10 +419,16 @@ function CagnotteDetailContent() {
                                             style={{
                                                 fontSize: 13,
                                                 fontWeight: 700,
-                                                color: "var(--eduflow-success-700)",
+                                                color:
+                                                    j.kind === "CONTRIBUTION_PAID"
+                                                        ? "var(--eduflow-success-700)"
+                                                        : "var(--eduflow-text-tertiary)",
+                                                textDecoration:
+                                                    j.kind === "CONTRIBUTION_REJECTED" ? "line-through" : undefined,
                                             }}
                                         >
-                                            +{FR_NUMBER.format(Number(j.amountFcfa))}
+                                            {j.kind === "CONTRIBUTION_PAID" ? "+" : ""}
+                                            {FR_NUMBER.format(Number(j.amountFcfa))}
                                         </span>
                                     ) : null}
                                 </div>
@@ -351,9 +439,40 @@ function CagnotteDetailContent() {
 
                 {/* Colonne latérale : ma participation */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {data.canReview ? (
+                        <ContributionReviewQueue
+                            cagnotteId={data.id}
+                            pending={data.contributions.filter((c) => c.status === "PENDING")}
+                            pendingFcfa={data.pendingFcfa}
+                            onReviewed={() => mutate()}
+                        />
+                    ) : null}
+
+                    {data.canReview ? null : (
                     <Card padding={20}>
                         <SubLabel>Ma participation</SubLabel>
-                        {data.hasContributed ? (
+                        {Number(data.myPendingFcfa) > 0 ? (
+                            <div
+                                role="status"
+                                style={{
+                                    marginTop: 10,
+                                    padding: 12,
+                                    borderRadius: 10,
+                                    background: "var(--eduflow-warning-50)",
+                                    border: "1px solid var(--eduflow-warning-200)",
+                                    fontSize: 12,
+                                    lineHeight: 1.5,
+                                    color: "var(--eduflow-warning-800)",
+                                }}
+                            >
+                                <strong className="tabular-nums">
+                                    {FR_NUMBER.format(Number(data.myPendingFcfa))} FCFA
+                                </strong>{" "}
+                                en attente de vérification par l&apos;établissement. La somme sera
+                                comptée dès sa confirmation.
+                            </div>
+                        ) : null}
+                        {Number(data.myContributionFcfa) > 0 ? (
                             <div
                                 style={{
                                     marginTop: 10,
@@ -365,7 +484,7 @@ function CagnotteDetailContent() {
                             >
                                 <div
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         color: "var(--eduflow-success-700)",
                                     }}
@@ -417,9 +536,9 @@ function CagnotteDetailContent() {
                                         <Badge variant="danger">{contribError}</Badge>
                                     </div>
                                 ) : null}
-                                {justPaid ? (
+                                {justDeclared ? (
                                     <Badge variant="success" icon="check">
-                                        Contribution enregistrée. Merci !
+                                        Contribution déclarée. Merci !
                                     </Badge>
                                 ) : null}
                                 <Button type="submit" icon="money" loading={submitting} full>
@@ -427,19 +546,20 @@ function CagnotteDetailContent() {
                                 </Button>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         lineHeight: 1.5,
                                         margin: 0,
                                     }}
                                 >
-                                    Paiement espèces au secrétariat ou MoMo avec référence. Le
-                                    paiement Mobile Money intégré arrive avec le webhook
-                                    opérateur.
+                                    Remettez la somme au secrétariat ou payez par Mobile Money et
+                                    indiquez la référence. Votre contribution est comptée dès que
+                                    l&apos;établissement a vérifié la somme reçue.
                                 </p>
                             </form>
                         ) : null}
                     </Card>
+                    )}
 
                     <Card padding={0}>
                         <div
@@ -473,7 +593,7 @@ function CagnotteDetailContent() {
                                         borderRadius: "50%",
                                         background: "var(--brand-600)",
                                         color: "#fff",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         display: "grid",
                                         placeItems: "center",
@@ -481,9 +601,17 @@ function CagnotteDetailContent() {
                                 >
                                     {c.initials}
                                 </div>
-                                <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                                <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                     {c.isMine ? "Vous" : "Famille"} ·{" "}
                                     {FR_DATETIME.format(new Date(c.paidAt))}
+                                    {c.status === "PENDING" ? (
+                                        <span style={{ color: "var(--eduflow-warning-700)" }}> · en attente</span>
+                                    ) : null}
+                                    {c.status === "REJECTED" ? (
+                                        <span style={{ color: "var(--eduflow-danger-700)" }}>
+                                            {" "}· non validée{c.reviewNote ? ` : ${c.reviewNote}` : ""}
+                                        </span>
+                                    ) : null}
                                 </div>
                                 <span
                                     className="tabular-nums"

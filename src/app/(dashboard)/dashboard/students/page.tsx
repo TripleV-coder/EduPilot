@@ -52,6 +52,15 @@ type ClassesResponse = { data?: ClassOption[]; classes?: ClassOption[] };
 const PAGE_SIZE = 30;
 
 export default function StudentsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={[ "SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF", "PARENT", "STUDENT", ]} >
+            <StudentsPageContent />
+        </PageGuard>
+    );
+}
+
+function StudentsPageContent() {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearch = useDebounce(searchTerm, 500);
     const [selectedClassId, setSelectedClassId] = useState<string>("ALL");
@@ -194,18 +203,7 @@ export default function StudentsPage() {
         : "Supprimer cet élève ?";
 
     return (
-        <PageGuard
-            permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]}
-            roles={[
-                "SUPER_ADMIN",
-                "SCHOOL_ADMIN",
-                "DIRECTOR",
-                "TEACHER",
-                "ACCOUNTANT",
-                "PARENT",
-                "STUDENT",
-            ]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title={pageTitle}
@@ -297,7 +295,7 @@ export default function StudentsPage() {
 
                 {loading ? <PageLoading label="Chargement des élèves…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les élèves."
                         onRetry={() => void mutateStudents()}
                     />
@@ -373,7 +371,7 @@ export default function StudentsPage() {
                                 header: "Matricule",
                                 cell: (student) => (
                                     <span
-                                        className="eduflow-mono text-[11px]"
+                                        className="eduflow-mono text-xs"
                                         style={{ color: "var(--eduflow-text-tertiary)" }}
                                     >
                                         {student.matricule || student.studentNumber || "—"}
@@ -394,7 +392,7 @@ export default function StudentsPage() {
                                                 <div className="text-[13px] font-semibold">{fullName}</div>
                                                 {student.user?.email ? (
                                                     <div
-                                                        className="truncate text-[11px]"
+                                                        className="truncate text-xs"
                                                         style={{ color: "var(--eduflow-text-tertiary)" }}
                                                     >
                                                         {student.user.email}
@@ -538,7 +536,7 @@ export default function StudentsPage() {
                 isConfirmLoading={isDeleting}
                 onConfirm={confirmDelete}
             />
-        </PageGuard>
+        </>
     );
 }
 
@@ -614,7 +612,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -672,7 +670,7 @@ function FieldSearch({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

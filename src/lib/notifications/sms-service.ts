@@ -1,10 +1,12 @@
 /**
- * SMS Service
- * Utilise un webhook HTTP configurable pour déléguer l'envoi à un fournisseur SMS réel.
+ * SMS — canal de SECOURS des messages aux familles depuis le 2026-11-14 :
+ * WhatsApp passe en priorité (lib/notifications/family-channel.ts), le SMS
+ * part quand WhatsApp n'est pas configuré ou n'aboutit pas.
+ * Envoi délégué à une passerelle HTTP (console root › Intégrations).
  */
 
 import { logger } from "@/lib/utils/logger";
-import { enqueueJobs } from "@/lib/jobs/queue";
+import { getIntegrationSetting } from "@/lib/system/integration-settings";
 import { CIRCUITS, circuitFetch } from "@/lib/resilience/circuit-breaker";
 import { CircuitOpenError } from "@/lib/resilience/errors";
 
@@ -22,15 +24,8 @@ interface SMSResult {
     permanent?: boolean;
 }
 
-interface BulkSMSResult {
-    sent: number;
-    failed: number;
-    /** Messages confiés à la file d'envoi (`src/lib/jobs/queue.ts`). */
-    queued: number;
-}
-
 export function isSmsProviderConfigured(): boolean {
-    return Boolean(process.env.SMS_WEBHOOK_URL);
+    return Boolean(getIntegrationSetting("SMS_WEBHOOK_URL"));
 }
 
 async function sendViaConfiguredProvider(params: {
@@ -39,13 +34,13 @@ async function sendViaConfiguredProvider(params: {
     type: SMSType;
     schoolId: string;
 }): Promise<SMSResult> {
-    const webhookUrl = process.env.SMS_WEBHOOK_URL;
-    const apiKey = process.env.SMS_API_KEY;
+    const webhookUrl = getIntegrationSetting("SMS_WEBHOOK_URL");
+    const apiKey = getIntegrationSetting("SMS_API_KEY");
 
     if (!webhookUrl) {
         return {
             success: false,
-            error: "Aucun fournisseur SMS configuré (SMS_WEBHOOK_URL).",
+            error: "Aucun fournisseur SMS configuré (console root › Intégrations).",
             permanent: true,
         };
     }
@@ -103,6 +98,15 @@ export function attendanceSmsMessage(params: { studentName: string; status: stri
     return `${params.studentName} a été marqué(e) ${params.status} le ${params.date.toLocaleDateString("fr-FR")}`;
 }
 
+export function paymentReminderMessage(params: { studentName: string; amount: number; dueDate: Date }): string {
+    return `Rappel: paiement de ${params.amount} FCFA pour ${params.studentName} avant le ${params.dueDate.toLocaleDateString("fr-FR")}`;
+}
+
+export function gradesMessage(params: { studentName: string; period: string; average?: number }): string {
+    const avgText = params.average ? ` (moyenne: ${params.average}/20)` : "";
+    return `Les notes de ${params.studentName} pour ${params.period} sont disponibles${avgText}`;
+}
+
 export async function sendAttendanceSMS(params: {
     parentPhone: string;
     studentName: string;
@@ -121,7 +125,7 @@ export async function sendPaymentReminderSMS(params: {
     dueDate: Date;
     schoolId: string;
 }): Promise<SMSResult> {
-    const message = `Rappel: paiement de ${params.amount} FCFA pour ${params.studentName} avant le ${params.dueDate.toLocaleDateString("fr-FR")}`;
+    const message = paymentReminderMessage(params);
     return queueSMS({ phoneNumber: params.parentPhone, message, type: "PAYMENT", schoolId: params.schoolId });
 }
 
@@ -132,35 +136,6 @@ export async function sendGradesNotificationSMS(params: {
     average?: number;
     schoolId: string;
 }): Promise<SMSResult> {
-    const avgText = params.average ? ` (moyenne: ${params.average}/20)` : "";
-    const message = `Les notes de ${params.studentName} pour ${params.period} sont disponibles${avgText}`;
+    const message = gradesMessage(params);
     return queueSMS({ phoneNumber: params.parentPhone, message, type: "GRADES", schoolId: params.schoolId });
-}
-
-/**
- * Envoi groupé : les messages sont confiés à la file d'envoi et partent en
- * arrière-plan, avec nouvel essai si la passerelle échoue. Une campagne vers
- * toutes les familles ne retient plus la requête le temps de N appels.
- * `schoolId` vaut "super_admin" pour un envoi hors établissement.
- */
-export async function sendBulkSMS(
-    recipients: { phone: string; message: string }[],
-    type: SMSType,
-    schoolId: string
-): Promise<BulkSMSResult> {
-    if (!isSmsProviderConfigured()) {
-        logger.warn(`[SMS] Bulk send skipped: no provider configured (${recipients.length} recipients)`);
-        return { sent: 0, failed: recipients.length, queued: 0 };
-    }
-
-    const queued = await enqueueJobs(
-        recipients.map((recipient) => ({
-            type: "sms.send" as const,
-            payload: { phoneNumber: recipient.phone, message: recipient.message, smsType: type, schoolId },
-            schoolId: schoolId === "super_admin" ? null : schoolId,
-        })),
-    );
-
-    logger.info(`[SMS] Bulk send queued: ${queued} messages`);
-    return { sent: 0, failed: 0, queued };
 }

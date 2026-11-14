@@ -44,7 +44,8 @@ describe("GET /api/finance/reports/generate", () => {
     vi.mocked(auth).mockResolvedValue(NO_SCHOOL_ROOT);
     const res = await GET(makeRequest("http://localhost/api/finance/reports/generate"));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("ID d'établissement requis");
+    // S6 : sélection d'école exigée du super-admin
+    expect((await res.json()).code).toBe("SCHOOL_REQUIRED");
   });
 
   it("bloque un schoolId hors périmètre (403)", async () => {

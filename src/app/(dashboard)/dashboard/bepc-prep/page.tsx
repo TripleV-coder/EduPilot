@@ -96,6 +96,15 @@ const REVISION_PLAN: { day: string; activity: string; duration: string }[] = [
 ];
 
 export default function BepcPrepPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["STUDENT", "PARENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN", "SUPER_ADMIN"]} >
+            <BepcPrepPageContent />
+        </PageGuard>
+    );
+}
+
+function BepcPrepPageContent() {
     const thresholds = useSchoolThresholds();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -193,10 +202,7 @@ export default function BepcPrepPage() {
     const mention = mentionFromAvg(generalAvg, thresholds);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["STUDENT", "PARENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN", "SUPER_ADMIN"]}
-        >
+        <>
             <CycleGuard requires="SECONDARY_COLLEGE">
             <PageShell>
                 <PageHeader
@@ -234,7 +240,7 @@ export default function BepcPrepPage() {
                         <div style={{ minWidth: 200 }}>
                             <div
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 700,
                                     opacity: 0.85,
                                 }}
@@ -298,7 +304,7 @@ export default function BepcPrepPage() {
                     </div>
                 </Card>
 
-                {error ? <PageError message={error} /> : null}
+                {error ? <PageError error={error} message={error} /> : null}
 
                 <div
                     style={{
@@ -330,7 +336,7 @@ export default function BepcPrepPage() {
                                     </h2>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             margin: "2px 0 0",
                                         }}
@@ -454,7 +460,7 @@ export default function BepcPrepPage() {
                                             ))}
                                             <p
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--brand-700)",
                                                     marginTop: 10,
                                                     lineHeight: 1.55,
@@ -469,7 +475,7 @@ export default function BepcPrepPage() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Pronostic mention · BEPC</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Pronostic mention · BEPC</p>
                             {loading ? (
                                 <div style={{ padding: 12, textAlign: "center" }}>
                                     <Spinner size={20} color="var(--brand-600)" />
@@ -512,7 +518,7 @@ export default function BepcPrepPage() {
                                     </Badge>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             marginTop: 10,
                                             lineHeight: 1.55,
@@ -525,7 +531,7 @@ export default function BepcPrepPage() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Points faibles · à travailler</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Points faibles · à travailler</p>
                             {loading ? (
                                 <div style={{ padding: 12, textAlign: "center" }}>
                                     <Spinner size={18} color="var(--brand-600)" />
@@ -578,7 +584,7 @@ export default function BepcPrepPage() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color: "var(--eduflow-text-tertiary)",
                                                         }}
                                                     >
@@ -614,7 +620,7 @@ export default function BepcPrepPage() {
                 }
             `}</style>
             </CycleGuard>
-        </PageGuard>
+        </>
     );
 }
 
@@ -632,7 +638,7 @@ function ExamRow({ exam, hasBorder }: { exam: ExamItem; hasBorder: boolean }) {
         >
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{exam.title}</div>
-                <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 1 }}>
+                <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", marginTop: 1 }}>
                     {exam.classSubject.subject.name} · {exam.classSubject.class.name} ·{" "}
                     {exam._count.questions} question{exam._count.questions !== 1 ? "s" : ""} ·{" "}
                     {exam.duration} min
@@ -667,7 +673,7 @@ function HeroStat({ label, value }: { label: string; value: string }) {
             </div>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     opacity: 0.75,
                 }}
             >
@@ -686,7 +692,7 @@ function ReadinessStat({ label, value }: { label: string; value: string }) {
             >
                 {value}
             </div>
-            <div style={{ fontSize: 11, opacity: 0.75,}}>
+            <div style={{ fontSize: 12, opacity: 0.75,}}>
                 {label}
             </div>
         </div>

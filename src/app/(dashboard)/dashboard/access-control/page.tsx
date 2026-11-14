@@ -1,5 +1,6 @@
 "use client";
 
+import { ResourceActions } from "@/components/shared/resource-actions";
 import { useCallback, useEffect, useState } from "react";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -43,6 +44,15 @@ type ScanLogEntry = {
 };
 
 export default function AccessControlPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]} >
+            <AccessControlPageContent />
+        </PageGuard>
+    );
+}
+
+function AccessControlPageContent() {
     const [loading, setLoading] = useState(true);
     const [preview, setPreview] = useState<PreviewStudent>(null);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -126,10 +136,7 @@ export default function AccessControlPage() {
     }, [loadLogs, loadScanPoints]);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="QR badge & contrôle d'accès"
@@ -183,7 +190,31 @@ export default function AccessControlPage() {
                                 >
                                     <Icon name="check" size={12} color="var(--eduflow-success-600)" />
                                     <strong>{p.name}</strong>
-                                    <span style={{ color: "var(--eduflow-text-tertiary)" }}>{p.type}{p.location ? ` · ${p.location}` : ""}</span>
+                                    <span style={{ color: "var(--eduflow-text-tertiary)" }}>{p.type}{p.location ? ` · ${p.location}` : ""}{p.isActive ? "" : " · désactivé"}</span>
+                                    <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}>
+                                        <ResourceActions
+                                            endpoint={`/api/access-control/scan-points/${p.id}`}
+                                            resourceLabel={`Le point « ${p.name} »`}
+                                            fields={[
+                                                { name: "name", label: "Nom", type: "text", required: true, maxLength: 80 },
+                                                {
+                                                    name: "type", label: "Type", type: "select",
+                                                    options: [
+                                                        { value: "GATE", label: "Portail" },
+                                                        { value: "CANTEEN", label: "Cantine" },
+                                                        { value: "TRANSPORT", label: "Transport" },
+                                                        { value: "LIBRARY", label: "Bibliothèque" },
+                                                        { value: "INFIRMARY", label: "Infirmerie" },
+                                                    ],
+                                                },
+                                                { name: "location", label: "Emplacement (facultatif)", type: "text", maxLength: 120 },
+                                                { name: "isActive", label: "Point actif", type: "checkbox" },
+                                            ]}
+                                            initial={{ name: p.name, type: p.type, location: p.location, isActive: p.isActive }}
+                                            onChanged={() => void loadScanPoints()}
+                                            deleteDescription={`Un point qui a déjà enregistré des passages garde son journal : la suppression sera refusée, désactivez-le plutôt.`}
+                                        />
+                                    </RoleActionGuard>
                                 </div>
                             ))}
                         </div>
@@ -233,7 +264,7 @@ export default function AccessControlPage() {
                     className="qr-grid"
                 >
                     <Card padding={20}>
-                        <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                        <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
                             Aperçu badge ·{" "}
                             {preview ? `${preview.firstName} ${preview.lastName.toUpperCase()}` : "aucun élève"}
                         </p>
@@ -280,7 +311,7 @@ export default function AccessControlPage() {
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 8,
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         opacity: 0.85,
                                     }}
@@ -300,7 +331,7 @@ export default function AccessControlPage() {
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 opacity: 0.75,
                                             }}
                                         >
@@ -332,7 +363,7 @@ export default function AccessControlPage() {
                                         <div
                                             className="eduflow-mono"
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 opacity: 0.85,
                                                 marginTop: 6,
                                                 fontFamily:
@@ -379,7 +410,7 @@ export default function AccessControlPage() {
                                     )}
                                     <div
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "#0F172A",
                                             lineHeight: 1.4,
                                         }}
@@ -436,7 +467,7 @@ export default function AccessControlPage() {
                                 </h2>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         margin: "2px 0 0",
                                     }}
@@ -486,7 +517,7 @@ export default function AccessControlPage() {
                                     <span
                                         className="eduflow-mono"
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             fontFamily:
                                                 "var(--font-mono, ui-monospace, monospace)",
@@ -515,7 +546,7 @@ export default function AccessControlPage() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color:
                                                     "var(--eduflow-text-tertiary)",
                                             }}
@@ -547,6 +578,6 @@ export default function AccessControlPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

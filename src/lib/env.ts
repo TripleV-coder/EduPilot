@@ -1,3 +1,4 @@
+import { publicBaseUrl } from "@/lib/system/platform";
 /**
  * Environnement — module unique (L3, décision du propriétaire du 2026-09-18).
  *
@@ -41,7 +42,8 @@ function checkDatabaseUrl(value: string): string | null {
     return null;
 }
 
-const usesSmtp = () => process.env.EMAIL_PROVIDER === "smtp";
+/** Plateforme sans serveur (variables posées par l'hébergeur, voir lib/system/platform.ts). */
+const onServerless = () => process.env.VERCEL === "1" || Boolean(process.env.NETLIFY) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
 
 const ENV_VARS: EnvVar[] = [
     {
@@ -59,43 +61,20 @@ const ENV_VARS: EnvVar[] = [
     {
         name: "NEXTAUTH_URL",
         required: "production",
-        description: "URL publique de l'application (ex: https://app.edupilot.com)",
+        description: "URL publique de l'application (ex: https://app.edupilot.com) — déduite automatiquement sur Vercel",
+        when: () => !onServerless(),
     },
-    {
-        name: "TOTP_ENCRYPTION_KEY",
-        required: "production",
-        description: "Clé AES-256 pour chiffrer les secrets TOTP (openssl rand -hex 32)",
-    },
-    {
-        name: "EMAIL_PROVIDER",
-        required: "production",
-        description: "Fournisseur email (smtp, resend ou sendgrid) — requis pour la réinitialisation de mot de passe",
-    },
-    {
-        name: "EMAIL_API_KEY",
-        required: "production",
-        description: "Clé API du fournisseur email (resend / sendgrid)",
-        when: () => !usesSmtp(),
-    },
-    {
-        name: "SMTP_HOST",
-        required: "production",
-        description: "Serveur SMTP (EMAIL_PROVIDER=smtp)",
-        when: usesSmtp,
-    },
-    {
-        name: "EMAIL_FROM",
-        required: "production",
-        description: "Adresse email expéditeur (ex: noreply@edupilot.com)",
-    },
-    {
-        name: "SIGNATURE_SALT",
-        required: "production",
-        description: "Sel du hachage des adresses IP des signatures électroniques (openssl rand -hex 32)",
-    },
+    // TOTP_ENCRYPTION_KEY, SIGNATURE_SALT, PAYMENT_SECRETS_KEY et CRON_SECRET ne
+    // sont plus exigées : dérivées de NEXTAUTH_SECRET quand elles sont absentes
+    // (lib/security/derived-secrets.ts). Une valeur explicite reste prioritaire.
+    // E-mail (EMAIL_API_KEY, SMTP_URL, EMAIL_FROM) : réglé dans la console root
+    // › Intégrations depuis le 2026-11-12 (une variable du même nom reste
+    // prioritaire). Absent : avertissement au démarrage (instrumentation.ts).
     {
         name: "EDUPILOT_PEER_TOKEN",
         required: "production",
+        // Sans serveur : l'adresse IP est lue dans l'en-tête posé par la plateforme (lib/security/client-ip.ts)
+        when: () => !onServerless(),
         description:
             "Posé automatiquement par le préchargement de l'IP client : démarrer le serveur avec " +
             "`node --require ./scripts/server/client-ip-preload.cjs` (sans lui, le rate-limit ne peut pas identifier les clients)",
@@ -111,7 +90,7 @@ const ENV_VARS: EnvVar[] = [
  */
 export function validateEnv(): void {
     // E2E / CI smoke runs build with NODE_ENV=production but never hit the
-    // real email / Redis paths under audit, so let SKIP_ENV_VALIDATION=true
+    // real email paths under audit, so let SKIP_ENV_VALIDATION=true
     // bypass prod-required vars at runtime — same escape hatch already used
     // at build time. Should never be set in real production.
     if (process.env.SKIP_ENV_VALIDATION === "true") return;
@@ -199,9 +178,11 @@ export function validateCriticalEnv(): void {
         if (malformed) errors.push(`${name} — ${malformed}`);
     }
 
-    if (process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_APP_URL) {
+    // Une seule adresse publique suffit : NEXTAUTH_URL (lue à l'exécution) ou
+    // NEXT_PUBLIC_APP_URL (figée au build) — voir lib/system/platform.ts.
+    if (process.env.NODE_ENV === "production" && !publicBaseUrl()) {
         console.warn(
-            "⚠️  NEXT_PUBLIC_APP_URL non défini — http://localhost:3000 par défaut"
+            "⚠️  Adresse publique non définie (NEXTAUTH_URL) — liens des e-mails en http://localhost:3000"
         );
     }
 
@@ -230,18 +211,4 @@ export const appEnv = {
 
     allowBackupApi: getEnv("ALLOW_BACKUP_API") === "true",
     allowBackupApiInProduction: getEnv("ALLOW_BACKUP_API_IN_PRODUCTION") === "true",
-
-    ai: {
-        enabled: getEnv("AI_ENABLED") !== "false",
-        providers: (getEnv("AI_PROVIDER") ?? "")
-            .split(",")
-            .map((p) => p.trim())
-            .filter(Boolean),
-        hasExternalKeys: Boolean(
-            getEnv("GROQ_API_KEY") ||
-                getEnv("OPENAI_API_KEY") ||
-                getEnv("ANTHROPIC_API_KEY") ||
-                getEnv("GOOGLE_AI_API_KEY")
-        ),
-    },
 };

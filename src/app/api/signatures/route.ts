@@ -8,8 +8,16 @@ import { getClientIp } from "@/lib/security/client-ip";
 
 const DOC_TYPES = ["REPORT_CARD", "CERTIFICATE", "PARENT_AUTHORIZATION", "STAFF_CONTRACT"] as const;
 
+/**
+ * Types qui désignent un document réel, vérifiable dans l'école. Autorisation
+ * parentale et contrat n'ont encore ni modèle ni écran (TD-021) : les accepter
+ * revenait à sceller une signature sur un identifiant quelconque. Ils restent
+ * lisibles (GET) mais ne se signent plus tant qu'aucun document ne les porte.
+ */
+const SIGNABLE_DOC_TYPES = ["REPORT_CARD", "CERTIFICATE"] as const;
+
 const createSchema = z.object({
-    docType: z.enum(DOC_TYPES),
+    docType: z.enum(SIGNABLE_DOC_TYPES, { error: "Ce type de document ne se signe pas encore dans EduPilot." }),
     docId: z.string().min(1).max(200),
     method: z.enum(["DRAWN", "TYPED", "OTP"]),
     signatureData: z.string().max(200_000).optional().nullable(),
@@ -17,16 +25,12 @@ const createSchema = z.object({
     payload: z.unknown(),
 });
 
-async function documentBelongsToSchool(docType: (typeof DOC_TYPES)[number], docId: string, schoolId: string): Promise<boolean> {
+async function documentBelongsToSchool(docType: (typeof SIGNABLE_DOC_TYPES)[number], docId: string, schoolId: string): Promise<boolean> {
     switch (docType) {
         case "REPORT_CARD":
             return Boolean(await prisma.studentProfile.findFirst({ where: { id: docId, schoolId }, select: { id: true } }));
         case "CERTIFICATE":
             return Boolean(await prisma.certificate.findFirst({ where: { id: docId, student: { schoolId } }, select: { id: true } }));
-        default:
-            // Autorisation parentale et contrat : aucun modèle ni écran ne les porte
-            // encore (TECH_DEBT) ; la signature reste rangée dans l'école active.
-            return true;
     }
 }
 
@@ -79,7 +83,11 @@ export const POST = createApiHandler(
 
         const parsed = createSchema.safeParse(await request.json().catch(() => ({})));
         if (!parsed.success) {
-            return NextResponse.json({ error: "Données invalides", details: parsed.error.issues }, { status: 400 });
+            const typeIssue = parsed.error.issues.find((issue) => issue.path[0] === "docType");
+            return NextResponse.json(
+                { error: typeIssue?.message ?? "Données invalides", details: parsed.error.issues },
+                { status: 400 },
+            );
         }
         const { docType, docId, method, signatureData, payload } = parsed.data;
 

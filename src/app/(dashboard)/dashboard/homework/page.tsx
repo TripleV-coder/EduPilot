@@ -12,7 +12,6 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
 import { Permission } from "@/lib/rbac/permissions";
 import { t } from "@/lib/i18n";
-import { pick, useUiLang } from "@/lib/i18n/ui-lang";
 import { formatDateShort } from "@/lib/utils/formatters";
 
 import { Badge, Button, Card, Icon } from "@/components/edu";
@@ -40,7 +39,15 @@ type HomeworkItem = {
 type HomeworkResponse = { data?: HomeworkItem[] };
 
 export default function HomeworkPage() {
-    const lang = useUiLang();
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.EVALUATION_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]} >
+            <HomeworkPageContent />
+        </PageGuard>
+    );
+}
+
+function HomeworkPageContent() {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearch = useDebounce(searchTerm, 500);
     const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
@@ -131,17 +138,14 @@ export default function HomeworkPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.EVALUATION_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
-                    title={pick(lang, "Devoirs", "Homework")}
+                    title="Devoirs"
                     description={`${homeworks.length} devoirs · ${upcoming} cette semaine · ${overdue} en retard`}
                     breadcrumbs={[
-                        { label: pick(lang, "Tableau de bord", "Dashboard"), href: "/dashboard" },
-                        { label: pick(lang, "Devoirs", "Homework") },
+                        { label: "Tableau de bord", href: "/dashboard" },
+                        { label: "Devoirs" },
                     ]}
                     actions={
                         canManage ? (
@@ -201,7 +205,7 @@ export default function HomeworkPage() {
 
                 {isLoading ? <PageLoading label="Chargement des devoirs…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les devoirs."
                         onRetry={() => void mutateHomework()}
                     />
@@ -210,13 +214,13 @@ export default function HomeworkPage() {
                 {!isLoading && !error && homeworks.length === 0 ? (
                     <PageEmpty
                         icon="book"
-                        title={pick(lang, "Aucun devoir trouvé", "No homework found")}
+                        title="Aucun devoir trouvé"
                         description={
                             activeFiltersCount > 0
-                                ? pick(lang, "Aucun devoir ne correspond aux filtres actuels. Élargissez la recherche ou réinitialisez les filtres.", "No homework matches the current filters.")
+                                ? "Aucun devoir ne correspond aux filtres actuels. Élargissez la recherche ou réinitialisez les filtres."
                                 : canManage
                                   ? "Créez le premier devoir pour démarrer le suivi des soumissions."
-                                  : pick(lang, "Aucun devoir donné pour l'instant.", "No homework assigned yet.")
+                                  : "Aucun devoir donné pour l'instant."
                         }
                         actions={
                             activeFiltersCount > 0
@@ -242,7 +246,7 @@ export default function HomeworkPage() {
                                         <div className="text-[13px] font-semibold">{hw.title}</div>
                                         {hw.createdBy ? (
                                             <div
-                                                className="mt-0.5 text-[11px]"
+                                                className="mt-0.5 text-xs"
                                                 style={{ color: "var(--eduflow-text-tertiary)" }}
                                             >
                                                 Par {hw.createdBy.firstName} {hw.createdBy.lastName}
@@ -260,7 +264,7 @@ export default function HomeworkPage() {
                                             {hw.classSubject?.subject?.name || "—"}
                                         </span>
                                         <span
-                                            className="text-[11px]"
+                                            className="text-xs"
                                             style={{ color: "var(--eduflow-text-tertiary)" }}
                                         >
                                             {hw.classSubject?.class?.name || "—"}
@@ -366,7 +370,7 @@ export default function HomeworkPage() {
                 isConfirmLoading={isDeleteConfirmLoading}
                 onConfirm={confirmDelete}
             />
-        </PageGuard>
+        </>
     );
 }
 

@@ -72,6 +72,15 @@ function readUrlParam(name: string): string | null {
 }
 
 export default function GradesEntryPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.EVALUATION_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]} >
+            <GradesEntryPageContent />
+        </PageGuard>
+    );
+}
+
+function GradesEntryPageContent() {
     const { isFocusMode } = useSidebar();
     const { data: session } = useSession();
     const isTeacher = session?.user?.role === "TEACHER";
@@ -88,6 +97,8 @@ export default function GradesEntryPage() {
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [typeId, setTypeId] = useState("");
     const [periodId, setPeriodId] = useState("");
+    // Listes de référence chargées : une liste vide s'explique (pas de menu vide muet)
+    const [refsLoaded, setRefsLoaded] = useState({ periods: false, types: false });
     const [maxGrade, setMaxGrade] = useState(20);
     const [coefficient, setCoefficient] = useState(1);
     // Règles de saisie de l'établissement : précision des notes, motif d'absence
@@ -153,6 +164,7 @@ export default function GradesEntryPage() {
                     const d = await perRes.json();
                     const list: PeriodOption[] = Array.isArray(d) ? d : d.data || [];
                     setPeriods(list);
+                    setRefsLoaded((prev) => ({ ...prev, periods: true }));
                     // Période en cours d'après la date du jour : rien à choisir d'habitude.
                     const now = Date.now();
                     const current = list.find(
@@ -164,6 +176,7 @@ export default function GradesEntryPage() {
                     const d = await typRes.json();
                     const list: EvalTypeOption[] = Array.isArray(d) ? d : d.data || [];
                     setEvalTypes(list);
+                    setRefsLoaded((prev) => ({ ...prev, types: true }));
                     let remembered: string | null = null;
                     try {
                         remembered = localStorage.getItem(LAST_TYPE_KEY);
@@ -613,10 +626,7 @@ export default function GradesEntryPage() {
     const className = classes.find((c) => c.id === selectedClass)?.name ?? "";
 
     return (
-        <PageGuard
-            permission={Permission.EVALUATION_CREATE}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-        >
+        <>
             <PageShell
                 className="pb-32"
             >
@@ -787,6 +797,13 @@ export default function GradesEntryPage() {
                                     }))}
                                 />
                             </div>
+                            {(refsLoaded.periods && periods.length === 0) || (refsLoaded.types && evalTypes.length === 0) ? (
+                                <p role="note" className="mt-2 text-sm" style={{ color: "var(--eduflow-warning-800)" }}>
+                                    {refsLoaded.periods && periods.length === 0 ? "Aucune période n'est encore configurée. " : ""}
+                                    {refsLoaded.types && evalTypes.length === 0 ? "Aucun type d'évaluation n'est encore configuré. " : ""}
+                                    La direction les crée dans Paramètres (Périodes, Types d&apos;évaluation) ; la saisie sera possible ensuite.
+                                </p>
+                            ) : null}
 
                             <div
                                 className="mt-4"
@@ -862,7 +879,7 @@ export default function GradesEntryPage() {
                                     </h3>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             margin: "2px 0 0",
                                         }}
@@ -874,7 +891,7 @@ export default function GradesEntryPage() {
                                         <p
                                             aria-live="polite"
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 margin: "2px 0 0",
                                             }}
@@ -885,7 +902,7 @@ export default function GradesEntryPage() {
                                         <p
                                             aria-live="polite"
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 margin: "2px 0 0",
                                             }}
@@ -920,7 +937,7 @@ export default function GradesEntryPage() {
                                         background: "var(--brand-50)",
                                         borderColor: "var(--brand-100)",
                                         color: "var(--brand-800)",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 600,
                                     }}
                                 >
@@ -1027,7 +1044,7 @@ export default function GradesEntryPage() {
                                                                         <div
                                                                             className="eduflow-mono"
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color: "var(--eduflow-text-tertiary)",
                                                                             }}
                                                                         >
@@ -1068,6 +1085,7 @@ export default function GradesEntryPage() {
                                                         <td style={{ padding: "10px 16px" }}>
                                                             <div className="flex items-center gap-2">
                                                                 <ToggleAbsent
+                                                                    label={`Absent : ${fullName}`}
                                                                     checked={g.isAbsent}
                                                                     onChange={(c) => {
                                                                         handleGradeChange(stu.id, "isAbsent", c);
@@ -1080,7 +1098,7 @@ export default function GradesEntryPage() {
                                                                 {g.isAbsent ? (
                                                                     <label
                                                                         className="inline-flex items-center gap-1"
-                                                                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                                                                        style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                                                                         title="Justifiée : exclue du calcul. Non justifiée : comptée 0 (modifiable si l'élève recompose)."
                                                                     >
                                                                         <input
@@ -1098,7 +1116,7 @@ export default function GradesEntryPage() {
                                                                 {g.isAbsent && !g.isExcused && unjustifiedCountsZero ? (
                                                                     <span
                                                                         role="note"
-                                                                        style={{ fontSize: 11, fontWeight: 600, color: "var(--eduflow-danger-600)" }}
+                                                                        style={{ fontSize: 12, fontWeight: 600, color: "var(--eduflow-danger-600)" }}
                                                                     >
                                                                         compte 0 — cochez « justifiée » si l&apos;élève a un justificatif
                                                                     </span>
@@ -1107,7 +1125,7 @@ export default function GradesEntryPage() {
                                                                     <button
                                                                         type="button"
                                                                         className="underline"
-                                                                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                                                                        style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                                                                         aria-label={`Adapter le calcul pour ${fullName}`}
                                                                         onClick={() => {
                                                                             setAdjusting({ id: stu.id, name: fullName });
@@ -1131,7 +1149,7 @@ export default function GradesEntryPage() {
                                                                             padding: "0 8px",
                                                                             borderRadius: 8,
                                                                             border: `1px solid ${excuseReasonRequired && !(g.excuseReason ?? "").trim() ? "var(--eduflow-danger-600)" : "var(--eduflow-border-default)"}`,
-                                                                            fontSize: 11,
+                                                                            fontSize: 12,
                                                                         }}
                                                                     />
                                                                 ) : null}
@@ -1254,7 +1272,7 @@ export default function GradesEntryPage() {
                     </div>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET as GET_EXPORT } from "@/app/api/audit-logs/export/route";
 import { PATCH, DELETE } from "@/app/api/alumni/[id]/route";
-import { GET as GET_BENCH } from "@/app/api/benchmark/latest/route";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
@@ -23,7 +22,6 @@ vi.mock("@/lib/prisma", () => ({
     user: { findMany: vi.fn() },
     auditLog: { findMany: vi.fn(), create: vi.fn() },
     alumni: { findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
-    benchmarkSnapshot: { findFirst: vi.fn() },
   },
 }));
 
@@ -130,49 +128,5 @@ describe("DELETE /api/alumni/[id]", () => {
     expect(res.status).toBe(200);
     expect(prisma.alumni.delete).toHaveBeenCalledWith({ where: { id: "a1" } });
     expect(prisma.auditLog.create).toHaveBeenCalled();
-  });
-});
-
-describe("GET /api/benchmark/latest", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("should forbid non-admin roles", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
-    const res = await GET_BENCH(makeRequest("http://localhost/api/benchmark/latest"));
-    expect(res.status).toBe(403);
-  });
-
-  it("should return null snapshot when none exists", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
-    vi.mocked(prisma.benchmarkSnapshot.findFirst).mockResolvedValue(null);
-    const res = await GET_BENCH(makeRequest("http://localhost/api/benchmark/latest"));
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.snapshot).toBeNull();
-  });
-
-  it("should return the latest snapshot with indicators", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
-    vi.mocked(prisma.benchmarkSnapshot.findFirst).mockResolvedValue({
-      id: "b1",
-      capturedAt: new Date("2026-08-01T00:00:00Z"),
-      periodLabel: "2025-2026",
-      rankNational: 12,
-      rankDept: 3,
-      rankPeerGroup: 2,
-      totalNational: 100,
-      totalDept: 20,
-      totalPeer: 10,
-      scoreOverall: 78.5,
-      indicators: [
-        { id: "i1", label: "Taux de réussite", schoolValue: 92, nationalValue: 85, departmentValue: 87, peerValue: 90, unit: "%", tone: "GOOD" },
-      ],
-    } as never);
-
-    const res = await GET_BENCH(makeRequest("http://localhost/api/benchmark/latest"));
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.snapshot.indicators).toHaveLength(1);
-    expect(body.snapshot.scoreOverall).toBe(78.5);
   });
 });

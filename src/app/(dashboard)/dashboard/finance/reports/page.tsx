@@ -42,6 +42,15 @@ type FinanceStats = {
 const pct = (value: number) => `${value.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
 
 export default function FinanceReportsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+            <FinanceReportsPageContent />
+        </PageGuard>
+    );
+}
+
+function FinanceReportsPageContent() {
     const [period, setPeriod] = useState("academic");
     const [stats, setStats] = useState<FinanceStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -90,7 +99,7 @@ export default function FinanceReportsPage() {
         new Intl.NumberFormat("fr-BJ", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(amount);
 
     return (
-        <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+        <>
             <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
@@ -237,6 +246,6 @@ export default function FinanceReportsPage() {
                     </>
                 )}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

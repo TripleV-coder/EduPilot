@@ -61,6 +61,15 @@ type ConfigOption = {
 };
 
 export default function ReformsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <ReformsPageContent />
+        </PageGuard>
+    );
+}
+
+function ReformsPageContent() {
     const [loaded, setLoaded] = useState(false);
     // Échec du chargement initial : distinct de l'erreur d'enregistrement,
     // il masque les éditeurs (sinon « Enregistrer » écraserait la
@@ -158,7 +167,7 @@ export default function ReformsPage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Gestion des réformes nationales"
@@ -179,7 +188,7 @@ export default function ReformsPage() {
                 )}
 
                 {loadError ? (
-                    <PageError message={loadError} onRetry={() => void loadConfigs()} />
+                    <PageError error={loadError} message={loadError} onRetry={() => void loadConfigs()} />
                 ) : !loaded ? (
                     <PageLoading label="Chargement des réformes…" />
                 ) : (
@@ -325,19 +334,19 @@ export default function ReformsPage() {
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                             <div className="space-y-1">
-                                                <Label className="text-[11px]">Libellé</Label>
+                                                <Label className="text-xs">Libellé</Label>
                                                 <Input value={m.label} onChange={e => setMentions(prev => prev.map((item, idx) => idx === i ? { ...item, label: e.target.value } : item))} className="w-40" />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-[11px]">Seuil Min</Label>
+                                                <Label className="text-xs">Seuil Min</Label>
                                                 <Input type="number" step="0.5" value={m.minScore} onChange={e => setMentions(prev => prev.map((item, idx) => idx === i ? { ...item, minScore: parseFloat(e.target.value) } : item))} className="w-24" />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-[11px]">Seuil Max</Label>
+                                                <Label className="text-xs">Seuil Max</Label>
                                                 <Input type="number" step="0.5" value={m.maxScore} onChange={e => setMentions(prev => prev.map((item, idx) => idx === i ? { ...item, maxScore: parseFloat(e.target.value) } : item))} className="w-24" />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-[11px]">Couleur (Hex)</Label>
+                                                <Label className="text-xs">Couleur (Hex)</Label>
                                                 <div className="flex gap-2 items-center">
                                                     <div className="h-8 w-8 rounded-full border border-border shrink-0" style={{ backgroundColor: m.color }}></div>
                                                     <Input value={m.color} onChange={e => setMentions(prev => prev.map((item, idx) => idx === i ? { ...item, color: e.target.value } : item))} className="w-32" />
@@ -357,6 +366,6 @@ export default function ReformsPage() {
                 </Tabs>
                 )}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

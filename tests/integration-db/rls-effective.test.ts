@@ -4,6 +4,7 @@ import { runAsSystem, runWithDbContext, tenantContext } from "@/lib/db/db-contex
 import { assertRlsEnforcedAtStartup, inspectRlsRole } from "@/lib/db/rls-guard";
 import ownerDb from "./owner-db";
 import { seedTenantGraph } from "./fixtures/tenant-graph";
+import { uniqueCode } from "./helpers";
 
 /**
  * Audit M2 — RLS effective, sur un vrai PostgreSQL.
@@ -185,16 +186,30 @@ describe("M2 — contexte d'établissement", () => {
       ),
     ).rejects.toThrow(/row-level security/);
 
-    // Déplacer un élève de A vers B depuis A : refusé.
+    // Déplacer un élève de A vers B depuis A : refusé par WITH CHECK. Élève
+    // sans plan de paiement : avec un plan, le garde-fou de souveraineté (lot
+    // 3d, trigger BEFORE) refuserait avant même la politique RLS.
+    const loneUser = await ownerDb.user.create({
+      data: { email: `${uniqueCode("seul")}@integration.test`, password: "x", firstName: "Seul", lastName: "RLS", role: "STUDENT", schoolId: schoolA },
+    });
+    const lone = await ownerDb.studentProfile.create({ data: { userId: loneUser.id, schoolId: schoolA, matricule: uniqueCode("MAT") } });
+    await expect(
+      runWithDbContext(tenantContext([schoolA]), () =>
+        prisma.studentProfile.update({ where: { id: lone.id }, data: { schoolId: schoolB } }),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    // L'élève du graphe, qui a un plan de paiement, reste lui aussi en place
     await expect(
       runWithDbContext(tenantContext([schoolA]), () =>
         prisma.studentProfile.update({ where: { id: studentA }, data: { schoolId: schoolB } }),
       ),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/row-level security|Rattachement scolaire non modifiable/);
 
     expect(await ownerDb.grade.findUniqueOrThrow({ where: { id: b.grades } })).toEqual(before);
     expect(await ownerDb.medicalRecord.count({ where: { id: b.medical_records } })).toBe(1);
     expect(await ownerDb.studentProfile.findUniqueOrThrow({ where: { id: studentA }, select: { schoolId: true } }))
+      .toEqual({ schoolId: schoolA });
+    expect(await ownerDb.studentProfile.findUniqueOrThrow({ where: { id: lone.id }, select: { schoolId: true } }))
       .toEqual({ schoolId: schoolA });
   });
 });

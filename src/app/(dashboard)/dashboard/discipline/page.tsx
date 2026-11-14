@@ -9,7 +9,6 @@ import useSWR from "swr";
 
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { Permission } from "@/lib/rbac/permissions";
 
 import {
     Avatar,
@@ -221,12 +220,14 @@ export default function DisciplinePage() {
 
     return (
         <PageGuard
-            permission={Permission.INCIDENT_READ}
+            // Garde par rôle, comme les pages d'incidents et /api/incidents : la
+            // matrice ne donne INCIDENT_READ qu'à TEACHER et STAFF, et la direction
+            // (SCHOOL_ADMIN, DIRECTOR) recevait « Accès refusé » (recette 2026-10-26)
             roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}
         >
             <PageShell>
                 {loadError ? (
-                    <PageError message="Impossible de charger le registre disciplinaire." onRetry={() => void reloadPage()} />
+                    <PageError error={loadError} message="Impossible de charger le registre disciplinaire." onRetry={() => void reloadPage()} />
                 ) : null}
 
                 <PageHeader
@@ -409,7 +410,7 @@ export default function DisciplinePage() {
                                                     {klass ? (
                                                         <span
                                                             style={{
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 color:
                                                                     "var(--eduflow-text-tertiary)",
                                                             }}
@@ -434,7 +435,7 @@ export default function DisciplinePage() {
                                                 </div>
                                                 <div
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
                                                         marginTop: 3,
@@ -472,7 +473,7 @@ export default function DisciplinePage() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Évolution sur 8 semaines</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Évolution sur 8 semaines</p>
                             {weeklyTrend.length > 0 ? (
                                 <>
                                     <Sparkline
@@ -482,7 +483,7 @@ export default function DisciplinePage() {
                                     />
                                     <div
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             marginTop: 4,
                                         }}
@@ -523,7 +524,7 @@ export default function DisciplinePage() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Top motifs</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Top motifs</p>
                             {statsLoading ? (
                                 <div
                                     style={{

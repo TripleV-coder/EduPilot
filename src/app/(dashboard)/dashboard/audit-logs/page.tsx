@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError, PageEmpty } from "@/components/layout/page-states";
@@ -57,6 +58,15 @@ function formatTimestamp(iso: string): string {
 }
 
 export default function AuditLogsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
+            <AuditLogsPageContent />
+        </PageGuard>
+    );
+}
+
+function AuditLogsPageContent() {
     const [logs, setLogs] = useState<AuditLogRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -115,7 +125,10 @@ export default function AuditLogsPage() {
         setExporting(true);
         try {
             const res = await fetch("/api/audit-logs/export");
-            if (!res.ok) throw new Error();
+            if (!res.ok) {
+                const body = (await res.json().catch(() => ({}))) as { error?: string };
+                throw new Error(body.error || "L'export du journal a échoué. Réessayez.");
+            }
             const csv = await res.text();
             const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
             const url = URL.createObjectURL(blob);
@@ -124,15 +137,15 @@ export default function AuditLogsPage() {
             a.download = `audit_logs_${new Date().toISOString().split("T")[0]}.csv`;
             a.click();
             URL.revokeObjectURL(url);
-        } catch {
-            // Silent — page header already shows the count, error state is rare here.
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "L'export du journal a échoué. Réessayez.");
         } finally {
             setExporting(false);
         }
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Journal d'audit"
@@ -223,7 +236,7 @@ export default function AuditLogsPage() {
                                                 key={h}
                                                 className="px-4 py-2.5 text-left font-bold"
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                 }}
                                             >
@@ -243,7 +256,7 @@ export default function AuditLogsPage() {
                                             <tr key={log.id} style={{ borderTop: "1px solid var(--eduflow-border-subtle)" }}>
                                                 <td
                                                     className="px-4 py-3 font-mono"
-                                                    style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                                                    style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                                                 >
                                                     {formatTimestamp(log.createdAt)}
                                                 </td>
@@ -254,7 +267,7 @@ export default function AuditLogsPage() {
                                                             style={{
                                                                 background: "var(--eduflow-brand-100)",
                                                                 color: "var(--eduflow-brand-800)",
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                             }}
                                                         >
                                                             {log.user ? initials(log.user.firstName, log.user.lastName) : "SY"}
@@ -266,7 +279,7 @@ export default function AuditLogsPage() {
                                                     <span
                                                         className="font-mono inline-block px-2 py-0.5 rounded-md"
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             background: palette.bg,
                                                             color: palette.fg,
                                                         }}
@@ -299,7 +312,7 @@ export default function AuditLogsPage() {
                     )}
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 
@@ -329,7 +342,7 @@ function CategoryChip({
             <span
                 className="font-mono"
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: active ? "var(--eduflow-brand-700)" : "var(--eduflow-text-tertiary)",
                 }}
             >

@@ -37,6 +37,15 @@ type PerformanceStats = {
 };
 
 export default function PerformancesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.GRADE_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+            <PerformancesPageContent />
+        </PageGuard>
+    );
+}
+
+function PerformancesPageContent() {
     const thresholds = useSchoolThresholds();
     const [stats, setStats] = useState<PerformanceStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -132,7 +141,7 @@ export default function PerformancesPage() {
     };
 
     return (
-        <PageGuard permission={Permission.GRADE_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Performances pédagogiques"
@@ -211,7 +220,7 @@ export default function PerformancesPage() {
 
                 {loading ? <PageLoading label="Chargement des performances…" /> : null}
 
-                {error ? <PageError message={error} onRetry={() => window.location.reload()} /> : null}
+                {error ? <PageError error={error} message={error} onRetry={() => window.location.reload()} /> : null}
 
                 {!loading && !error && stats ? (
                     <div className="space-y-6">
@@ -340,7 +349,7 @@ export default function PerformancesPage() {
                                                 <YAxis 
                                                     type="category" 
                                                     dataKey="name" 
-                                                    tick={{ fontSize: 10 }} 
+                                                    tick={{ fontSize: 12 }} 
                                                     width={140} 
                                                     axisLine={false} 
                                                     tickLine={false}
@@ -390,6 +399,6 @@ export default function PerformancesPage() {
                     </div>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

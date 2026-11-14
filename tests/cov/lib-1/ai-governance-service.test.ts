@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const env = vi.hoisted(() => ({ ai: { enabled: false, hasExternalKeys: false } }));
-
 // Paramètres de l'établissement : valeurs par défaut (pas de table de réglages dans le mock Prisma)
 vi.mock("@/lib/schools/school-parameters-store", async () => {
     const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
@@ -34,21 +32,20 @@ vi.mock("@/lib/prisma", () => ({
     configOption: { findFirst: vi.fn().mockResolvedValue(null) },
   },
 }));
-vi.mock("@/lib/env", () => ({ appEnv: env }));
 vi.mock("@/lib/analytics/service", () => ({ analyticsService: { getSchoolStats: vi.fn() } }));
 vi.mock("@/lib/services/analytics-sync", () => ({ persistStudentAnalyticsSnapshot: vi.fn() }));
 vi.mock("@/lib/services/ai-predictive", () => ({ generateStudentPredictions: vi.fn() }));
 vi.mock("@/lib/services/ai-predictive/predict-failure", () => ({ predictFailureRisk: vi.fn() }));
-vi.mock("@/lib/ai/external-client", () => ({ callExternalAI: vi.fn() }));
+// Périmètre enseignant (TD-020) couvert par ai-governance-access.test.ts : ici l'enseignant enseigne à l'élève.
+vi.mock("@/lib/teachers/taught-classes", () => ({ teacherTeachesStudent: vi.fn().mockResolvedValue(true) }));
 vi.mock("@/lib/utils/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 
 import prisma from "@/lib/prisma";
-import { governanceService, hasExternalAIConfigured } from "@/lib/ai/governance-service";
+import { governanceService } from "@/lib/ai/governance-service";
 import { analyticsService } from "@/lib/analytics/service";
 import { persistStudentAnalyticsSnapshot } from "@/lib/services/analytics-sync";
 import { generateStudentPredictions } from "@/lib/services/ai-predictive";
 import { predictFailureRisk } from "@/lib/services/ai-predictive/predict-failure";
-import { callExternalAI } from "@/lib/ai/external-client";
 import { logger } from "@/lib/utils/logger";
 
 /** Charge JSON inspectée librement dans les assertions (forme = sortie de JSON.parse). */
@@ -73,11 +70,6 @@ async function failure(r: Req) {
     const err = e as { code?: string; status?: number; message?: string };
     return { code: err.code, status: err.status, message: err.message };
   }
-}
-
-function setExternal(on: boolean) {
-  env.ai.enabled = on;
-  env.ai.hasExternalKeys = on;
 }
 
 /** Analyse individuelle (forme analyticsInclude). */
@@ -134,7 +126,6 @@ const studentRecord = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  setExternal(false);
   m(prisma.attendance.findMany).mockResolvedValue([]);
   m(prisma.behaviorIncident.findMany).mockResolvedValue([]);
   m(prisma.studentAnalytics.findMany).mockResolvedValue([]);
@@ -148,13 +139,6 @@ describe("gouvernance IA — aiguillage", () => {
     expect(await failure(req({ action: "hack" }))).toMatchObject({ code: "INVALID_ACTION", status: 400, message: "Action IA non prise en charge: hack" });
   });
 
-  it("indique si l'IA externe est configurée (activée ET clés présentes)", () => {
-    expect(hasExternalAIConfigured()).toBe(false);
-    env.ai.enabled = true;
-    expect(hasExternalAIConfigured()).toBe(false);
-    env.ai.hasExternalKeys = true;
-    expect(hasExternalAIConfigured()).toBe(true);
-  });
 
   it.each([
     ["analyze-student", "MISSING_STUDENT_ID"],
@@ -569,7 +553,7 @@ describe("gouvernance IA — orientation", () => {
     });
   });
 
-  it("utilise le gabarit sans IA externe", async () => {
+  it("utilise le gabarit local", async () => {
     m(prisma.studentProfile.findUnique).mockResolvedValueOnce(record);
     m(prisma.studentAnalytics.findFirst).mockResolvedValueOnce(
       studentAnalytics({
@@ -585,52 +569,10 @@ describe("gouvernance IA — orientation", () => {
     // (15×4 + 14×3) / 7 × 5 = 73, moins 15 : moyenne générale du gabarit (9,5) sous les 12 conseillés en C
     expect((res.data as Json).score).toBe(58);
     expect(res.recommendations).toHaveLength(2);
-    expect(callExternalAI).not.toHaveBeenCalled();
   });
 
-  it("adopte la réponse JSON de l'IA externe en gardant la synthèse du gabarit (pseudonymisée)", async () => {
-    setExternal(true);
-    m(prisma.studentProfile.findUnique).mockResolvedValueOnce(record);
-    m(prisma.studentAnalytics.findFirst).mockResolvedValueOnce(studentAnalytics({ generalAverage: null }));
-    m(callExternalAI).mockResolvedValueOnce({ success: true, response: 'Voici : {"series":"SERIE_A1","justification":"Lettres","alternatives":["SERIE_A2"]}' });
-    const res = await run(req({ action: "recommend-orientation", studentId: "stu-1", userRole: "TEACHER" }));
-    expect(res.confidence).toBe(0.9);
-    expect(res.data).toMatchObject({ series: "SERIE_A1", justification: "Lettres", alternatives: ["SERIE_A2"] });
-    expect((res.data as Json).synthesis).toContain("Koffi Adjovi");
-    const call = m(callExternalAI).mock.calls[0][0] as { message: string; role: string; studentData: Record<string, unknown> };
-    expect(call.role).toBe("TEACHER");
-    expect(call.message).toContain("K. A.");
-    expect(call.message).not.toContain("Koffi");
-    // Une moyenne absente n'est jamais envoyée comme un 0 (elle fausserait l'orientation)
-    expect(call.studentData).toMatchObject({ generalAverage: null, currentClass: "3e A" });
-    expect(call.message).toContain("Moyenne Générale: non disponible");
-    // Le français, sans moyenne, n'est pas transmis ; les maths (7) le sont
-    expect(call.studentData.subjects).toEqual([expect.objectContaining({ name: "Maths", average: 7 })]);
-  });
 
-  it("garde le gabarit si l'IA externe échoue, ne renvoie pas de JSON ou lève", async () => {
-    setExternal(true);
-    m(prisma.studentProfile.findUnique).mockResolvedValue({ ...record, enrollments: [] });
-    m(prisma.studentAnalytics.findFirst).mockResolvedValue(studentAnalytics());
-    m(callExternalAI)
-      .mockResolvedValueOnce({ success: false, response: "" })
-      .mockResolvedValueOnce({ success: true, response: "pas de json" })
-      .mockRejectedValueOnce(new Error("réseau"));
-    for (let i = 0; i < 3; i++) {
-      const res = await run(req({ action: "recommend-orientation", studentId: "stu-1" }));
-      expect(res.confidence).toBe(0.75);
-    }
-    expect(logger.warn).toHaveBeenCalledWith("Orientation via external AI failed, keeping template", expect.any(Object));
-  });
 
-  it("renvoie une liste de recommandations vide si l'IA omet les alternatives", async () => {
-    setExternal(true);
-    m(prisma.studentProfile.findUnique).mockResolvedValueOnce(record);
-    m(prisma.studentAnalytics.findFirst).mockResolvedValueOnce(studentAnalytics());
-    m(callExternalAI).mockResolvedValueOnce({ success: true, response: '{"series":"SERIE_B","justification":"Éco"}' });
-    const res = await run(req({ action: "recommend-orientation", studentId: "stu-1" }));
-    expect(res.recommendations).toEqual([]);
-  });
 });
 
 describe("gouvernance IA — analyse de risque et intervention", () => {
@@ -656,51 +598,8 @@ describe("gouvernance IA — analyse de risque et intervention", () => {
     expect(data.suggestedActions.length).toBeGreaterThan(0);
   });
 
-  it.each([
-    [80, "CRITICAL"],
-    [60, "HIGH"],
-    [40, "MEDIUM"],
-  ])("utilise la réponse de l'IA externe (probabilité %i → priorité demandée %s)", async (probability, priority) => {
-    setExternal(true);
-    m(prisma.studentProfile.findUnique).mockResolvedValueOnce(record);
-    m(predictFailureRisk).mockResolvedValueOnce(risk(probability));
-    m(prisma.studentAnalytics.findFirst).mockResolvedValueOnce(null);
-    m(prisma.academicYear.findFirst).mockResolvedValue(null);
-    m(callExternalAI).mockResolvedValueOnce({ success: true, response: '```json\n{"riskLevel":"HIGH","recommendations":["Répétiteur"]}\n```' });
-    const res = await run(req({ action: "analyze-risk", studentId: "stu-1" }));
-    expect(res.confidence).toBe(0.9);
-    expect(res.data).toMatchObject({ riskLevel: "HIGH", recommendations: ["Répétiteur"] });
-    // Résumé absent de la réponse : celui du gabarit est conservé.
-    expect((res.data as Json).summary).toContain("présente un risque d'échec");
-    const call = m(callExternalAI).mock.calls[0][0] as { message: string };
-    expect(call.message).toContain(`"priority": "${priority}"`);
-    expect(call.message).not.toContain("Koffi");
-  });
 
-  it("garde le résumé fourni par l'IA externe", async () => {
-    setExternal(true);
-    m(prisma.studentProfile.findUnique).mockResolvedValueOnce({ ...record, enrollments: [] });
-    m(predictFailureRisk).mockResolvedValueOnce(risk(50));
-    m(prisma.studentAnalytics.findFirst).mockResolvedValueOnce(studentAnalytics());
-    m(callExternalAI).mockResolvedValueOnce({ success: true, response: '{"summary":"Synthèse IA"}' });
-    const res = await run(req({ action: "analyze-risk", studentId: "stu-1" }));
-    expect((res.data as Json).summary).toBe("Synthèse IA");
-  });
 
-  it("revient aux gabarits si l'IA externe échoue, ne renvoie rien d'exploitable ou lève", async () => {
-    setExternal(true);
-    m(prisma.studentProfile.findUnique).mockResolvedValue(record);
-    m(predictFailureRisk).mockResolvedValue(risk(60));
-    m(prisma.studentAnalytics.findFirst).mockResolvedValue(studentAnalytics());
-    m(callExternalAI)
-      .mockResolvedValueOnce({ success: false, response: "" })
-      .mockResolvedValueOnce({ success: true, response: "rien" })
-      .mockRejectedValueOnce(new Error("quota"));
-    for (let i = 0; i < 3; i++) {
-      expect((await run(req({ action: "analyze-risk", studentId: "stu-1" }))).confidence).toBe(0.78);
-    }
-    expect(logger.warn).toHaveBeenCalledWith("Risk intervention via external AI failed, using templates", expect.any(Object));
-  });
 });
 
 describe("gouvernance IA — plan d'action", () => {
@@ -719,46 +618,19 @@ describe("gouvernance IA — plan d'action", () => {
   });
 
   it("produit un plan par gabarit sans analyses ni classe", async () => {
-    setExternal(true);
     m(prisma.studentProfile.findUnique).mockResolvedValueOnce({ ...studentRecord, user: null, enrollments: [] });
     m(prisma.studentAnalytics.findFirst).mockResolvedValue(null);
     const res = await run(req({ action: "generate-action-plan", studentId: "stu-1" }));
-    expect(callExternalAI).not.toHaveBeenCalled();
     // Sans moyenne, l'élève n'est plus lu « 0/20 » (avant : priorité HIGH à tort)
     expect(res.data).toMatchObject({ title: "Plan de remédiation — l'élève", priority: "MEDIUM" });
     expect((res.data as Json).description).toContain("Moyenne actuelle : non disponible");
   });
 
-  it("adopte le plan JSON de l'IA externe (prompt pseudonymisé)", async () => {
-    setExternal(true);
-    m(prisma.studentProfile.findUnique).mockResolvedValueOnce(record);
-    m(prisma.studentAnalytics.findFirst).mockResolvedValueOnce(studentAnalytics());
-    m(callExternalAI).mockResolvedValueOnce({ success: true, response: '{"title":"Plan IA","steps":["a"]}' });
-    const res = await run(req({ action: "generate-action-plan", studentId: "stu-1" }));
-    expect(res.data).toEqual({ title: "Plan IA", steps: ["a"] });
-    const call = m(callExternalAI).mock.calls[0][0] as { message: string };
-    expect(call.message).toContain("K. A.");
-    expect(call.message).toContain("Faiblesses: Maths");
-  });
 
-  it("revient au gabarit si l'IA externe échoue, répond sans JSON ou lève", async () => {
-    setExternal(true);
-    m(prisma.studentProfile.findUnique).mockResolvedValue(record);
-    m(prisma.studentAnalytics.findFirst).mockResolvedValue(studentAnalytics());
-    m(callExternalAI)
-      .mockResolvedValueOnce({ success: false, response: "" })
-      .mockResolvedValueOnce({ success: true, response: "texte libre" })
-      .mockRejectedValueOnce(new Error("boom"));
-    for (let i = 0; i < 3; i++) {
-      const res = await run(req({ action: "generate-action-plan", studentId: "stu-1" }));
-      expect((res.data as Json).suggestedBy).toBe("EduPilot — moteur par gabarits");
-    }
-    expect(logger.warn).toHaveBeenCalledWith("Failed to generate action plan via external AI", expect.any(Object));
-  });
 });
 
 describe("gouvernance IA — appréciation de bulletin", () => {
-  it("rédige l'appréciation par gabarit (confiance 0.85 sans IA externe)", async () => {
+  it("rédige l'appréciation par gabarit (confiance 0.85)", async () => {
     m(prisma.studentProfile.findUnique).mockResolvedValueOnce(studentRecord);
     m(prisma.studentAnalytics.findFirst).mockResolvedValueOnce(studentAnalytics({ generalAverage: 15 }));
     const res = await run(req({ action: "draft-report-comment", studentId: "stu-1" }));
@@ -766,42 +638,6 @@ describe("gouvernance IA — appréciation de bulletin", () => {
     expect((res.data as { comment: string }).comment).toContain("Koffi Adjovi affiche de très bons résultats (15.00/20)");
   });
 
-  it("utilise l'appréciation de l'IA externe en retirant les guillemets", async () => {
-    setExternal(true);
-    m(prisma.studentProfile.findUnique).mockResolvedValueOnce(studentRecord);
-    m(prisma.studentAnalytics.findFirst).mockResolvedValueOnce(studentAnalytics({ generalAverage: "13.456", progressionRate: 2 }));
-    m(callExternalAI).mockResolvedValueOnce({ success: true, response: '"Bon trimestre, continuez."' });
-    const res = await run(req({ action: "draft-report-comment", studentId: "stu-1" }));
-    expect(res.confidence).toBe(0.9);
-    expect(res.data).toEqual({ comment: "Bon trimestre, continuez." });
-    const call = m(callExternalAI).mock.calls[0][0] as { message: string };
-    expect(call.message).toContain("Moyenne générale: 13.46/20. Tendance: En progrès.");
-    expect(call.message).not.toContain("Koffi");
-  });
 
-  it("garde le gabarit si l'IA externe renvoie un texte vide, échoue ou lève (tendance en baisse, moyenne nulle)", async () => {
-    setExternal(true);
-    m(prisma.studentProfile.findUnique).mockResolvedValue(studentRecord);
-    m(prisma.studentAnalytics.findFirst).mockResolvedValue(studentAnalytics({ generalAverage: null, progressionRate: null }));
-    m(callExternalAI)
-      .mockResolvedValueOnce({ success: true, response: "   " })
-      .mockResolvedValueOnce({ success: false, response: "x" })
-      .mockRejectedValueOnce(new Error("503"));
-    for (let i = 0; i < 3; i++) {
-      const res = await run(req({ action: "draft-report-comment", studentId: "stu-1" }));
-      expect((res.data as { comment: string }).comment).toContain("ne dispose pas encore de notes suffisantes");
-    }
-    const call = m(callExternalAI).mock.calls[0][0] as { message: string };
-    expect(call.message).toContain("Moyenne générale: 0.00/20. Tendance: En baisse.");
-    expect(logger.warn).toHaveBeenCalledWith("Failed to draft comment via external AI, keeping template", expect.any(Object));
-  });
 
-  it("n'appelle pas l'IA externe sans analyses", async () => {
-    setExternal(true);
-    m(prisma.studentProfile.findUnique).mockResolvedValueOnce(studentRecord);
-    m(prisma.studentAnalytics.findFirst).mockResolvedValue(null);
-    const res = await run(req({ action: "draft-report-comment", studentId: "stu-1" }));
-    expect(callExternalAI).not.toHaveBeenCalled();
-    expect(res.confidence).toBe(0.9);
-  });
 });

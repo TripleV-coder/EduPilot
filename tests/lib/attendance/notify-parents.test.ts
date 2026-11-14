@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import prisma from "@/lib/prisma";
 import { createNotifications } from "@/lib/services/notification.service";
-import { isSmsProviderConfigured } from "@/lib/notifications/sms-service";
 import { enqueueJobs } from "@/lib/jobs/queue";
+import { queueFamilyMessages, type FamilyMessage } from "@/lib/notifications/family-channel";
 import type { NewJob } from "@/lib/jobs/types";
 import { notifyParentsOfAbsences } from "@/lib/attendance/notify-parents";
 
@@ -11,18 +11,21 @@ vi.mock("@/lib/services/notification.service", () => ({
   createNotifications: vi.fn(async (items: unknown[]) => ({ count: items.length })),
 }));
 vi.mock("@/lib/notifications/sms-service", () => ({
-  isSmsProviderConfigured: vi.fn(() => false),
   attendanceSmsMessage: vi.fn(({ studentName, status }: { studentName: string; status: string }) => `${studentName} ${status}`),
+}));
+// WhatsApp d'abord, SMS en secours : le choix du canal est testé dans family-channel
+vi.mock("@/lib/notifications/family-channel", () => ({
+  queueFamilyMessages: vi.fn(async (items: unknown[]) => ({ whatsapp: items.length, sms: 0, skipped: 0 })),
 }));
 vi.mock("@/lib/jobs/queue", () => ({ enqueueJobs: vi.fn(async (jobs: unknown[]) => jobs.length) }));
 
 const DATE = new Date("2026-09-25T08:00:00.000Z");
 
 const queuedJobs = (): NewJob[] => vi.mocked(enqueueJobs).mock.calls.flatMap(([jobs]) => jobs);
+const familyMessages = (): FamilyMessage[] => vi.mocked(queueFamilyMessages).mock.calls.flatMap(([items]) => items);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(isSmsProviderConfigured).mockReturnValue(false);
   vi.mocked(prisma.studentProfile.findMany).mockResolvedValue([
     {
       id: "s1",
@@ -35,25 +38,29 @@ beforeEach(() => {
 });
 
 describe("notifyParentsOfAbsences", () => {
-  it("notifie le parent qui a un compte, sans SMS si aucun fournisseur n'est configuré", async () => {
+  it("notifie le parent qui a un compte dans l'application et le prévient par WhatsApp", async () => {
     const result = await notifyParentsOfAbsences({ schoolId: "sch1", date: DATE, changes: [{ studentId: "s1", status: "ABSENT" }] });
     expect(createNotifications).toHaveBeenCalledWith([
       expect.objectContaining({ userId: "p1", type: "ATTENDANCE", title: "Absence signalée", link: "/dashboard/students/s1" }),
     ]);
     expect(queuedJobs().filter((job) => job.type === "sms.send")).toHaveLength(0);
-    expect(result).toEqual({ notified: 1, sms: 0 });
+    expect(result).toEqual({ notified: 1, whatsapp: 2, sms: 0 });
   });
 
-  it("met en file un SMS seulement pour le responsable qui n'a pas l'application", async () => {
-    vi.mocked(isSmsProviderConfigured).mockReturnValue(true);
-    const result = await notifyParentsOfAbsences({ schoolId: "sch1", date: DATE, changes: [{ studentId: "s1", status: "LATE" }] });
-    const sms = queuedJobs().filter((job) => job.type === "sms.send");
-    expect(sms).toHaveLength(1);
-    expect(sms[0]).toMatchObject({
-      schoolId: "sch1",
-      payload: { phoneNumber: "+22990000002", smsType: "ATTENDANCE", schoolId: "sch1", message: "Awa Kora en retard" },
-    });
-    expect(result).toEqual({ notified: 1, sms: 1 });
+  it("WhatsApp à chaque numéro de la famille ; SMS de secours seulement pour le responsable sans compte", async () => {
+    await notifyParentsOfAbsences({ schoolId: "sch1", date: DATE, changes: [{ studentId: "s1", status: "LATE" }] });
+    // Le numéro du parent, aussi déclaré comme responsable, n'est prévenu qu'une fois
+    expect(familyMessages()).toEqual([
+      { phone: "+22990000001", message: "Awa Kora en retard", kind: "ATTENDANCE", schoolId: "sch1", userId: "p1", smsFallback: false },
+      { phone: "+22990000002", message: "Awa Kora en retard", kind: "ATTENDANCE", schoolId: "sch1", smsFallback: true },
+    ]);
+  });
+
+  it("une file WhatsApp/SMS indisponible ne bloque ni la notification ni le courriel", async () => {
+    vi.mocked(queueFamilyMessages).mockRejectedValueOnce(new Error("file saturée"));
+    const result = await notifyParentsOfAbsences({ schoolId: "sch1", date: DATE, changes: [{ studentId: "s1", status: "ABSENT" }] });
+    expect(result).toEqual({ notified: 1, whatsapp: 0, sms: 0 });
+    expect(queuedJobs().filter((job) => job.type === "email.send")).toHaveLength(1);
   });
 
   it("met en file un courriel pour le parent qui a un compte, avec le nom échappé", async () => {
@@ -84,7 +91,7 @@ describe("notifyParentsOfAbsences", () => {
   });
 
   it("ne fait rien sans changement", async () => {
-    expect(await notifyParentsOfAbsences({ schoolId: "sch1", date: DATE, changes: [] })).toEqual({ notified: 0, sms: 0 });
+    expect(await notifyParentsOfAbsences({ schoolId: "sch1", date: DATE, changes: [] })).toEqual({ notified: 0, whatsapp: 0, sms: 0 });
     expect(prisma.studentProfile.findMany).not.toHaveBeenCalled();
   });
 });

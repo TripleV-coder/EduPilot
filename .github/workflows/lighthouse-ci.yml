@@ -61,7 +61,7 @@ jobs:
         env:
           # SKIP_ENV_VALIDATION is build-time only — at runtime, the Next.js
           # instrumentation hook calls src/lib/env.ts::validateEnv() and
-          # throws on missing prod vars (EMAIL_*, UPSTASH_*). We feed
+          # throws on missing prod vars (EMAIL_*). We feed
           # non-placeholder dummies so validation passes and the server
           # boots. The values are NOT real and nothing in the audited
           # surface (/, /login) actually hits these systems.
@@ -74,8 +74,6 @@ jobs:
           EMAIL_PROVIDER: resend
           EMAIL_API_KEY: re_ci_dummy_key_not_used_in_lighthouse_audit
           EMAIL_FROM: noreply@edupilot.bj
-          UPSTASH_REDIS_REST_URL: https://ci-dummy.upstash.io
-          UPSTASH_REDIS_REST_TOKEN: ci_dummy_token_not_used
 
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v11

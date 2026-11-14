@@ -31,6 +31,15 @@ type Fee = {
 };
 
 export default function FeesManagementPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+            <FeesManagementPageContent />
+        </PageGuard>
+    );
+}
+
+function FeesManagementPageContent() {
     const [fees, setFees] = useState<Fee[]>([]);
     const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
     const [classLevels, setClassLevels] = useState<ClassLevel[]>([]);
@@ -159,7 +168,7 @@ export default function FeesManagementPage() {
     };
 
     return (
-        <PageGuard permission={Permission.FINANCE_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+        <>
             <PageShell>
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/finance">
@@ -275,7 +284,7 @@ export default function FeesManagementPage() {
                         fees.map((fee) => (
                             <Card key={fee.id} className="border-border hover:shadow-md transition-shadow relative overflow-hidden group">
                                 {!fee.isRequired && (
-                                    <div className="absolute top-0 right-0 bg-secondary/10 text-secondary text-[11px] font-bold px-2 py-1 rounded-bl-lg">
+                                    <div className="absolute top-0 right-0 bg-secondary/10 text-secondary text-xs font-bold px-2 py-1 rounded-bl-lg">
                                         Optionnel
                                     </div>
                                 )}
@@ -287,12 +296,12 @@ export default function FeesManagementPage() {
 
                                             <div className="flex gap-2 flex-wrap mt-3">
                                                 {fee.classLevelCode && (
-                                                    <span className="text-[11px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                                                    <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                                                         Niv: {fee.classLevel?.name || fee.classLevelCode}
                                                     </span>
                                                 )}
                                                 {fee.academicYearId && (
-                                                    <span className="text-[11px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                                                    <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
                                                         {fee.academicYear?.name || "Année spécifique"}
                                                     </span>
                                                 )}
@@ -300,7 +309,7 @@ export default function FeesManagementPage() {
                                         </div>
                                         <div className="mt-4 pt-4 border-t border-border flex justify-between items-end">
                                             <div>
-                                                <span className="text-[11px] text-muted-foreground block mb-0.5">Montant unitaire</span>
+                                                <span className="text-xs text-muted-foreground block mb-0.5">Montant unitaire</span>
                                                 <span className="font-bold text-xl text-primary">{formatCurrency(fee.amount)}</span>
                                             </div>
                                             <div className="flex gap-1">
@@ -330,6 +339,6 @@ export default function FeesManagementPage() {
                     onConfirm={confirmDelete}
                 />
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

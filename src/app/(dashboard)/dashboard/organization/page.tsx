@@ -76,7 +76,7 @@ function SummaryCard({
     <Card className="border-border/60 bg-card shadow-sm">
       <CardContent className="flex items-start justify-between p-5">
         <div className="space-y-1">
-          <p className="text-[11px] font-bold text-muted-foreground">
+          <p className="text-xs font-bold text-muted-foreground">
             {title}
           </p>
           <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
@@ -104,14 +104,14 @@ function PerformanceComparisonChart({ sites }: { sites: OrganizationSiteSummary[
             <Activity className="w-4 h-4 text-primary" />
             Moyennes par Établissement
         </CardTitle>
-        <CardDescription className="text-[11px]">Comparaison consolidée de la performance académique.</CardDescription>
+        <CardDescription className="text-xs">Comparaison consolidée de la performance académique.</CardDescription>
       </CardHeader>
       <CardContent className="h-[300px] pt-4">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
-            <YAxis domain={[0, 20]} axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 'bold' }} />
+            <YAxis domain={[0, 20]} axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
             <RechartsTooltip contentStyle={FR_TOOLTIP_STYLE as React.CSSProperties} cursor={{ fill: 'hsl(var(--muted)/0.4)' }} />
             <Bar dataKey="average" radius={[4, 4, 0, 0]} barSize={40}>
               {data.map((entry, index) => (
@@ -177,7 +177,7 @@ function ComparisonTable({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/30 text-[11px] font-bold text-muted-foreground">
+              <thead className="bg-muted/30 text-xs font-bold text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 text-left">Référence</th>
                   <th className="px-4 py-3 text-center">Moyenne réseau</th>
@@ -253,7 +253,12 @@ export default function OrganizationDashboardPage() {
   const selectedOrganization =
     organizations.find((organization) => organization.id === requestedOrganizationId) || organizations[0] || null;
 
-  const organizationOverviewKey = selectedOrganization
+  // Vue consolidée (données des écoles du réseau) : réservée au responsable de
+  // réseau par l'API (S5, ca8b27c). Le propriétaire d'organisation gère
+  // l'organisation sans voir les données des écoles voisines : pas d'appel
+  // voué au refus, une explication à la place (recette du 2026-10-25).
+  const canSeeConsolidated = session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "NETWORK_ADMIN";
+  const organizationOverviewKey = selectedOrganization && canSeeConsolidated
     ? `/api/analytics/organization/overview?organizationId=${encodeURIComponent(selectedOrganization.id)}`
     : null;
 
@@ -294,7 +299,7 @@ export default function OrganizationDashboardPage() {
   if (organizationsError) {
     return (
       <div className="mx-auto max-w-4xl py-16">
-        <PageError
+        <PageError error={organizationsError}
           message="Impossible de charger la liste des organisations."
           onRetry={() => void reloadOrganizations()}
         />
@@ -381,7 +386,18 @@ export default function OrganizationDashboardPage() {
         </Card>
       ) : null}
 
-      {overviewLoading || !overview ? (
+      {!canSeeConsolidated ? (
+        <Card className="border-border/60 bg-card shadow-sm">
+          <CardContent className="space-y-2 py-8 text-center text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">Vue consolidée réservée au responsable de réseau</p>
+            <p>
+              Les indicateurs comparés des sites (effectifs, moyennes, finances) contiennent les données de chaque école. Ils
+              sont réservés au responsable de réseau. En tant que propriétaire, vous gérez l&apos;organisation ; chaque
+              école consulte ses propres données.
+            </p>
+          </CardContent>
+        </Card>
+      ) : overviewLoading || !overview ? (
         <Card className="border-border/60 bg-card shadow-sm">
           <CardContent className="py-14">
             <EmptyState label="Chargement des indicateurs organisation..." />
@@ -435,13 +451,13 @@ export default function OrganizationDashboardPage() {
             <div className="lg:col-span-1">
                 <Card className="border-border/60 bg-foreground text-background shadow-sm h-full">
                     <CardHeader>
-                        <CardTitle className="text-[11px] font-bold text-background/70">Périmètre de comparaison</CardTitle>
+                        <CardTitle className="text-xs font-bold text-background/70">Périmètre de comparaison</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6 pt-2">
                         <div className="space-y-1">
                             <p className="text-xs text-background/70 font-bold">Année</p>
                             <p className="text-xl font-bold">{overview.reference.academicYearName}</p>
-                            <p className="text-[11px] text-background/60 italic">Site de référence: {overview.reference.schoolName}</p>
+                            <p className="text-xs text-background/60 italic">Site de référence: {overview.reference.schoolName}</p>
                         </div>
                         <div className="space-y-1">
                             <p className="text-xs text-background/70 font-bold">Période</p>
@@ -451,7 +467,7 @@ export default function OrganizationDashboardPage() {
                             <p className="text-xs text-background/70 mb-2">Exclusion automatique</p>
                             <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-lg font-bold border-background/30 bg-background/5 text-background">{overview.reference.nonComparableSiteCount}</Badge>
-                                <span className="text-[11px] text-background/70 font-medium">Sites non comparables</span>
+                                <span className="text-xs text-background/70 font-medium">Sites non comparables</span>
                             </div>
                         </div>
                     </CardContent>
@@ -472,7 +488,7 @@ export default function OrganizationDashboardPage() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/30 text-[11px] font-bold text-muted-foreground">
+                  <thead className="bg-muted/30 text-xs font-bold text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 text-left">Site</th>
                       <th className="px-4 py-3 text-center">Statut</th>

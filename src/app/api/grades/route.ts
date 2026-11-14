@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { teacherReadableClassIds } from "@/lib/academic/grade-access";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
@@ -58,6 +59,22 @@ export const GET = createApiHandler(async (request, { session }) => {
             where.student = {
                 ...(where.student as Prisma.StudentProfileWhereInput),
                 schoolId: activeSchoolId,
+            };
+        }
+
+        // Enseignant (MS-02) : seulement les classes où il enseigne ou dont il
+        // est professeur principal — l'école seule ne suffit pas
+        const teacherClassIds = await teacherReadableClassIds(session);
+        if (teacherClassIds) {
+            if (classId && !teacherClassIds.includes(classId)) {
+                return NextResponse.json({ error: "Accès refusé : vous n'enseignez pas dans cette classe" }, { status: 403 });
+            }
+            where.evaluation = {
+                ...where.evaluation as Prisma.EvaluationWhereInput,
+                classSubject: {
+                    ...((where.evaluation as Prisma.EvaluationWhereInput)?.classSubject as Prisma.ClassSubjectWhereInput ?? {}),
+                    classId: classId ?? { in: teacherClassIds },
+                },
             };
         }
 

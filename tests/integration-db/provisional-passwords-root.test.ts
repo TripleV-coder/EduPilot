@@ -7,7 +7,7 @@ const ROOT_EMAIL = vi.hoisted(() => {
   return email;
 });
 
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import prisma from "./owner-db";
 import { POST as deploySchool } from "@/app/api/root/schools/route";
 import { actAs, callRoute, sessionFor, uniqueCode } from "./helpers";

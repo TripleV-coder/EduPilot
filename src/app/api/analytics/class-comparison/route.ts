@@ -8,6 +8,8 @@ import {
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { Permission } from "@/lib/rbac/permissions";
+import { taughtClassIds } from "@/lib/teachers/taught-classes";
 
 /**
  * GET /api/analytics/class-comparison
@@ -51,6 +53,14 @@ export const GET = createApiHandler(async (request, context) => {
     const outOfScopeClass = classRecords.find((classRecord) => !canAccessSchool(session, classRecord.schoolId));
     if (outOfScopeClass) {
       return NextResponse.json({ error: "Accès refusé à une ou plusieurs classes demandées" }, { status: 403 });
+    }
+
+    // Un enseignant doit être autorisé sur chacune des classes comparées
+    if (session.user.role === "TEACHER") {
+      const allowed = new Set(await taughtClassIds(session.user.id));
+      if (classRecords.some((classRecord) => !allowed.has(classRecord.id))) {
+        return NextResponse.json({ error: "Accès refusé à une ou plusieurs classes demandées" }, { status: 403 });
+      }
     }
 
     const comparisons = await Promise.all(
@@ -126,4 +136,4 @@ export const GET = createApiHandler(async (request, context) => {
     );
   }
 
-});
+}, { requiredPermissions: [Permission.ANALYTICS_VIEW] });

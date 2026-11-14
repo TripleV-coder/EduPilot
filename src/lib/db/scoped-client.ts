@@ -1,5 +1,12 @@
 import type { PrismaClient } from "@prisma/client";
 import { getDbContext, rlsSettings, type DbContext } from "./db-context";
+import {
+    emitModelWrite,
+    emitRecordsCreated,
+    hasRecordsCreatedListeners,
+    isCreateOperation,
+    isWriteOperation,
+} from "./write-events";
 
 /**
  * Pose le contexte de la requête pour la transaction courante uniquement
@@ -45,12 +52,21 @@ export function createScopedClient(base: PrismaClient): PrismaClient {
     const extended = base.$extends({
         query: {
             async $allOperations(params) {
-                const { args, query } = params;
+                const { args, query, model, operation } = params;
                 const inTransaction = Boolean((params as QueryParamsWithInternals).__internalParams?.transaction);
                 const context = getDbContext();
-                if (inTransaction || !context) return query(args);
-
-                const [, result] = await base.$transaction([setContext(base, context), query(args)]);
+                let result: unknown;
+                if (inTransaction || !context) {
+                    result = await query(args);
+                } else {
+                    [, result] = await base.$transaction([setContext(base, context), query(args)]);
+                }
+                // Écriture réussie : les caches qui dépendent de ce modèle s'invalident
+                if (model && isWriteOperation(operation)) emitModelWrite(model);
+                // Créations : signal détaillé (notifications push)
+                if (model && isCreateOperation(operation) && hasRecordsCreatedListeners()) {
+                    emitRecordsCreated({ model, operation, args, result, inTransaction });
+                }
                 return result;
             },
         },

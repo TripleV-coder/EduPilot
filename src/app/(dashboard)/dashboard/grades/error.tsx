@@ -5,15 +5,18 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCcw, Home } from "lucide-react";
 import Link from "next/link";
 import { logger } from "@/lib/utils/logger";
+import { reportClientError } from "@/lib/monitoring/report-client-error";
 
 export default function GradesError({
     error,
-    reset,
+    retry,
 }: {
     error: Error & { digest?: string };
-    reset: () => void;
+    /** Recharge les données du segment puis le ré-affiche (Next ≥ 16.3 ; `reset` ré-affichait sans recharger). */
+    retry: () => void;
 }) {
     useEffect(() => {
+        reportClientError(error);
         logger.error("Erreur de rendu interceptée", error, { module: "error-boundary/grades", digest: error.digest });
     }, [error]);
 
@@ -29,7 +32,7 @@ export default function GradesError({
                 Une erreur est survenue lors du chargement des notes. Veuillez réessayer.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-                <Button onClick={() => reset()} variant="default" className="gap-2">
+                <Button onClick={() => retry()} variant="default" className="gap-2">
                     <RefreshCcw className="w-4 h-4" />
                     Réessayer
                 </Button>

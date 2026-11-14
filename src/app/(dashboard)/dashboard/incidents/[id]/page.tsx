@@ -5,6 +5,7 @@ import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageGuard } from "@/components/guard/page-guard";
+import { RoleActionGuard } from "@/components/guard/role-action-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +36,6 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { ToastAction } from "@/components/ui/toast";
 import { t } from "@/lib/i18n";
 import type { Sanction } from "@/lib/types";
 
@@ -56,6 +56,15 @@ const SANCTION_TYPES = [
 ];
 
 export default function IncidentDetailsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.SCHOOL_UPDATE, Permission.INCIDENT_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+            <IncidentDetailsPageContent />
+        </PageGuard>
+    );
+}
+
+function IncidentDetailsPageContent() {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
@@ -91,11 +100,10 @@ export default function IncidentDetailsPage() {
             toast({
                 title: t("incidentDetails.toasts.resolvedTitle"),
                 description: t("incidentDetails.toasts.resolvedDescription"),
-                action: (
-                    <ToastAction altText={t("incidentDetails.toasts.backToListAlt")} onClick={() => router.push("/dashboard/incidents")}>
-                        {t("incidentDetails.toasts.viewList")}
-                    </ToastAction>
-                ),
+                action: {
+                    label: t("incidentDetails.toasts.viewList"),
+                    onClick: () => router.push("/dashboard/incidents"),
+                },
             });
             setResolveDialogOpen(false);
             mutate();
@@ -127,11 +135,10 @@ export default function IncidentDetailsPage() {
             toast({
                 title: t("incidentDetails.toasts.sanctionAddedTitle"),
                 description: t("incidentDetails.toasts.sanctionAddedDescription"),
-                action: (
-                    <ToastAction altText={t("incidentDetails.toasts.refreshAlt")} onClick={() => mutate()}>
-                        {t("incidentDetails.toasts.refresh")}
-                    </ToastAction>
-                ),
+                action: {
+                    label: t("incidentDetails.toasts.refresh"),
+                    onClick: () => void mutate(),
+                },
             });
             setSanctionDialogOpen(false);
 
@@ -149,10 +156,10 @@ export default function IncidentDetailsPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+        <>
             <PageShell>
                 {loadError ? (
-                    <PageError message="Impossible de charger cet incident." onRetry={() => void mutate()} />
+                    <PageError error={loadError} message="Impossible de charger cet incident." onRetry={() => void mutate()} />
                 ) : null}
 
                 <PageHeader
@@ -224,7 +231,9 @@ export default function IncidentDetailsPage() {
 
                     {/* Colonne Secondaire (Actions & Sanctions) */}
                     <div className="space-y-6">
+                        {/* Clôture et sanctions : rôles admis par l'API (pas la vie scolaire) */}
                         {!incident.isResolved && (
+                            <RoleActionGuard allowedRoles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
                             <Card className="border-primary/20 bg-primary/5 shadow-sm">
                                 <CardHeader>
                                     <CardTitle className="text-lg">Actions requises</CardTitle>
@@ -304,6 +313,7 @@ export default function IncidentDetailsPage() {
                                     </Dialog>
                                 </CardContent>
                             </Card>
+                            </RoleActionGuard>
                         )}
 
                         <Card className="border-border shadow-sm">
@@ -325,7 +335,7 @@ export default function IncidentDetailsPage() {
                                                     {sanction.endDate && <p>Au {new Date(sanction.endDate).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}</p>}
                                                 </div>
                                                 {sanction.description && <p className="mt-2 text-foreground/80">{sanction.description}</p>}
-                                                <p className="text-[11px] text-muted-foreground text-right pt-2 border-t border-border mt-2">
+                                                <p className="text-xs text-muted-foreground text-right pt-2 border-t border-border mt-2">
                                                     Par: {sanction.assignedBy?.firstName} {sanction.assignedBy?.lastName}
                                                 </p>
                                             </div>
@@ -338,6 +348,6 @@ export default function IncidentDetailsPage() {
                     </div>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { gradeReadDenied } from "@/lib/academic/grade-access";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
@@ -53,7 +54,9 @@ export const GET = createApiHandler(
       },
     });
 
-    if (!grade) {
+    // Enseignant hors de ses classes, famille hors de ses élèves (MS-02) : même
+    // réponse qu'une note inexistante, sans rien révéler
+    if (!grade || (await gradeReadDenied(session, { studentId: grade.studentId, classId: grade.evaluation.classSubject.classId }))) {
       return NextResponse.json(translateError(API_ERRORS.NOT_FOUND("Note"), t), { status: 404 });
     }
 

@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
 import { BookOpen, Users, AlertCircle, CheckCircle, Plus, GraduationCap, Clock, CreditCard } from "lucide-react";
-import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -27,6 +26,11 @@ import { Calendar, BarChart3, Target, Upload } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import { Spinner } from "@/components/edu";
+import { ClassRoster } from "@/components/classes/class-roster";
+import { useSession } from "next-auth/react";
+import { useRBAC } from "@/lib/hooks/use-rbac";
+import { ClassEditDialog } from "@/components/classes/class-edit-dialog";
+import { Pencil } from "lucide-react";
 
 // Perf : les graphiques embarquent recharts (~350 Ko). Chargés à la demande,
 // dans un conteneur dont la hauteur est déjà réservée — aucun décalage.
@@ -46,6 +50,9 @@ const TrendLineChart = dynamic(() => import("@/components/charts/TrendLineChart"
 type ClassData = {
     id: string;
     name: string;
+    classLevelId: string;
+    capacity: number | null;
+    mainTeacherId: string | null;
     classLevel: { name: string, level: string };
     _count: { enrollments: number };
 };
@@ -110,6 +117,16 @@ type SubjectGradeRow = {
 };
 
 export default function ClassDetailsPage() {
+    // Garde avant chargement (TD-024) : une seule garde, aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+            <ClassDetailsPageContent />
+        </PageGuard>
+    );
+}
+
+function ClassDetailsPageContent() {
+    const { data: session } = useSession();
     const params = useParams();
     const classId = params.id as string;
 
@@ -124,6 +141,10 @@ export default function ClassDetailsPage() {
     const [isAssigning, setIsAssigning] = useState(false);
     const [assigningLoading, setAssigningLoading] = useState(false);
     const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+    const [editOpen, setEditOpen] = useState(false);
+    // Modifier la classe : direction (CLASS_UPDATE) ; l'enseignant consulte.
+    const { canAccess } = useRBAC();
+    const canEditClass = canAccess({ permission: Permission.CLASS_UPDATE });
 
     const { data: schedules } = useSWR<ScheduleSlot[]>(classId ? `/api/schedules?classId=${classId}` : null, fetcher);
     const { data: classStats } = useSWR<ClassAnalytics>(classId ? `/api/analytics/class/${classId}` : null, fetcher);
@@ -224,17 +245,17 @@ export default function ClassDetailsPage() {
 
     if (loading) {
         return (
-            <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+            <>
                 <PageShell>
                     <PageLoading label="Chargement de la classe…" />
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     if (!classData && !loading) {
         return (
-            <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+            <>
                 <PageShell>
                     <PageEmpty
                         icon="school"
@@ -243,12 +264,12 @@ export default function ClassDetailsPage() {
                         actions={[{ label: "Retour aux classes", href: "/dashboard/classes" }]}
                     />
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     return (
-        <PageGuard permission={Permission.CLASS_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title={`Classe : ${classData?.name}`}
@@ -259,17 +280,41 @@ export default function ClassDetailsPage() {
                         { label: classData?.name || "Détails" },
                     ]}
                     actions={
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                            onClick={() => window.open(`/dashboard/cards/print?classId=${classId}`, "_blank")}
-                        >
-                            <CreditCard className="h-4 w-4" />
-                            Cartes scolaires
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            {canEditClass && classData ? (
+                                <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditOpen(true)}>
+                                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                                    Modifier
+                                </Button>
+                            ) : null}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => window.open(`/dashboard/cards/print?classId=${classId}`, "_blank")}
+                            >
+                                <CreditCard className="h-4 w-4" />
+                                Cartes scolaires
+                            </Button>
+                        </div>
                     }
                 />
+
+                {canEditClass && classData ? (
+                    <ClassEditDialog
+                        value={{
+                            id: classData.id,
+                            name: classData.name,
+                            classLevelId: classData.classLevelId,
+                            capacity: classData.capacity ?? null,
+                            mainTeacherId: classData.mainTeacherId ?? null,
+                        }}
+                        teachers={availableTeachers}
+                        open={editOpen}
+                        onOpenChange={setEditOpen}
+                        onSaved={(updated) => setClassData((prev) => (prev ? { ...prev, ...(updated as Partial<ClassData>) } : prev))}
+                    />
+                ) : null}
 
                 {error && (
                     <div className="p-4 rounded-lg bg-[hsl(var(--error-bg))] border border-[hsl(var(--error-border))] text-destructive flex items-center gap-3">
@@ -423,20 +468,7 @@ export default function ClassDetailsPage() {
                     </TabsContent>
 
                     <TabsContent value="students">
-                        <Card className="border-dashed border-2 shadow-none bg-muted/10">
-                            <CardContent className="py-20 text-center">
-                                <Users className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                                <h3 className="text-lg font-medium">Liste des élèves</h3>
-                                <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
-                                    Les élèves inscrits apparaîtront ici. Pour inscrire un élève, rendez-vous dans le module Inscriptions ou Importation.
-                                </p>
-                                <div className="mt-6 flex justify-center gap-4">
-                                    <Link href="/dashboard/students/inscription">
-                                        <Button variant="outline">Inscrire un élève</Button>
-                                    </Link>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <ClassRoster classId={classId} canEnroll={session?.user?.role !== "TEACHER"} />
                     </TabsContent>
 
                     <TabsContent value="schedule" className="space-y-6">
@@ -616,6 +648,6 @@ export default function ClassDetailsPage() {
                     </TabsContent>
                 </Tabs>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

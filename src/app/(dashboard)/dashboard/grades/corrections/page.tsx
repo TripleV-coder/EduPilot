@@ -113,7 +113,7 @@ export default function GradeCorrectionsPage() {
                         </div>
                     </div>
                     <div className="grid gap-3 px-5 py-5">
-                        {error ? <PageError message="Impossible de charger les réclamations." onRetry={() => void mutate()} /> : null}
+                        {error ? <PageError error={error} message="Impossible de charger les réclamations." onRetry={() => void mutate()} /> : null}
                         {isLoading ? <p style={{ margin: 0, fontSize: 13 }}>Chargement…</p> : null}
                         {data && data.data.length === 0 ? (
                             <p style={{ margin: 0, fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
@@ -179,7 +179,7 @@ function CorrectionCard({ row, canDecide, onDecided }: { row: CorrectionRow; can
             {canDecide && row.status === "PENDING" ? (
                 <div className="flex flex-wrap items-end gap-2">
                     <label className="block" style={{ flex: "1 1 220px" }}>
-                        <span style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                        <span style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                             Commentaire (obligatoire pour refuser)
                         </span>
                         <input
@@ -290,7 +290,7 @@ function ProposalForm({ onCreated }: { onCreated: () => void }) {
     };
     const label: React.CSSProperties = {
         display: "block",
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: 600,
         marginBottom: 4,
         color: "var(--eduflow-text-tertiary)",

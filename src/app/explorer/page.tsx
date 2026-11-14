@@ -314,7 +314,7 @@ export default function ExplorerRoutePage() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color: "var(--eduflow-text-tertiary)",
                                                             marginTop: 2,
                                                         }}
@@ -334,7 +334,7 @@ export default function ExplorerRoutePage() {
                                                 <span
                                                     className="eduflow-tabular flex items-center gap-1"
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color: "var(--eduflow-text-secondary)",
                                                     }}
                                                 >
@@ -344,7 +344,7 @@ export default function ExplorerRoutePage() {
                                                 <span
                                                     className="eduflow-tabular flex items-center gap-1"
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color: "var(--eduflow-text-secondary)",
                                                     }}
                                                 >
@@ -408,7 +408,7 @@ function SchoolDetailPanel({
                         <div
                             className="mt-1 flex flex-wrap items-center gap-2"
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-tertiary)",
                             }}
                         >
@@ -478,7 +478,7 @@ function SchoolDetailPanel({
                 >
                     <span
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 600,
                             color: "var(--eduflow-text-tertiary)",
                         }}
@@ -514,7 +514,7 @@ function SchoolDetailPanel({
                     >
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: 600,
                                 color: "var(--eduflow-text-tertiary)",
                                 marginBottom: 6,
@@ -538,7 +538,7 @@ function SchoolDetailPanel({
                                 <div
                                     className="eduflow-mono"
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginTop: 2,
                                     }}
@@ -575,7 +575,7 @@ function Stat({
         <div>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     color: "var(--eduflow-text-tertiary)",
                 }}

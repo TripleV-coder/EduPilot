@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
@@ -32,7 +33,7 @@ export function sessionFor(role: UserRole, schoolId: string | null, userId?: str
 
 /** Suffixe unique : la base de CI peut être réutilisée entre deux exécutions. */
 export function uniqueCode(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  return `${prefix}-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
 }
 
 /**

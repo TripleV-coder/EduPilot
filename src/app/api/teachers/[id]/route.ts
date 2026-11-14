@@ -12,6 +12,7 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { checkTeacherQuota } from "@/lib/saas/quotas";
 import { teacherUpdateSchema } from "@/lib/validations/user";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { invalidateUserStatusCache } from "@/lib/auth/user-status-cache";
 
 const READ_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"];
 const MANAGE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"];
@@ -410,6 +411,8 @@ export const PATCH = createApiHandler(
                     },
                 });
             });
+            // Écoles ou statut modifiés : le jeton de l'enseignant suit dès sa prochaine requête
+            invalidateUserStatusCache(teacher.userId);
 
             if (!updatedTeacher) {
                 return NextResponse.json({ error: "Enseignant introuvable" }, { status: 404 });
@@ -532,6 +535,7 @@ export const DELETE = createApiHandler(
                 },
             });
         });
+        invalidateUserStatusCache(teacher.userId);
 
         return NextResponse.json({ success: true });
     },

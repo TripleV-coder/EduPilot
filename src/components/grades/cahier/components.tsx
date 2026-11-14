@@ -29,7 +29,7 @@ export function ExpandedEvalGrades({
             <div
                 className="flex flex-wrap items-center gap-5 border-b px-5 py-2"
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--eduflow-text-secondary)",
                     borderColor: "var(--eduflow-border-subtle)",
                     background: "var(--eduflow-surface-card)",
@@ -102,7 +102,7 @@ export function ExpandedEvalGrades({
                                             </span>
                                         </div>
                                     </Td>
-                                    <Td className="eduflow-mono" style={{ fontSize: 11 }}>
+                                    <Td className="eduflow-mono" style={{ fontSize: 12 }}>
                                         {stu.matricule}
                                     </Td>
                                     <Td center>
@@ -110,7 +110,7 @@ export function ExpandedEvalGrades({
                                             grade.isAbsent ? (
                                                 <span
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontStyle: "italic",
                                                         color: "var(--eduflow-text-tertiary)",
                                                     }}
@@ -153,7 +153,7 @@ export function ExpandedEvalGrades({
                                         ) : (
                                             <span
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                 }}
                                             >
@@ -197,7 +197,9 @@ export function SegmentedToggle<T extends string>({
 }) {
     return (
         <div
-            className="flex gap-1 rounded-md p-1"
+            // flex-wrap : à 375 px, les options passent à la ligne au lieu
+            // d'être coupées (« Fériés » du calendrier débordait de 12 px)
+            className="flex max-w-full flex-wrap gap-1 rounded-md p-1"
             style={{
                 background: "var(--eduflow-surface-sunken)",
                 border: "1px solid var(--eduflow-border-subtle)",
@@ -209,8 +211,9 @@ export function SegmentedToggle<T extends string>({
                     <button
                         key={opt.value}
                         type="button"
+                        aria-pressed={active}
                         onClick={() => onChange(opt.value)}
-                        className="flex items-center gap-1.5 px-3 py-1.5"
+                        className="flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--brand-500)]"
                         style={{
                             background: active ? "var(--eduflow-surface-card)" : "transparent",
                             border: 0,
@@ -258,7 +261,7 @@ export function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -316,7 +319,7 @@ export function FieldSearch({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -413,7 +416,7 @@ export function Th({
         <th
             style={{
                 padding: "10px 16px",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--eduflow-text-tertiary)",
                 width,

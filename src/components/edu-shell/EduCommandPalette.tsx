@@ -2,12 +2,16 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 import { Icon, type IconName } from "@/components/edu";
 import { navForRole, AI_ASSISTANT_NAV_LINK, canUseAiAssistant } from "./role-nav";
 import { useSchool } from "@/components/providers/school-provider";
 import { isPageAllowedByModules } from "@/lib/modules/catalog";
+import { roleSatisfies } from "@/lib/rbac/permissions";
+import { signOutAndPurge } from "@/lib/pwa/sign-out";
+import { useRBAC } from "@/lib/hooks/use-rbac";
+import { SERVICE_CATALOG, filterServices } from "@/lib/navigation/service-catalog";
 
 type Action = {
     id: string;
@@ -30,8 +34,9 @@ function roleQuickActions(role: string | undefined | null): Action[] {
             ];
         case "DIRECTOR":
         case "SCHOOL_ADMIN":
+        case "NETWORK_ADMIN":
             return [
-                { id: "qa-finance", label: "Encaisser un paiement", hint: "Finance scolarité", icon: "money", href: "/dashboard/finance", category: "Action", keywords: "paiement encaissement" },
+                { id: "qa-finance", label: "Encaisser un paiement", hint: "Finance scolarité", icon: "money", href: "/dashboard/finance/payments/new", category: "Action", keywords: "paiement encaissement" },
                 { id: "qa-students", label: "Voir les effectifs", hint: "Liste des élèves", icon: "users", href: "/dashboard/students", category: "Action", keywords: "élèves effectifs" },
             ];
         case "PARENT":
@@ -53,6 +58,11 @@ function roleQuickActions(role: string | undefined | null): Action[] {
     }
 }
 
+/** Recherche élèves : uniquement les rôles admis sur /dashboard/students (PageGuard). */
+function canSearchStudents(role: string | undefined | null): boolean {
+    return roleSatisfies(role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "PARENT"]);
+}
+
 const STATIC_ACTIONS = (router: ReturnType<typeof useRouter>, role: string | undefined | null): Action[] => [
     {
         id: "act-profile",
@@ -69,7 +79,7 @@ const STATIC_ACTIONS = (router: ReturnType<typeof useRouter>, role: string | und
         hint: "Quitter la session en cours",
         icon: "x",
         onSelect: () => {
-            void signOut({ callbackUrl: "/login" });
+            void signOutAndPurge({ callbackUrl: "/login" });
         },
         keywords: "logout déconnexion quitter session",
         category: "Action",
@@ -108,7 +118,9 @@ function buildActions(
     role: string | undefined | null,
     router: ReturnType<typeof useRouter>,
     enabledModules: string[],
+    assigned?: Array<string | undefined | null> | null,
 ): Action[] {
+    void assigned; // cumul de rôles désactivé : menu du rôle principal
     const navItems = navForRole(role).map<Action>((n, i) => ({
         id: `nav-${i}-${n.href}`,
         label: n.label,
@@ -132,7 +144,9 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
     const router = useRouter();
     const { data: session } = useSession();
     const role = session?.user?.role ?? null;
-    const { enabledModules } = useSchool();
+    const assigned = session?.user?.roles;
+    const { enabledModules, offeredLevels } = useSchool();
+    const { canAccess } = useRBAC();
 
     const [query, setQuery] = React.useState("");
     const [activeIndex, setActiveIndex] = React.useState(0);
@@ -141,18 +155,44 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
     const triggerRef = React.useRef<HTMLElement | null>(null);
 
     const actions = React.useMemo(
-        () => buildActions(role, router, enabledModules),
-        [role, router, enabledModules],
+        () => buildActions(role, router, enabledModules, assigned),
+        [role, assigned, router, enabledModules],
     );
+
+    // Tous les services accessibles (mêmes règles que la page « Tous les services ») :
+    // proposés à la recherche seulement, pour garder la liste par défaut courte.
+    const serviceActions = React.useMemo<Action[]>(() => {
+        const navHrefs = new Set(actions.map((a) => a.href).filter(Boolean));
+        return filterServices(SERVICE_CATALOG, {
+            canAccess: (check) =>
+                canAccess({
+                    roles: check.roles ? [...check.roles] : undefined,
+                    permission: Array.isArray(check.permission) ? [...check.permission] : (check.permission as string | undefined),
+                }),
+            enabledModules,
+            offeredLevels,
+            isPageAllowedByModules,
+        })
+            .filter((s) => !navHrefs.has(s.href))
+            .map((s) => ({
+                id: `svc-${s.href}`,
+                label: s.label,
+                hint: s.group,
+                icon: s.icon,
+                href: s.href,
+                keywords: `${s.description} ${s.group}`,
+                category: "Navigation" as const,
+            }));
+    }, [actions, canAccess, enabledModules, offeredLevels]);
 
     const filtered = React.useMemo(() => {
         const q = query.trim().toLowerCase();
         if (!q) return actions;
-        return actions.filter((a) => {
+        return [...actions, ...serviceActions].filter((a) => {
             const hay = `${a.label} ${a.hint ?? ""} ${a.keywords ?? ""}`.toLowerCase();
             return hay.includes(q);
         });
-    }, [actions, query]);
+    }, [actions, serviceActions, query]);
 
     const grouped = React.useMemo(() => {
         const map = new Map<Action["category"], Action[]>();
@@ -161,7 +201,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
             arr.push(item);
             map.set(item.category, arr);
         }
-        if (query.trim()) {
+        if (query.trim() && canSearchStudents(role)) {
             map.set("Recherche", [
                 {
                     id: "search-students",
@@ -173,7 +213,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
             ]);
         }
         return Array.from(map.entries());
-    }, [filtered, query]);
+    }, [filtered, query, role]);
 
     const flat = React.useMemo(
         () => grouped.flatMap(([, items]) => items),
@@ -327,7 +367,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
                     <kbd
                         aria-hidden
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 600,
                             padding: "2px 6px",
                             borderRadius: 6,
@@ -363,7 +403,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
                                 <div
                                     style={{
                                         padding: "10px 16px 4px",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         color: "var(--text-tertiary)",
                                     }}
@@ -440,7 +480,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
                                                     <span
                                                         style={{
                                                             display: "block",
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color: "var(--text-tertiary)",
                                                             marginTop: 1,
                                                             overflow: "hidden",
@@ -456,7 +496,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
                                                 <kbd
                                                     aria-hidden
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 600,
                                                         padding: "2px 6px",
                                                         borderRadius: 6,
@@ -484,7 +524,7 @@ export function EduCommandPalette({ open, onOpenChange }: EduCommandPaletteProps
                         background: "var(--surface-sunken)",
                         display: "flex",
                         gap: 16,
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--text-tertiary)",
                     }}
                 >

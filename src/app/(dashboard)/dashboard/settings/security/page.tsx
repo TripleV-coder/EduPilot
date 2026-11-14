@@ -20,6 +20,15 @@ const disableMfaSchema = z.object({
 });
 
 export default function SecuritySettingsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <SecuritySettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function SecuritySettingsPageContent() {
     const { data: session, update } = useSession();
     const [isTwoFactorEnabled, setIsTwoFactorEnabled] = useState(
         Boolean(session?.user?.isTwoFactorEnabled)
@@ -156,7 +165,7 @@ export default function SecuritySettingsPage() {
     };
 
     return (
-        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+        <>
             <PageShell className="max-w-4xl pb-12">
                 <PageHeader
                     title="Sécurité & accès"
@@ -230,7 +239,7 @@ export default function SecuritySettingsPage() {
                                 <p
                                     style={{
                                         margin: "2px 0 0",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
                                 >
@@ -401,7 +410,7 @@ export default function SecuritySettingsPage() {
                                 <p
                                     style={{
                                         margin: "0 0 12px",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
                                 >
@@ -450,7 +459,7 @@ export default function SecuritySettingsPage() {
                             <p
                                 style={{
                                     margin: "2px 0 0",
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--eduflow-text-tertiary)",
                                 }}
                             >
@@ -534,6 +543,6 @@ export default function SecuritySettingsPage() {
                     </div>
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

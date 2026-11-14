@@ -119,11 +119,7 @@ export const GET = createApiHandler(async (request, context) => {
         operational: status.operational,
         version: '2.0.0',
         capabilities: ACTIONS,
-        providers: {
-          externalConfigured: status.externalConfigured,
-          n8nConfigured: status.n8nConfigured,
-          runtimeMode: status.runtimeMode,
-        },
+        runtimeMode: status.runtimeMode,
       },
     });
 

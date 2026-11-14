@@ -28,6 +28,8 @@ import {
 import { computeAnnualAverages, gradedEvaluations, toDisplay, type GradeRecord } from "@/lib/academic/average-engine";
 import type { CalculationRules } from "@/lib/academic/grading-rules";
 import useSWR from "swr";
+import { useSession } from "next-auth/react";
+import { EvaluationActions } from "@/components/evaluations/evaluation-actions";
 import { fetcher } from "@/lib/fetcher";
 import {
     ExpandedEvalGrades,
@@ -43,6 +45,15 @@ import {
 // découpe (P3.1, 2026-06-11). Logique inchangée.
 
 export default function CahierDeNotesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.EVALUATION_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]} >
+            <CahierDeNotesPageContent />
+        </PageGuard>
+    );
+}
+
+function CahierDeNotesPageContent() {
     // Règles de calcul de l'établissement (même calcul que le bulletin)
     const { data: rulesData } = useSWR<{ settings?: { calculation?: CalculationRules } }>("/api/config/grading", fetcher);
     const calcRules = rulesData?.settings?.calculation;
@@ -59,6 +70,11 @@ export default function CahierDeNotesPage() {
 
     const [students, setStudents] = useState<Student[]>([]);
     const [evaluations, setEvaluations] = useState<EvaluationData[]>([]);
+    // Rechargement après correction ou suppression d'une évaluation
+    const [reloadKey, setReloadKey] = useState(0);
+    // Corriger/supprimer : enseignant (le serveur vérifie que la matière est la sienne)
+    const { data: session } = useSession();
+    const isTeacher = session?.user?.role === "TEACHER";
     const [subjects, setSubjects] = useState<SubjectInfo[]>([]);
     // Calculs adaptés par l'enseignant pour des élèves précis
     const [studentFormulas, setStudentFormulas] = useState<
@@ -132,7 +148,7 @@ export default function CahierDeNotesPage() {
             }
         };
         fetchCahierData();
-    }, [selectedClass, selectedPeriod, selectedSubject, selectedType]);
+    }, [selectedClass, selectedPeriod, selectedSubject, selectedType, reloadKey]);
 
     const filteredStudents = useMemo(() => {
         if (!searchQuery.trim()) return students;
@@ -252,10 +268,7 @@ export default function CahierDeNotesPage() {
     }
 
     return (
-        <PageGuard
-            permission={Permission.EVALUATION_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <PageHeader
@@ -546,7 +559,7 @@ export default function CahierDeNotesPage() {
                                                                         <div
                                                                             className="mt-1 flex flex-wrap items-center gap-2"
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color:
                                                                                     "var(--eduflow-text-tertiary)",
                                                                             }}
@@ -598,7 +611,7 @@ export default function CahierDeNotesPage() {
                                                                         </p>
                                                                         <p
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color:
                                                                                     "var(--eduflow-text-tertiary)",
                                                                                 margin: "2px 0 0",
@@ -620,7 +633,7 @@ export default function CahierDeNotesPage() {
                                                                         </span>
                                                                         <p
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color:
                                                                                     "var(--eduflow-text-tertiary)",
                                                                                 margin: "2px 0 0",
@@ -636,11 +649,26 @@ export default function CahierDeNotesPage() {
                                                                 <>
                                                                     <div className="px-5 pb-2" style={{ fontSize: 12 }}>
                                                                         <Link
-                                                                            href={`/dashboard/grades/entry?classId=${selectedClass}&classSubjectId=${ev.classSubjectId}&evaluationId=${ev.id}`}
+                                                                            href={`/dashboard/grades/entry?${new URLSearchParams({ classId: selectedClass, classSubjectId: ev.classSubjectId, evaluationId: ev.id })}`}
                                                                             style={{ color: "var(--brand-700)", fontWeight: 600 }}
                                                                         >
                                                                             Modifier les notes (correction, recomposition, absence justifiée)
                                                                         </Link>
+                                                                        {isTeacher ? (
+                                                                            <div className="mt-2">
+                                                                                <EvaluationActions
+                                                                                    evaluation={{
+                                                                                        id: ev.id,
+                                                                                        title: ev.title,
+                                                                                        date: ev.date,
+                                                                                        maxGrade: ev.maxGrade,
+                                                                                        coefficient: ev.coefficient,
+                                                                                        gradedCount: ev.stats.graded,
+                                                                                    }}
+                                                                                    onChanged={() => setReloadKey((k) => k + 1)}
+                                                                                />
+                                                                            </div>
+                                                                        ) : null}
                                                                     </div>
                                                                     <ExpandedEvalGrades
                                                                         ev={ev}
@@ -672,7 +700,7 @@ export default function CahierDeNotesPage() {
                                     </h2>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             margin: "2px 0 0",
                                         }}
@@ -717,7 +745,7 @@ export default function CahierDeNotesPage() {
                                                         <div className="flex flex-col items-center gap-0.5">
                                                             <span
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color: "var(--brand-700)",
                                                                     fontWeight: 700,
                                                                     maxWidth: "100%",
@@ -730,7 +758,7 @@ export default function CahierDeNotesPage() {
                                                             <span
                                                                 className="truncate"
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color: "var(--eduflow-text-secondary)",
                                                                     maxWidth: "100%",
                                                                 }}
@@ -740,7 +768,7 @@ export default function CahierDeNotesPage() {
                                                             <span
                                                                 className="eduflow-mono"
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color: "var(--eduflow-text-tertiary)",
                                                                 }}
                                                             >
@@ -783,7 +811,7 @@ export default function CahierDeNotesPage() {
                                                             <p
                                                                 className="eduflow-mono"
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color: "var(--eduflow-text-tertiary)",
                                                                     margin: 0,
                                                                 }}
@@ -807,7 +835,7 @@ export default function CahierDeNotesPage() {
                                                             {student.missingCount > 0 ? (
                                                                 <div
                                                                     title="Note absente alors que les camarades sont notés : saisir la note ou indiquer l'absence (justifiée ou non)"
-                                                                    style={{ fontSize: 10, fontWeight: 600, color: "var(--eduflow-warning-700)" }}
+                                                                    style={{ fontSize: 12, fontWeight: 600, color: "var(--eduflow-warning-700)" }}
                                                                 >
                                                                     {student.missingCount} à justifier
                                                                 </div>
@@ -853,7 +881,7 @@ export default function CahierDeNotesPage() {
                                                                         grade.isAbsent ? (
                                                                             <span
                                                                                 style={{
-                                                                                    fontSize: 11,
+                                                                                    fontSize: 12,
                                                                                     fontWeight: 700,
                                                                                     color:
                                                                                         "var(--eduflow-danger-700)",
@@ -905,7 +933,7 @@ export default function CahierDeNotesPage() {
                     </>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

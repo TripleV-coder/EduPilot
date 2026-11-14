@@ -3,7 +3,7 @@
  * Réduit la latence des premières requêtes sur les endpoints fréquents.
  */
 
-import { getCacheService } from "@/lib/cache/redis";
+import { getCacheService } from "@/lib/cache/service";
 const cache = getCacheService();
 import { logger } from "@/lib/utils/logger";
 

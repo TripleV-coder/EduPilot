@@ -54,7 +54,7 @@ export default function UxAnalyticsPage() {
                 />
 
                 {error ? (
-                    <PageError message="Impossible de charger les analytics produit." />
+                    <PageError error={error} message="Impossible de charger les analytics produit." />
                 ) : isLoading || !data ? (
                     <PageLoading label="Agrégation de la télémétrie…" />
                 ) : data.totalEvents === 0 ? (
@@ -143,7 +143,7 @@ export default function UxAnalyticsPage() {
                                     >
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 fontWeight: 700,
                                             }}

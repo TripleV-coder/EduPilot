@@ -125,6 +125,13 @@ describe("AnalyticsBIBoard", () => {
         renderPage(<AnalyticsBIBoard />);
         expect(await screen.findByText("Impossible de charger le tableau BI pour le contexte sélectionné.")).toBeInTheDocument();
     });
+
+    it("affiche la consigne du serveur (S6 : choisir un établissement)", async () => {
+        asRole("SUPER_ADMIN");
+        mockApi({ "GET /api/analytics/bi": apiStatus(400, { error: "Sélectionnez un établissement", code: "SCHOOL_REQUIRED" }) });
+        renderPage(<AnalyticsBIBoard />);
+        expect(await screen.findByText("Sélectionnez un établissement")).toBeInTheDocument();
+    });
 });
 
 // ── Finance ─────────────────────────────────────────────────────────────────

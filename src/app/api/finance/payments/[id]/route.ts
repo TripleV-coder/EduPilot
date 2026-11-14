@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
+import { providerBoundEditRefusal } from "@/lib/finance/helpers";
 import prisma from "@/lib/prisma";
 import { PaymentMethod, PaymentStatus } from "@prisma/client";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
-import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import {
+    assertReferenceFree,
+    assertWithinAvailable,
+    availableWithout,
+    refuse,
+    runFeeMutation,
+    wouldWeigh,
+} from "@/lib/finance/collection";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { fcfaAmountSchema } from "@/lib/finance/money";
@@ -31,13 +40,9 @@ export const PUT = createApiHandler(
                 select: {
                     studentId: true,
                     feeId: true,
-                    paidAt: true, status: true,
+                    paidAt: true, status: true, provider: true,
                     student: {
-                        select: {
-                            user: {
-                                select: { schoolId: true },
-                            },
-                        },
+                        select: { schoolId: true },
                     },
                     fee: {
                         select: { schoolId: true },
@@ -52,45 +57,63 @@ export const PUT = createApiHandler(
             if (
                 session.user.role !== "SUPER_ADMIN" &&
                 (
-                    !canAccessSchool(session, existingPayment.student.user.schoolId) ||
+                    !canAccessSchool(session, existingPayment.student.schoolId) ||
                     !canAccessSchool(session, existingPayment.fee.schoolId)
                 )
             ) {
                 return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
+            const outOfScope = await superAdminTargetOutOfScope(session, existingPayment.fee.schoolId, "finance-payments:update");
+            if (outOfScope) return outOfScope;
 
             if (["VERIFIED", "RECONCILED"].includes(existingPayment.status) && session.user.role !== "SUPER_ADMIN") {
                 return NextResponse.json({ error: "Ce paiement est verrouillé (Vérifié/Réconcilié) et ne peut être modifié." }, { status: 403 });
             }
+            const providerRefusal = providerBoundEditRefusal(existingPayment, validatedData);
+            if (providerRefusal) return NextResponse.json({ error: providerRefusal, code: "PROVIDER_BOUND_PAYMENT" }, { status: 409 });
 
             const nextStatus = validatedData.status;
-            const payment = await prisma.payment.update({
-                where: { id },
-                data: {
-                    amount: validatedData.amount,
-                    method: (validatedData.method as PaymentMethod) || undefined,
-                    reference: validatedData.reference,
-                    status: validatedData.status as PaymentStatus,
-                    notes: validatedData.notes,
-                    paidAt:
-                        validatedData.paidAt
-                            ? new Date(validatedData.paidAt)
-                            : (nextStatus === "VERIFIED" || nextStatus === "RECONCILED") &&
-                                !existingPayment.paidAt
-                                ? new Date()
-                                : undefined,
-                },
-                include: {
-                    student: { include: { user: true } },
-                    fee: true
+            // Une seule transaction sous verrou élève/frais (lot 3b) : état relu,
+            // verrouillage revérifié (un webhook a pu valider entre-temps),
+            // plafond appliqué si le paiement pèse sur le solde, puis recalcul.
+            const result = await runFeeMutation(existingPayment.studentId, existingPayment.feeId, async (tx, balance) => {
+                const current = await tx.payment.findUnique({ where: { id } });
+                if (!current) return refuse(404, "Paiement introuvable");
+                if (["VERIFIED", "RECONCILED"].includes(current.status) && session.user.role !== "SUPER_ADMIN") {
+                    refuse(403, "Ce paiement est verrouillé (Vérifié/Réconcilié) et ne peut être modifié.");
                 }
+                const finalStatus = (nextStatus as PaymentStatus | undefined) ?? current.status;
+                const finalAmount = validatedData.amount ?? Number(current.amount);
+                if (wouldWeigh(finalStatus)) {
+                    assertWithinAvailable(availableWithout(balance, current), finalAmount);
+                }
+                await assertReferenceFree(tx, validatedData.reference, id);
+                return tx.payment.update({
+                    where: { id },
+                    data: {
+                        amount: validatedData.amount,
+                        method: (validatedData.method as PaymentMethod) || undefined,
+                        reference: validatedData.reference,
+                        status: validatedData.status as PaymentStatus,
+                        // Annulation décidée par l'école (lot 3b)
+                        ...(nextStatus === "CANCELLED" ? { cancellationSource: "MANUAL" as const } : {}),
+                        notes: validatedData.notes,
+                        paidAt:
+                            validatedData.paidAt
+                                ? new Date(validatedData.paidAt)
+                                : (nextStatus === "VERIFIED" || nextStatus === "RECONCILED") &&
+                                    !current.paidAt
+                                    ? new Date()
+                                    : undefined,
+                    },
+                    include: {
+                        student: { include: { user: true } },
+                        fee: true
+                    }
+                });
             });
-
-            await syncPaymentPlanLedger(
-                prisma,
-                existingPayment.studentId,
-                existingPayment.feeId
-            );
+            if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
+            const payment = result.value;
             await Promise.all([
                 invalidateByPath(CACHE_PATHS.payments),
                 invalidateByPath("/api/payments"),
@@ -122,11 +145,7 @@ export const DELETE = createApiHandler(
                     feeId: true,
                     status: true,
                     student: {
-                        select: {
-                            user: {
-                                select: { schoolId: true },
-                            },
-                        },
+                        select: { schoolId: true },
                     },
                     fee: {
                         select: { schoolId: true },
@@ -141,25 +160,29 @@ export const DELETE = createApiHandler(
             if (
                 session.user.role !== "SUPER_ADMIN" &&
                 (
-                    !canAccessSchool(session, payment.student.user.schoolId) ||
+                    !canAccessSchool(session, payment.student.schoolId) ||
                     !canAccessSchool(session, payment.fee.schoolId)
                 )
             ) {
                 return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
             }
+            const outOfScope = await superAdminTargetOutOfScope(session, payment.fee.schoolId, "finance-payments:delete");
+            if (outOfScope) return outOfScope;
 
             if (["VERIFIED", "RECONCILED"].includes(payment.status) && session.user.role !== "SUPER_ADMIN") {
                 return NextResponse.json({ error: "Impossible de supprimer un paiement déjà vérifié ou réconcilié." }, { status: 403 });
             }
 
-            await prisma.$transaction(async (tx) => {
-                await tx.payment.update({
-                    where: { id },
-                    data: { status: "CANCELLED" },
-                });
-
-                await syncPaymentPlanLedger(tx, payment.studentId, payment.feeId);
+            // Sous verrou élève/frais, verrouillage revérifié sur l'état relu (lot 3b)
+            const result = await runFeeMutation(payment.studentId, payment.feeId, async (tx) => {
+                const current = await tx.payment.findUnique({ where: { id }, select: { status: true } });
+                if (!current) return refuse(404, "Paiement introuvable");
+                if (["VERIFIED", "RECONCILED"].includes(current.status) && session.user.role !== "SUPER_ADMIN") {
+                    refuse(403, "Impossible de supprimer un paiement déjà vérifié ou réconcilié.");
+                }
+                return tx.payment.update({ where: { id }, data: { status: "CANCELLED", cancellationSource: "MANUAL" } });
             });
+            if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
 
             await Promise.all([
                 invalidateByPath(CACHE_PATHS.payments),

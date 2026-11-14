@@ -39,7 +39,9 @@ async function handleMaintenance(req: NextRequest) {
     }
 
     if (cronAuth !== "ok") {
-        return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+        // Même message que /api/system/retention : un secret refusé n'est pas
+        // une session absente (distinct du 401 du middleware).
+        return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
     // Secret vérifié : la maintenance porte sur tous les établissements,

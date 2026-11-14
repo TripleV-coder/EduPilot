@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
+import { providerBoundEditRefusal } from "@/lib/finance/helpers";
 import prisma from "@/lib/prisma";
 import { isZodError } from "@/lib/is-zod-error";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { z } from "zod";
 import { fcfaAmountSchema } from "@/lib/finance/money";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
-import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { assertReferenceFree, assertWithinAvailable, availableWithout, refuse, runFeeMutation } from "@/lib/finance/collection";
 import { canAccessSchool, getAccessibleSchoolIds } from "@/lib/api/tenant-isolation";
+import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
+import { refundedTotal } from "@/lib/finance/refunds";
 import { logger } from "@/lib/utils/logger";
 
 const paymentUpdateSchema = z.object({
@@ -101,16 +104,35 @@ export const PATCH = createApiHandler(
 
       if (
         session.user.role !== "SUPER_ADMIN" &&
-        !canAccessSchool(session, existingPayment.student.user.schoolId)
+        !canAccessSchool(session, existingPayment.student.schoolId)
       ) {
         return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
       }
+      const outOfScope = await superAdminTargetOutOfScope(session, existingPayment.student.schoolId, "payments:update");
+      if (outOfScope) return outOfScope;
 
       const body = await request.json();
       const validatedData = paymentUpdateSchema.parse(body);
+      const providerRefusal = providerBoundEditRefusal(existingPayment, validatedData);
+      if (providerRefusal) return NextResponse.json({ error: providerRefusal, code: "PROVIDER_BOUND_PAYMENT" }, { status: 409 });
 
-      const updatedPayment = await prisma.$transaction(async (tx) => {
-        const payment = await tx.payment.update({
+      // Sous verrou élève/frais : état relu, nouveau montant plafonné (lot 3b)
+      const result = await runFeeMutation(existingPayment.studentId, existingPayment.feeId, async (tx, balance) => {
+        const current = await tx.payment.findUnique({ where: { id } });
+        if (!current) return refuse(404, "Paiement non trouvé");
+        // Remboursement (extourne) : immuable — on l'annule et on en saisit un autre.
+        if (current.refundOfId) {
+          return refuse(409, "Un remboursement ne se modifie pas : annulez-le puis enregistrez-en un nouveau.");
+        }
+        if (validatedData.amount !== undefined) {
+          assertWithinAvailable(availableWithout(balance, current), validatedData.amount);
+          const refunded = await refundedTotal(tx, id);
+          if (validatedData.amount < refunded) {
+            refuse(409, `Ce paiement a déjà été remboursé de ${refunded} FCFA : son montant ne peut pas descendre en dessous.`);
+          }
+        }
+        await assertReferenceFree(tx, validatedData.reference, id);
+        return tx.payment.update({
           where: { id },
           data: validatedData,
           include: {
@@ -124,10 +146,9 @@ export const PATCH = createApiHandler(
             fee: true,
           },
         });
-
-        await syncPaymentPlanLedger(tx, existingPayment.studentId, existingPayment.feeId);
-        return payment;
       });
+      if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
+      const updatedPayment = result.value;
 
       await Promise.all([
         invalidateByPath(CACHE_PATHS.payments),
@@ -178,19 +199,23 @@ export const DELETE = createApiHandler(
 
       if (
         session.user.role !== "SUPER_ADMIN" &&
-        !canAccessSchool(session, existingPayment.student.user.schoolId)
+        !canAccessSchool(session, existingPayment.student.schoolId)
       ) {
         return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
       }
+      const outOfScope = await superAdminTargetOutOfScope(session, existingPayment.student.schoolId, "payments:delete");
+      if (outOfScope) return outOfScope;
 
-      await prisma.$transaction(async (tx) => {
-        await tx.payment.update({
-          where: { id },
-          data: { status: "CANCELLED" },
-        });
-
-        await syncPaymentPlanLedger(tx, existingPayment.studentId, existingPayment.feeId);
+      // Sous verrou élève/frais : pas de recalcul concurrent perdu (lot 3b)
+      const result = await runFeeMutation(existingPayment.studentId, existingPayment.feeId, async (tx) => {
+        // Annuler un paiement remboursé laisserait une extourne sans contrepartie
+        // (reste à payer faussé) : ses remboursements sont annulés d'abord.
+        if ((await refundedTotal(tx, id)) > 0) {
+          return refuse(409, "Ce paiement a été remboursé : annulez d'abord ses remboursements.");
+        }
+        return tx.payment.update({ where: { id }, data: { status: "CANCELLED", cancellationSource: "MANUAL" } });
       });
+      if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
 
       await Promise.all([
         invalidateByPath(CACHE_PATHS.payments),

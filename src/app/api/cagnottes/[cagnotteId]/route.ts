@@ -2,6 +2,15 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { z } from "zod";
+import { createAuditLog } from "@/lib/security/audit-log";
+import { dependencyConflict } from "@/lib/api/dependency-guard";
+import {
+    CAGNOTTE_REVIEWER_ROLES,
+    canReviewCagnotte,
+    contributionVisibleTo,
+    summarizeContributions,
+} from "@/lib/cagnotte/contributions";
 
 // ─── GET /api/cagnottes/[cagnotteId] — détail + journal transparent ───────
 export const GET = createApiHandler(
@@ -41,14 +50,10 @@ export const GET = createApiHandler(
         }
 
         const viewerId = session.user.id;
-        const raisedFcfa = cagnotte.contributions.reduce<bigint>(
-            (sum, x) => sum + x.amountFcfa,
-            BigInt(0),
-        );
-        const myContribution = cagnotte.contributions
-            .filter((x) => x.parentUserId === viewerId)
-            .reduce<bigint>((sum, x) => sum + x.amountFcfa, BigInt(0));
-        const participantIds = new Set(cagnotte.contributions.map((x) => x.parentUserId));
+        const viewer = { id: viewerId, role: session.user.role };
+        const canReview = canReviewCagnotte(session.user.role);
+        // TD-019 : seul le confirmé compte comme collecté.
+        const summary = summarizeContributions(cagnotte.contributions, viewerId);
 
         const daysLeft = Math.max(
             0,
@@ -69,10 +74,17 @@ export const GET = createApiHandler(
                   "Organisateur"
                 : "Organisateur",
             targetFcfa: cagnotte.targetFcfa.toString(),
-            raisedFcfa: raisedFcfa.toString(),
-            myContributionFcfa: myContribution.toString(),
-            hasContributed: myContribution > BigInt(0),
-            participantCount: participantIds.size,
+            raisedFcfa: summary.raisedFcfa.toString(),
+            myContributionFcfa: summary.myConfirmedFcfa.toString(),
+            myPendingFcfa: summary.myPendingFcfa.toString(),
+            hasContributed: summary.myConfirmedFcfa + summary.myPendingFcfa > BigInt(0),
+            participantCount: summary.participantCount,
+            canReview,
+            // Organisateur ou école : modifier, clôturer, rouvrir, supprimer
+            canManage: canReview || cagnotte.hostUserId === viewerId,
+            // File de validation : visible de l'école seulement.
+            pendingCount: canReview ? summary.pendingCount : 0,
+            pendingFcfa: canReview ? summary.pendingFcfa.toString() : "0",
             expectedParticipants: cagnotte.expectedParticipants,
             deadline: cagnotte.deadline.toISOString(),
             daysLeft,
@@ -87,9 +99,19 @@ export const GET = createApiHandler(
                     : "Système",
                 createdAt: j.createdAt.toISOString(),
             })),
-            contributions: cagnotte.contributions.map((x) => ({
+            // Confirmées pour tous ; en attente ou rejetées pour l'école et l'auteur.
+            contributions: cagnotte.contributions.filter((x) => contributionVisibleTo(x, viewer)).map((x) => ({
                 id: x.id,
                 isMine: x.parentUserId === viewerId,
+                status: x.status,
+                // Le nom complet et la référence servent à l'école pour vérifier
+                // l'encaissement ; les familles ne voient que des initiales.
+                parentName:
+                    canReview && x.status === "PENDING"
+                        ? `${x.parent?.firstName ?? ""} ${x.parent?.lastName ?? ""}`.trim() || null
+                        : null,
+                paymentRef: canReview || x.parentUserId === viewerId ? x.paymentRef : null,
+                reviewNote: x.parentUserId === viewerId || canReview ? x.reviewNote : null,
                 // Affichage pseudonymisé : initiales seulement, montant visible
                 // (journal 100% transparent, identités protégées).
                 initials: `${(x.parent?.firstName ?? "?").slice(0, 1)}${(x.parent?.lastName ?? "?").slice(0, 1)}`.toUpperCase(),
@@ -98,5 +120,130 @@ export const GET = createApiHandler(
             })),
         });
     },
-    { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT"] }
+    { allowedRoles: [...CAGNOTTE_REVIEWER_ROLES, "TEACHER", "PARENT"] }
+);
+
+const cagnotteUpdateSchema = z
+    .object({
+        title: z.string().trim().min(4, "Le titre doit faire au moins 4 caractères.").max(160).optional(),
+        description: z.string().trim().max(2000).nullable().optional(),
+        targetFcfa: z.coerce.number().int().positive().max(1_000_000_000).optional(),
+        deadline: z.coerce.date().optional(),
+        expectedParticipants: z.coerce.number().int().min(1).max(10_000).nullable().optional(),
+        status: z.enum(["OPEN", "CLOSED", "CANCELLED"]).optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, { message: "Aucune modification fournie." });
+
+/** Gère une cagnotte : son organisateur, ou l'école (direction, comptabilité). */
+async function loadManaged(cagnotteId: string, session: { user: { id: string; role: string } }, schoolId: string | null) {
+    if (!schoolId) return { error: NextResponse.json({ error: "Aucun établissement actif associé au compte." }, { status: 400 }) };
+    const cagnotte = await prisma.cagnotte.findFirst({
+        where: { id: cagnotteId, schoolId },
+        select: { id: true, schoolId: true, title: true, status: true, hostUserId: true, targetFcfa: true, deadline: true },
+    });
+    if (!cagnotte) return { error: NextResponse.json({ error: "Cagnotte introuvable" }, { status: 404 }) };
+    if (cagnotte.hostUserId !== session.user.id && !canReviewCagnotte(session.user.role)) {
+        return { error: NextResponse.json({ error: "Seuls l'organisateur et l'école gèrent cette cagnotte." }, { status: 403 }) };
+    }
+    return { cagnotte };
+}
+
+/**
+ * PATCH /api/cagnottes/[cagnotteId] — modifier une cagnotte ouverte, la
+ * clôturer, la rouvrir ou l'annuler. Elle restait ouverte à jamais : aucune
+ * route ne changeait son statut. Annuler est refusé tant que des contributions
+ * confirmées existent (les rembourser d'abord, à l'économat).
+ */
+export const PATCH = createApiHandler(
+    async (request, context) => {
+        const { cagnotteId } = await context.params;
+        const managed = await loadManaged(cagnotteId, context.session, getActiveSchoolId(context.session) ?? null);
+        if (managed.error) return managed.error;
+        const { cagnotte } = managed;
+        const data = cagnotteUpdateSchema.parse(await request.json());
+
+        const nextStatus = data.status ?? cagnotte.status;
+        const editsFields = ["title", "description", "targetFcfa", "deadline", "expectedParticipants"].some((k) => k in data);
+        if (editsFields && nextStatus !== "OPEN") {
+            return NextResponse.json({ error: "Seule une cagnotte ouverte se modifie : rouvrez-la d'abord." }, { status: 409 });
+        }
+        if (nextStatus === "OPEN" && (data.deadline ?? cagnotte.deadline) < new Date()) {
+            return NextResponse.json({ error: "L'échéance est passée : choisissez une nouvelle date pour la rouvrir." }, { status: 409 });
+        }
+        if (data.status === "CANCELLED" && cagnotte.status !== "CANCELLED") {
+            const confirmed = await prisma.cagnotteContribution.count({ where: { cagnotteId, status: "CONFIRMED" } });
+            if (confirmed > 0) {
+                return NextResponse.json(
+                    { error: `${confirmed} contribution(s) confirmée(s) : remboursez-les à l'économat, ou clôturez la cagnotte.` },
+                    { status: 409 },
+                );
+            }
+        }
+
+        const updated = await prisma.$transaction(async (tx) => {
+            const row = await tx.cagnotte.update({
+                where: { id: cagnotteId },
+                data: {
+                    ...(data.title !== undefined ? { title: data.title } : {}),
+                    ...(data.description !== undefined ? { description: data.description || null } : {}),
+                    ...(data.targetFcfa !== undefined ? { targetFcfa: BigInt(data.targetFcfa) } : {}),
+                    ...(data.deadline !== undefined ? { deadline: data.deadline } : {}),
+                    ...(data.expectedParticipants !== undefined ? { expectedParticipants: data.expectedParticipants } : {}),
+                    ...(data.status !== undefined ? { status: data.status } : {}),
+                },
+            });
+            // Journal transparent : les familles voient la clôture, l'annulation, la réouverture
+            if (data.status && data.status !== cagnotte.status) {
+                await tx.cagnotteJournalEntry.create({
+                    data: {
+                        cagnotteId,
+                        kind: data.status === "CLOSED" ? "CLOSED" : "NOTE",
+                        actorUserId: context.session.user.id,
+                        message: data.status === "CLOSED" ? "Cagnotte clôturée" : data.status === "CANCELLED" ? "Cagnotte annulée" : "Cagnotte rouverte",
+                    },
+                });
+            }
+            return row;
+        });
+        await createAuditLog({
+            userId: context.session.user.id,
+            action: "CAGNOTTE_UPDATED",
+            entity: "Cagnotte",
+            entityId: cagnotteId,
+            schoolId: cagnotte.schoolId,
+            oldValues: { title: cagnotte.title, status: cagnotte.status, targetFcfa: cagnotte.targetFcfa.toString(), deadline: cagnotte.deadline },
+            newValues: { title: updated.title, status: updated.status, targetFcfa: updated.targetFcfa.toString(), deadline: updated.deadline },
+        });
+        return NextResponse.json({ id: updated.id, status: updated.status, title: updated.title, targetFcfa: updated.targetFcfa.toString(), deadline: updated.deadline.toISOString() });
+    },
+    { allowedRoles: [...CAGNOTTE_REVIEWER_ROLES, "TEACHER"] },
+);
+
+/** DELETE /api/cagnottes/[cagnotteId] — cagnotte sans aucune contribution (sinon : la clôturer). */
+export const DELETE = createApiHandler(
+    async (_request, context) => {
+        const { cagnotteId } = await context.params;
+        const managed = await loadManaged(cagnotteId, context.session, getActiveSchoolId(context.session) ?? null);
+        if (managed.error) return managed.error;
+        const { cagnotte } = managed;
+        const contributions = await prisma.cagnotteContribution.count({ where: { cagnotteId } });
+        const conflict = dependencyConflict(
+            `la cagnotte « ${cagnotte.title} »`,
+            [{ count: contributions, one: "contribution", many: "contributions" }],
+            "Clôturez-la : son journal reste consultable par les familles.",
+        );
+        if (conflict) return conflict;
+        await prisma.cagnotte.delete({ where: { id: cagnotteId } });
+        await createAuditLog({
+            userId: context.session.user.id,
+            action: "CAGNOTTE_DELETED",
+            entity: "Cagnotte",
+            entityId: cagnotteId,
+            schoolId: cagnotte.schoolId,
+            oldValues: { title: cagnotte.title, status: cagnotte.status },
+            severity: "WARNING",
+        });
+        return NextResponse.json({ success: true });
+    },
+    { allowedRoles: [...CAGNOTTE_REVIEWER_ROLES, "TEACHER"] },
 );

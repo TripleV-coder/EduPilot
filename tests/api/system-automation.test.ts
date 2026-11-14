@@ -44,8 +44,12 @@ afterEach(() => {
 
 describe("GET /api/system/automation", () => {
   it("should return 500 when CRON_SECRET is not configured", async () => {
-    delete process.env.CRON_SECRET;
+    // Ni CRON_SECRET ni secret maître (sinon le secret est dérivé de NEXTAUTH_SECRET)
+    vi.stubEnv("CRON_SECRET", "");
+    vi.stubEnv("NEXTAUTH_SECRET", "");
+    vi.stubEnv("AUTH_SECRET", "");
     const res = await GET(makeRequest("http://localhost/api/system/automation"));
+    vi.unstubAllEnvs();
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("Configuration Error");
     expect(automationService.runDailyMaintenance).not.toHaveBeenCalled();
@@ -56,7 +60,7 @@ describe("GET /api/system/automation", () => {
       headers: { Authorization: "Bearer wrong-token" },
     }));
     expect(res.status).toBe(401);
-    expect((await res.json()).error).toBe("Non authentifié");
+    expect((await res.json()).error).toBe("Non autorisé");
     expect(acquireJobLease).not.toHaveBeenCalled();
   });
 

@@ -19,7 +19,11 @@ import { startOfWeek } from "date-fns/startOfWeek";
 import { fr } from "date-fns/locale/fr";
 
 import { fetcher } from "@/lib/fetcher";
+import { useRBAC } from "@/lib/hooks/use-rbac";
+import { ResourceActions } from "@/components/shared/resource-actions";
 import { PageGuard } from "@/components/guard/page-guard";
+// Composant partagé (onglets qui passent à la ligne à 375 px, aria-pressed)
+import { SegmentedToggle } from "@/components/grades/cahier/components";
 import { Permission } from "@/lib/rbac/permissions";
 import { formatDateShort } from "@/lib/utils/formatters";
 
@@ -119,10 +123,14 @@ export default function CalendarPage() {
         "month"
     );
 
+    // Corriger ou retirer un évènement : direction (seule la création existait)
+    const { canAccess } = useRBAC();
+    const canManageEvents = canAccess({ roles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });
     const {
         data: eventsRaw,
         error: eventsError,
         isLoading: eventsLoading,
+        mutate: mutateEvents,
     } = useSWR<CalendarEvent[] | { events: CalendarEvent[] }>(
         "/api/calendar/events",
         fetcher
@@ -344,7 +352,7 @@ export default function CalendarPage() {
                             ) : null}
 
                             {eventsError || holidaysError || publicHolidaysError ? (
-                                <PageError message="Une partie du calendrier n'a pas pu être chargée." />
+                                <PageError error={publicHolidaysError} message="Une partie du calendrier n'a pas pu être chargée." />
                             ) : null}
                         </div>
                     </div>
@@ -361,7 +369,7 @@ export default function CalendarPage() {
                     >
                         {events.length > 0
                             ? events.map((ev) => (
-                                  <EventListCard key={ev.id} event={ev} />
+                                  <EventListCard key={ev.id} event={ev} manage={canManageEvents ? () => void mutateEvents() : undefined} />
                               ))
                             : null}
                     </ListView>
@@ -497,7 +505,7 @@ function WeekdayHeader() {
                     key={d}
                     className="px-2 py-2 text-center"
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 700,
                         color: i >= 5 ? "var(--brand-700)" : "var(--eduflow-text-tertiary)",
                     }}
@@ -586,7 +594,7 @@ function MonthGrid({
                                 <span
                                     className="eduflow-tabular"
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 600,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
@@ -614,7 +622,7 @@ function DayDot({ dot }: { dot: DotEntry }) {
             className="block truncate"
             title={dot.label}
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 600,
                 padding: "2px 6px",
                 borderRadius: 6,
@@ -694,7 +702,7 @@ function CalendarLegend() {
                 <span
                     key={it.label}
                     className="flex items-center gap-1.5"
-                    style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                    style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                 >
                     <span
                         style={{
@@ -766,7 +774,7 @@ function UpcomingEventRow({
                 </div>
                 <div
                     className="mt-0.5 flex flex-wrap items-center gap-2"
-                    style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                    style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                 >
                     <span style={{ textTransform: "capitalize" }}>{labelInDays}</span>
                     {event.location ? (
@@ -819,7 +827,7 @@ function ListView({
 
             {loading ? <PageLoading label="Chargement…" /> : null}
 
-            {error ? <PageError message={error} /> : null}
+            {error ? <PageError error={error} message={error} /> : null}
 
             {isEmpty ? (
                 <PageEmpty
@@ -836,7 +844,8 @@ function ListView({
     );
 }
 
-function EventListCard({ event }: { event: CalendarEvent }) {
+/** `manage` : rechargement après modification (absent = lecture seule). */
+function EventListCard({ event, manage }: { event: CalendarEvent; manage?: () => void }) {
     const variant: "brand" | "info" | "success" | "warning" | "neutral" =
         event.type ? EVENT_TYPE_VARIANT[event.type] ?? "brand" : "brand";
     return (
@@ -876,6 +885,21 @@ function EventListCard({ event }: { event: CalendarEvent }) {
                     </Badge>
                 ) : null}
             </div>
+            {manage ? (
+                <div className="mt-3">
+                    <ResourceActions
+                        endpoint={`/api/calendar/events/${event.id}`}
+                        resourceLabel={`L'évènement « ${event.title} »`}
+                        fields={[
+                            { name: "name", label: "Intitulé", type: "text", required: true, maxLength: 160 },
+                            { name: "startDate", label: "Début", type: "date", required: true },
+                            { name: "endDate", label: "Fin (facultatif)", type: "date" },
+                        ]}
+                        initial={{ name: event.title, startDate: event.startDate, endDate: event.endDate ?? null }}
+                        onChanged={manage}
+                    />
+                </div>
+            ) : null}
         </Card>
     );
 }
@@ -912,7 +936,7 @@ function HolidayListCard({ holiday }: { holiday: SchoolHoliday }) {
                         {days ? (
                             <span
                                 className="eduflow-tabular"
-                                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                                style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                             >
                                 {days} j.
                             </span>
@@ -936,7 +960,7 @@ function HolidayListCard({ holiday }: { holiday: SchoolHoliday }) {
                         {HOLIDAY_LABEL[holiday.type] ?? holiday.type}
                     </Badge>
                     {holiday.academicYear?.name ? (
-                        <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <span style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             {holiday.academicYear.name}
                         </span>
                     ) : null}
@@ -1001,57 +1025,5 @@ function PublicHolidayListCard({ ph }: { ph: PublicHoliday }) {
                 </div>
             </div>
         </Card>
-    );
-}
-
-// ── Shared ──────────────────────────────────────────────────────────────────
-
-function SegmentedToggle<T extends string>({
-    value,
-    onChange,
-    options,
-}: {
-    value: T;
-    onChange: (v: T) => void;
-    options: { value: T; label: string; icon: IconName }[];
-}) {
-    return (
-        <div
-            className="flex gap-1 rounded-md p-1"
-            style={{
-                background: "var(--eduflow-surface-sunken)",
-                border: "1px solid var(--eduflow-border-subtle)",
-            }}
-        >
-            {options.map((opt) => {
-                const active = value === opt.value;
-                return (
-                    <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => onChange(opt.value)}
-                        className="flex items-center gap-1.5 px-3 py-1.5"
-                        style={{
-                            background: active ? "var(--eduflow-surface-card)" : "transparent",
-                            border: 0,
-                            borderRadius: 6,
-                            cursor: "pointer",
-                            fontFamily: "inherit",
-                            fontSize: 12,
-                            fontWeight: active ? 700 : 500,
-                            color: active
-                                ? "var(--brand-700)"
-                                : "var(--eduflow-text-secondary)",
-                            boxShadow: active ? "var(--eduflow-shadow-sm)" : "none",
-                            transition:
-                                "all var(--eduflow-motion-fast) var(--eduflow-ease-out)",
-                        }}
-                    >
-                        <Icon name={opt.icon} size={13} />
-                        {opt.label}
-                    </button>
-                );
-            })}
-        </div>
     );
 }

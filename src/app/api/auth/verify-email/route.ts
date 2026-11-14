@@ -8,6 +8,7 @@
  * Il est mis à jour lors du premier login (first-login/route.ts) ET ici.
  */
 
+import { publicBaseUrl } from "@/lib/system/platform";
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import prisma from "@/lib/prisma";
@@ -52,7 +53,7 @@ export const GET = createApiHandler(
     await prisma.verificationToken.delete({ where: { token } });
 
     // Rediriger vers le dashboard avec message de succès
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = (publicBaseUrl() ?? "http://localhost:3000");
     return NextResponse.redirect(`${appUrl}/login?verified=1`);
   },
   { requireAuth: false },
@@ -116,7 +117,7 @@ export const POST = createApiHandler(
         },
       });
 
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const appUrl = (publicBaseUrl() ?? "http://localhost:3000");
       const verifyUrl = `${appUrl}/api/auth/verify-email?token=${token}`;
 
       // Envoyer l'email

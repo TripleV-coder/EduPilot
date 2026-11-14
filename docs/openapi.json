@@ -78,7 +78,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
           },
           "password": {
             "type": "string",
@@ -105,7 +105,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
           },
           "password": {
             "type": "string",
@@ -622,7 +622,8 @@
               "PENDING",
               "VERIFIED",
               "RECONCILED",
-              "CANCELLED"
+              "CANCELLED",
+              "EXPIRED"
             ]
           },
           "startDate": {},
@@ -845,7 +846,7 @@
           "date": {
             "type": "string",
             "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
           },
           "location": {
             "type": "string"
@@ -1002,33 +1003,21 @@
             ]
           },
           "city": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "phone": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "email": {
@@ -1038,7 +1027,7 @@
                   {
                     "type": "string",
                     "format": "email",
-                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
                   },
                   {
                     "type": "null"
@@ -1120,23 +1109,15 @@
             ]
           },
           "organizationName": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "organizationDescription": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "assignAdminAsOrganizationManager": {
@@ -1154,7 +1135,7 @@
           "adminEmail": {
             "type": "string",
             "format": "email",
-            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
           },
           "adminPassword": {
             "type": "string",
@@ -1445,7 +1426,7 @@
                   {
                     "type": "string",
                     "format": "email",
-                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
                   },
                   {
                     "type": "null"
@@ -1604,7 +1585,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
           },
           "firstName": {
             "type": "string",
@@ -1745,7 +1726,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
           },
           "firstName": {
             "type": "string",
@@ -1795,7 +1776,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
           },
           "firstName": {
             "type": "string",
@@ -1877,7 +1858,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
           },
           "firstName": {
             "type": "string",
@@ -1952,7 +1933,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
           },
           "firstName": {
             "type": "string",
@@ -2078,6 +2059,91 @@
     }
   },
   "paths": {
+    "/api/academic-years/{id}": {
+      "patch": {
+        "summary": "PATCH /api/academic-years/{id}",
+        "description": "Session requise. Permissions : ACADEMIC_YEAR_UPDATE.",
+        "tags": [
+          "academic-years"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/academic-years/{id}",
+        "description": "Session requise. Permissions : ACADEMIC_YEAR_DELETE.",
+        "tags": [
+          "academic-years"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/academic-years/{id}/status": {
       "patch": {
         "summary": "PATCH /api/academic-years/{id}/status",
@@ -2277,6 +2343,91 @@
           }
         }
       }
+    },
+    "/api/access-control/scan-points/{id}": {
+      "patch": {
+        "summary": "PATCH /api/access-control/scan-points/{id}",
+        "description": "Session requise. Rôles : WRITE_ROLES.",
+        "tags": [
+          "access-control"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/access-control/scan-points/{id}",
+        "description": "Session requise. Rôles : WRITE_ROLES.",
+        "tags": [
+          "access-control"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/api/access-control/scan-points": {
       "get": {
@@ -3090,162 +3241,6 @@
         }
       }
     },
-    "/api/ai/analyze": {
-      "post": {
-        "summary": "POST /api/ai/analyze",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/ai/chatbot": {
-      "post": {
-        "summary": "POST /api/ai/chatbot",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/ai/local": {
-      "get": {
-        "summary": "GET /api/ai/local",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      },
-      "post": {
-        "summary": "POST /api/ai/local",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/ai/predict-failure": {
-      "post": {
-        "summary": "POST /api/ai/predict-failure",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
     "/api/ai/predictions/class": {
       "get": {
         "summary": "GET /api/ai/predictions/class",
@@ -3367,35 +3362,6 @@
       }
     },
     "/api/ai/v2/chat": {
-      "get": {
-        "summary": "GET /api/ai/v2/chat",
-        "description": "Session requise.",
-        "tags": [
-          "ai"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      },
       "post": {
         "summary": "POST /api/ai/v2/chat",
         "description": "Session requise.",
@@ -3416,6 +3382,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -3737,7 +3706,7 @@
     "/api/analytics/class-comparison": {
       "get": {
         "summary": "GET /api/analytics/class-comparison",
-        "description": "Session requise.",
+        "description": "Session requise. Permissions : ANALYTICS_VIEW.",
         "tags": [
           "analytics"
         ],
@@ -3755,6 +3724,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -3926,7 +3898,7 @@
     "/api/analytics/period-comparison": {
       "get": {
         "summary": "GET /api/analytics/period-comparison",
-        "description": "Session requise.",
+        "description": "Session requise. Permissions : ANALYTICS_VIEW.",
         "tags": [
           "analytics"
         ],
@@ -3944,6 +3916,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -4583,7 +4558,7 @@
     "/api/attendance/alerts": {
       "get": {
         "summary": "GET /api/attendance/alerts",
-        "description": "Session requise.",
+        "description": "Session requise. Permissions : ATTENDANCE_READ.",
         "tags": [
           "attendance"
         ],
@@ -4601,6 +4576,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -4643,7 +4621,7 @@
       },
       "post": {
         "summary": "POST /api/attendance/bulk",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, STAFF.",
         "tags": [
           "attendance"
         ],
@@ -5219,37 +5197,6 @@
         }
       }
     },
-    "/api/benchmark/latest": {
-      "get": {
-        "summary": "GET /api/benchmark/latest",
-        "description": "Session requise.",
-        "tags": [
-          "benchmark"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
     "/api/bulletins": {
       "get": {
         "summary": "GET /api/bulletins",
@@ -5281,10 +5228,68 @@
         }
       }
     },
+    "/api/cagnottes/{cagnotteId}/contributions/{contributionId}": {
+      "patch": {
+        "summary": "PATCH /api/cagnottes/{cagnotteId}/contributions/{contributionId}",
+        "description": "Session requise. Rôles : ...CAGNOTTE_REVIEWER_ROLES.",
+        "tags": [
+          "cagnottes"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "cagnotteId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "contributionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/cagnottes/{cagnotteId}/contributions": {
       "post": {
         "summary": "POST /api/cagnottes/{cagnotteId}/contributions",
-        "description": "Session requise. Rôles : PARENT, SCHOOL_ADMIN, DIRECTOR, SUPER_ADMIN.",
+        "description": "Session requise. Rôles : PARENT, ...CAGNOTTE_REVIEWER_ROLES.",
         "tags": [
           "cagnottes"
         ],
@@ -5331,7 +5336,80 @@
     "/api/cagnottes/{cagnotteId}": {
       "get": {
         "summary": "GET /api/cagnottes/{cagnotteId}",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, PARENT.",
+        "description": "Session requise. Rôles : ...CAGNOTTE_REVIEWER_ROLES, TEACHER, PARENT.",
+        "tags": [
+          "cagnottes"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "patch": {
+        "summary": "PATCH /api/cagnottes/{cagnotteId}",
+        "description": "Session requise. Rôles : ...CAGNOTTE_REVIEWER_ROLES, TEACHER.",
+        "tags": [
+          "cagnottes"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/cagnottes/{cagnotteId}",
+        "description": "Session requise. Rôles : ...CAGNOTTE_REVIEWER_ROLES, TEACHER.",
         "tags": [
           "cagnottes"
         ],
@@ -5378,7 +5456,7 @@
     "/api/cagnottes": {
       "get": {
         "summary": "GET /api/cagnottes",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, PARENT.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT, TEACHER, PARENT.",
         "tags": [
           "cagnottes"
         ],
@@ -5440,6 +5518,91 @@
           }
         }
       }
+    },
+    "/api/calendar/events/{id}": {
+      "patch": {
+        "summary": "PATCH /api/calendar/events/{id}",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
+        "tags": [
+          "calendar"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/calendar/events/{id}",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
+        "tags": [
+          "calendar"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/api/calendar/events": {
       "get": {
@@ -5844,6 +6007,38 @@
             "$ref": "#/components/responses/ServiceUnavailable"
           }
         }
+      },
+      "delete": {
+        "summary": "DELETE /api/canteen/menu",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
+        "tags": [
+          "canteen"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
       }
     },
     "/api/canteen/tickets": {
@@ -5950,6 +6145,91 @@
         "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
         "tags": [
           "certificates"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/class-levels/{id}": {
+      "patch": {
+        "summary": "PATCH /api/class-levels/{id}",
+        "description": "Session requise. Permissions : SCHOOL_UPDATE.",
+        "tags": [
+          "class-levels"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/class-levels/{id}",
+        "description": "Session requise. Permissions : SCHOOL_UPDATE.",
+        "tags": [
+          "class-levels"
         ],
         "security": [
           {
@@ -6372,6 +6652,79 @@
       "get": {
         "summary": "GET /api/classes/{id}",
         "description": "Session requise. Permissions : CLASS_READ.",
+        "tags": [
+          "classes"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "patch": {
+        "summary": "PATCH /api/classes/{id}",
+        "description": "Session requise. Permissions : CLASS_UPDATE.",
+        "tags": [
+          "classes"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/classes/{id}",
+        "description": "Session requise. Permissions : CLASS_DELETE.",
         "tags": [
           "classes"
         ],
@@ -7745,7 +8098,7 @@
     "/api/config/setup-status": {
       "get": {
         "summary": "GET /api/config/setup-status",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
         "tags": [
           "config"
         ],
@@ -7763,6 +8116,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -8002,37 +8358,6 @@
           }
         }
       ]
-    },
-    "/api/courses/lessons/complete": {
-      "post": {
-        "summary": "POST /api/courses/lessons/complete",
-        "description": "Session requise.",
-        "tags": [
-          "courses"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
     },
     "/api/courses/progress": {
       "get": {
@@ -8450,6 +8775,91 @@
         }
       }
     },
+    "/api/evaluations/{id}": {
+      "patch": {
+        "summary": "PATCH /api/evaluations/{id}",
+        "description": "Session requise. Rôles : TEACHER.",
+        "tags": [
+          "evaluations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/evaluations/{id}",
+        "description": "Session requise. Rôles : TEACHER.",
+        "tags": [
+          "evaluations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/evaluations": {
       "get": {
         "summary": "GET /api/evaluations",
@@ -8553,6 +8963,38 @@
           },
           "413": {
             "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/events/{id}/participate",
+        "description": "Session requise.",
+        "tags": [
+          "events"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -9160,56 +9602,6 @@
         }
       }
     },
-    "/api/exams/sessions/{id}/submit": {
-      "post": {
-        "summary": "POST /api/exams/sessions/{id}/submit",
-        "description": "Session requise. Rôles : STUDENT.",
-        "tags": [
-          "exams"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      },
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ]
-    },
     "/api/explorer/overview": {
       "get": {
         "summary": "GET /api/explorer/overview",
@@ -9553,6 +9945,87 @@
           },
           "413": {
             "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/finance/my-children/{studentId}": {
+      "get": {
+        "summary": "GET /api/finance/my-children/{studentId}",
+        "description": "Session requise. Rôles : PARENT, STUDENT.",
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "studentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/finance/my-children": {
+      "get": {
+        "summary": "GET /api/finance/my-children",
+        "description": "Session requise. Rôles : PARENT, STUDENT.",
+        "tags": [
+          "finance"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -11938,7 +12411,7 @@
       },
       "post": {
         "summary": "POST /api/incidents",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, STAFF.",
         "tags": [
           "incidents"
         ],
@@ -12016,7 +12489,7 @@
     "/api/integrations/fedapay": {
       "get": {
         "summary": "GET /api/integrations/fedapay",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
         "tags": [
           "integrations"
         ],
@@ -12035,36 +12508,8 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/integrations/momo": {
-      "get": {
-        "summary": "GET /api/integrations/momo",
-        "description": "Session requise.",
-        "tags": [
-          "integrations"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -12078,7 +12523,7 @@
     "/api/integrations/whatsapp": {
       "get": {
         "summary": "GET /api/integrations/whatsapp",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
         "tags": [
           "integrations"
         ],
@@ -12096,6 +12541,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -12263,6 +12711,91 @@
         }
       }
     },
+    "/api/library/books/{id}": {
+      "patch": {
+        "summary": "PATCH /api/library/books/{id}",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/library/books/{id}",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/library/books": {
       "get": {
         "summary": "GET /api/library/books",
@@ -12418,10 +12951,10 @@
         }
       }
     },
-    "/api/me/subjects": {
-      "get": {
-        "summary": "GET /api/me/subjects",
-        "description": "Session requise.",
+    "/api/me/schools/{schoolId}": {
+      "delete": {
+        "summary": "DELETE /api/me/schools/{schoolId}",
+        "description": "Session requise. Rôles : TEACHER.",
         "tags": [
           "me"
         ],
@@ -12439,6 +12972,125 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "schoolId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/me/schools": {
+      "get": {
+        "summary": "GET /api/me/schools",
+        "description": "Session requise. Rôles : TEACHER.",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/me/schools",
+        "description": "Session requise. Rôles : TEACHER.",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/me/subjects": {
+      "get": {
+        "summary": "GET /api/me/subjects",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER.",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -13292,6 +13944,33 @@
         }
       }
     },
+    "/api/monitoring/client-error": {
+      "post": {
+        "summary": "POST /api/monitoring/client-error",
+        "description": "Accessible sans session.",
+        "tags": [
+          "monitoring"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
     "/api/notifications/{id}": {
       "get": {
         "summary": "GET /api/notifications/{id}",
@@ -13975,7 +14654,7 @@
     "/api/orientation": {
       "get": {
         "summary": "GET /api/orientation",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, PARENT, STUDENT.",
         "tags": [
           "orientation"
         ],
@@ -13993,6 +14672,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -14038,40 +14720,6 @@
           },
           "413": {
             "$ref": "#/components/responses/PayloadTooLarge"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/parents/dashboard": {
-      "get": {
-        "summary": "GET /api/parents/dashboard",
-        "description": "Session requise. Rôles : PARENT.",
-        "tags": [
-          "parents"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -14366,6 +15014,56 @@
         }
       ]
     },
+    "/api/payments/{id}/refund": {
+      "post": {
+        "summary": "POST /api/payments/{id}/refund",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
+        "tags": [
+          "payments"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/payments/{id}": {
       "get": {
         "summary": "GET /api/payments/{id}",
@@ -14486,6 +15184,56 @@
         }
       ]
     },
+    "/api/payments/{id}/verify-provider": {
+      "post": {
+        "summary": "POST /api/payments/{id}/verify-provider",
+        "description": "Session requise. Rôles : SCHOOL_ADMIN, ACCOUNTANT.",
+        "tags": [
+          "payments"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/payments/cash": {
       "post": {
         "summary": "POST /api/payments/cash",
@@ -14567,9 +15315,9 @@
         }
       }
     },
-    "/api/payments/fedapay/webhook": {
+    "/api/payments/fedapay/webhook/{accountId}": {
       "post": {
-        "summary": "POST /api/payments/fedapay/webhook",
+        "summary": "POST /api/payments/fedapay/webhook/{accountId}",
         "description": "Accessible sans session.",
         "tags": [
           "payments"
@@ -14582,6 +15330,9 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -14589,7 +15340,17 @@
             "$ref": "#/components/responses/ServiceUnavailable"
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/api/payments/initiate": {
       "post": {
@@ -14615,33 +15376,6 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
-          },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/payments/momo/webhook": {
-      "post": {
-        "summary": "POST /api/payments/momo/webhook",
-        "description": "Accessible sans session.",
-        "tags": [
-          "payments"
-        ],
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
           },
           "413": {
             "$ref": "#/components/responses/PayloadTooLarge"
@@ -14831,20 +15565,27 @@
         }
       }
     },
-    "/api/payments/webhook": {
-      "post": {
-        "summary": "POST /api/payments/webhook",
-        "description": "Accessible sans session.",
+    "/api/payments/status": {
+      "get": {
+        "summary": "GET /api/payments/status",
+        "description": "Session requise.",
         "tags": [
           "payments"
         ],
-        "security": [],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Succès."
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -15191,6 +15932,132 @@
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/push/subscription": {
+      "get": {
+        "summary": "GET /api/push/subscription",
+        "description": "Session requise.",
+        "tags": [
+          "push"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/push/subscription",
+        "description": "Session requise.",
+        "tags": [
+          "push"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/push/subscription",
+        "description": "Session requise.",
+        "tags": [
+          "push"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/push/test": {
+      "post": {
+        "summary": "POST /api/push/test",
+        "description": "Session requise.",
+        "tags": [
+          "push"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -15745,71 +16612,6 @@
         }
       }
     },
-    "/api/root/auth": {
-      "post": {
-        "summary": "POST /api/root/auth",
-        "description": "Session requise.",
-        "tags": [
-          "root"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/root/dashboard": {
-      "get": {
-        "summary": "GET /api/root/dashboard",
-        "description": "Session requise. Rôles : SUPER_ADMIN.",
-        "tags": [
-          "root"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
     "/api/root/data-requests": {
       "get": {
         "summary": "GET /api/root/data-requests",
@@ -15891,6 +16693,106 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/root/integrations": {
+      "get": {
+        "summary": "GET /api/root/integrations",
+        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "tags": [
+          "root"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /api/root/integrations",
+        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "tags": [
+          "root"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/root/integrations/test-email": {
+      "post": {
+        "summary": "POST /api/root/integrations/test-email",
+        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "tags": [
+          "root"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/root/integrations/test-whatsapp": {
+      "post": {
+        "summary": "POST /api/root/integrations/test-whatsapp",
+        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "tags": [
+          "root"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -16230,37 +17132,6 @@
         }
       }
     },
-    "/api/root/session": {
-      "get": {
-        "summary": "GET /api/root/session",
-        "description": "Session requise.",
-        "tags": [
-          "root"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
     "/api/root/system-map": {
       "get": {
         "summary": "GET /api/root/system-map",
@@ -16403,6 +17274,91 @@
           }
         }
       }
+    },
+    "/api/schedules/{id}": {
+      "patch": {
+        "summary": "PATCH /api/schedules/{id}",
+        "description": "Session requise. Permissions : SCHEDULE_UPDATE.",
+        "tags": [
+          "schedules"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/schedules/{id}",
+        "description": "Session requise. Permissions : SCHEDULE_DELETE.",
+        "tags": [
+          "schedules"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/api/schedules": {
       "get": {
@@ -16821,6 +17777,149 @@
         }
       ]
     },
+    "/api/schools/{id}/payment-accounts/{accountId}": {
+      "post": {
+        "summary": "POST /api/schools/{id}/payment-accounts/{accountId}",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN.",
+        "tags": [
+          "schools"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/schools/{id}/payment-accounts": {
+      "get": {
+        "summary": "GET /api/schools/{id}/payment-accounts",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
+        "tags": [
+          "schools"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/schools/{id}/payment-accounts",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN.",
+        "tags": [
+          "schools"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/schools/{id}": {
       "get": {
         "summary": "GET /api/schools/{id}",
@@ -17051,7 +18150,7 @@
     "/api/settings/configs": {
       "get": {
         "summary": "GET /api/settings/configs",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN.",
         "tags": [
           "settings"
         ],
@@ -17069,6 +18168,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -17774,6 +18876,91 @@
         }
       ]
     },
+    "/api/students/{id}/external-averages": {
+      "get": {
+        "summary": "GET /api/students/{id}/external-averages",
+        "description": "Session requise. Rôles : DIRECTION.",
+        "tags": [
+          "students"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /api/students/{id}/external-averages",
+        "description": "Session requise. Rôles : DIRECTION.",
+        "tags": [
+          "students"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/students/{id}/link-code": {
       "post": {
         "summary": "POST /api/students/{id}/link-code",
@@ -17871,7 +19058,7 @@
     "/api/students/{id}": {
       "get": {
         "summary": "GET /api/students/{id}",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, ACCOUNTANT, PARENT, STUDENT.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, ACCOUNTANT, STAFF, PARENT, STUDENT.",
         "tags": [
           "students"
         ],
@@ -18070,7 +19257,7 @@
     "/api/students": {
       "get": {
         "summary": "GET /api/students",
-        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, ACCOUNTANT, PARENT.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, TEACHER, ACCOUNTANT, STAFF, PARENT.",
         "tags": [
           "students"
         ],
@@ -18737,40 +19924,6 @@
         }
       }
     },
-    "/api/system/clean-logs": {
-      "get": {
-        "summary": "GET /api/system/clean-logs",
-        "description": "Session requise. Rôles : SUPER_ADMIN.",
-        "tags": [
-          "system"
-        ],
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Succès."
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          },
-          "503": {
-            "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
     "/api/system/health": {
       "get": {
         "summary": "GET /api/system/health",
@@ -18841,6 +19994,119 @@
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/teacher-invitations/{invitationId}": {
+      "delete": {
+        "summary": "DELETE /api/teacher-invitations/{invitationId}",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
+        "tags": [
+          "teacher-invitations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "invitationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/teacher-invitations": {
+      "get": {
+        "summary": "GET /api/teacher-invitations",
+        "description": "Session requise. Rôles : SCHOOL_MANAGERS.",
+        "tags": [
+          "teacher-invitations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/teacher-invitations",
+        "description": "Session requise. Rôles : SCHOOL_MANAGERS.",
+        "tags": [
+          "teacher-invitations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -18939,6 +20205,53 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/teachers/{id}/membership": {
+      "delete": {
+        "summary": "DELETE /api/teachers/{id}/membership",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
+        "tags": [
+          "teachers"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
@@ -19170,6 +20483,211 @@
           }
         }
       }
+    },
+    "/api/transport/lines/{id}": {
+      "patch": {
+        "summary": "PATCH /api/transport/lines/{id}",
+        "description": "Session requise. Rôles : WRITE_ROLES.",
+        "tags": [
+          "transport"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/transport/lines/{id}",
+        "description": "Session requise. Rôles : WRITE_ROLES.",
+        "tags": [
+          "transport"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/transport/lines/{id}/students": {
+      "get": {
+        "summary": "GET /api/transport/lines/{id}/students",
+        "description": "Session requise. Rôles : WRITE_ROLES.",
+        "tags": [
+          "transport"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/transport/lines/{id}/students",
+        "description": "Session requise. Rôles : WRITE_ROLES.",
+        "tags": [
+          "transport"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/transport/lines/{id}/students",
+        "description": "Session requise. Rôles : WRITE_ROLES.",
+        "tags": [
+          "transport"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/api/transport/lines": {
       "get": {
@@ -19469,6 +20987,53 @@
         }
       }
     },
+    "/api/users/{id}/activation-link": {
+      "post": {
+        "summary": "POST /api/users/{id}/activation-link",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/users/{id}/delete": {
       "post": {
         "summary": "POST /api/users/{id}/delete",
@@ -19745,6 +21310,165 @@
         }
       }
     },
+    "/api/voice-notifs": {
+      "post": {
+        "summary": "POST /api/voice-notifs",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
+        "tags": [
+          "voice-notifs"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/wallet/accounts/{id}": {
+      "patch": {
+        "summary": "PATCH /api/wallet/accounts/{id}",
+        "description": "Session requise. Rôles : WALLET_WRITE_ROLES.",
+        "tags": [
+          "wallet"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /api/wallet/accounts/{id}",
+        "description": "Session requise. Rôles : WALLET_WRITE_ROLES.",
+        "tags": [
+          "wallet"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/wallet/accounts": {
+      "post": {
+        "summary": "POST /api/wallet/accounts",
+        "description": "Session requise. Rôles : WALLET_WRITE_ROLES.",
+        "tags": [
+          "wallet"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
     "/api/wallet/overview": {
       "get": {
         "summary": "GET /api/wallet/overview",
@@ -19779,6 +21503,90 @@
         }
       }
     },
+    "/api/wellbeing/appointments/{id}": {
+      "delete": {
+        "summary": "DELETE /api/wellbeing/appointments/{id}",
+        "description": "Session requise. Rôles : ...WELLBEING_DESK_ROLES.",
+        "tags": [
+          "wellbeing"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/wellbeing/appointments": {
+      "post": {
+        "summary": "POST /api/wellbeing/appointments",
+        "description": "Session requise. Rôles : ...WELLBEING_DESK_ROLES.",
+        "tags": [
+          "wellbeing"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
     "/api/wellbeing/overview": {
       "get": {
         "summary": "GET /api/wellbeing/overview",
@@ -19803,6 +21611,75 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/wellbeing/pulse": {
+      "get": {
+        "summary": "GET /api/wellbeing/pulse",
+        "description": "Session requise. Rôles : STUDENT.",
+        "tags": [
+          "wellbeing"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/wellbeing/pulse",
+        "description": "Session requise. Rôles : STUDENT.",
+        "tags": [
+          "wellbeing"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -19957,6 +21834,89 @@
           },
           "413": {
             "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/whatsapp/broadcast": {
+      "post": {
+        "summary": "POST /api/whatsapp/broadcast",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR.",
+        "tags": [
+          "whatsapp"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/whatsapp/webhook": {
+      "get": {
+        "summary": "GET /api/whatsapp/webhook",
+        "description": "Accessible sans session.",
+        "tags": [
+          "whatsapp"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/whatsapp/webhook",
+        "description": "Accessible sans session.",
+        "tags": [
+          "whatsapp"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"

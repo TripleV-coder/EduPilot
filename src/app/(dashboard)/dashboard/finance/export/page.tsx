@@ -12,6 +12,15 @@ import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
 
 export default function FinanceExportPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+            <FinanceExportPageContent />
+        </PageGuard>
+    );
+}
+
+function FinanceExportPageContent() {
     const [format, setFormat] = useState("excel");
     const [isExporting, setIsExporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -99,7 +108,7 @@ export default function FinanceExportPage() {
     };
 
     return (
-        <PageGuard permission={[Permission.FINANCE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Export financier"
@@ -224,6 +233,6 @@ export default function FinanceExportPage() {
                     </div>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

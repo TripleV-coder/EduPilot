@@ -15,7 +15,9 @@ export const GET = createApiHandler(
   async (request, { session }) => {
     try {
       const { searchParams } = new URL(request.url);
-      const limit = parseInt(searchParams.get("limit") || "20");
+      // Borné : un ?limit absurde (ou illisible) ne charge pas toute la table
+      const parsedLimit = Number.parseInt(searchParams.get("limit") || "20", 10);
+      const limit = Number.isFinite(parsedLimit) ? Math.min(100, Math.max(1, parsedLimit)) : 20;
 
       // Fetch notifications related to attendance/incident types
       const notifications = await prisma.notification.findMany({
@@ -53,6 +55,17 @@ export const POST = createApiHandler(
       if (!title || !message || !userIds || !Array.isArray(userIds) || userIds.length === 0) {
         return NextResponse.json(
           { error: "Champs requis: title, message, userIds (array)" },
+          { status: 400 }
+        );
+      }
+      // Bornes : textes et nombre de destinataires (évite l'envoi massif ou démesuré)
+      if (
+        typeof title !== "string" || typeof message !== "string" ||
+        title.length > 200 || message.length > 2000 ||
+        userIds.length > 500 || !userIds.every((id: unknown) => typeof id === "string")
+      ) {
+        return NextResponse.json(
+          { error: "Notification invalide : titre ≤ 200 caractères, message ≤ 2 000, 500 destinataires au plus." },
           { status: 400 }
         );
       }

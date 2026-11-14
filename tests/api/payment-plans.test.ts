@@ -5,23 +5,33 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Verrou élève/frais et solde relu (lot 3b) : logique réelle prouvée contre
+// PostgreSQL (payment-collection-guard) ; ici solde ouvert.
+vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/online-payments")>()),
+  lockStudentFee: vi.fn(async () => {}),
+  getFeeBalance: vi.fn(async () => ({ billed: 1_000_000, settled: 0, reserved: 0, remaining: 1_000_000, available: 1_000_000 })),
+}));
 vi.mock("@/lib/prisma", () => {
   const prismaMock: Record<string, unknown> = {
     paymentPlan: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
       findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
     installmentPayment: { findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn() },
-    payment: { create: vi.fn(), findMany: vi.fn() },
+    payment: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn() },
     studentProfile: { findUnique: vi.fn(), findFirst: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
     fee: { findFirst: vi.fn() },
     scholarship: { findMany: vi.fn() },
     auditLog: { create: vi.fn() },
     notification: { create: vi.fn(), createMany: vi.fn() },
+    // S6 : école sélectionnée du super-admin vérifiée en base
+    school: { findUnique: vi.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id })) },
   };
   prismaMock.$transaction = vi.fn(async (arg: unknown) =>
     Array.isArray(arg) ? Promise.all(arg) : (arg as (tx: unknown) => Promise<unknown>)(prismaMock)
@@ -30,6 +40,7 @@ vi.mock("@/lib/prisma", () => {
 });
 
 import prisma from "@/lib/prisma";
+import { getFeeBalance } from "@/lib/finance/online-payments";
 import { GET, POST } from "@/app/api/payment-plans/route";
 import { POST as POST_PAY } from "@/app/api/payment-plans/[id]/installments/[installmentId]/pay/route";
 
@@ -146,16 +157,36 @@ describe("POST /api/payment-plans", () => {
     expect(prisma.paymentPlan.create).not.toHaveBeenCalled();
   });
 
-  it("refuse un doublon de plan actif (400)", async () => {
+  it("refuse au SUPER_ADMIN un plan associant l'élève d'une école aux frais d'une autre (403)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN"));
+    mockStudentAndFee();
+    vi.mocked(prisma.fee.findFirst).mockResolvedValue({
+      id: cuid("feeb"),
+      schoolId: FIXTURES.schoolB,
+      name: "Scolarité B",
+      amount: 120000,
+    } as unknown as Fee);
+
+    const response = await POST(
+      makeRequest("http://localhost:3000/api/payment-plans", { method: "POST", body: { ...validBody, feeId: cuid("feeb") } })
+    );
+
+    expect(response.status).toBe(403);
+    expect(prisma.paymentPlan.create).not.toHaveBeenCalled();
+  });
+
+  it("refuse un second plan non annulé pour ces frais (409, lot 3d)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockStudentAndFee();
+    vi.mocked(prisma.scholarship.findMany).mockResolvedValue([] as unknown as Scholarship[]);
     vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue({ id: planId } as unknown as PaymentPlan);
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", { method: "POST", body: validBody })
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
+    expect((await response.json()).error).toBe("Un plan de paiement est déjà en vigueur pour ces frais.");
     expect(prisma.paymentPlan.create).not.toHaveBeenCalled();
   });
 
@@ -177,6 +208,9 @@ describe("POST /api/payment-plans", () => {
       },
       fee: { id: FIXTURES.feeA, name: "Scolarité" },
     }) as unknown as PaymentPlan);
+    // Plan relu après le recalcul (lot 3d) : celui qui vient d'être créé
+    vi.mocked(prisma.paymentPlan.findUniqueOrThrow).mockImplementation((async () =>
+      vi.mocked(prisma.paymentPlan.create).mock.results[0].value) as never);
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", { method: "POST", body: validBody })
@@ -221,6 +255,8 @@ describe("POST /api/payment-plans", () => {
       student: { user: { id: cuid("userstudenta"), firstName: "Awa", lastName: "Dossou" }, parentStudents: [] },
       fee: { id: FIXTURES.feeA, name: "Scolarité" },
     }) as unknown as PaymentPlan);
+    vi.mocked(prisma.paymentPlan.findUniqueOrThrow).mockImplementation((async () =>
+      vi.mocked(prisma.paymentPlan.create).mock.results[0].value) as never);
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", {
@@ -277,6 +313,17 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
     vi.mocked(prisma.installmentPayment.findUnique).mockImplementation(async (args: Prisma.InstallmentPaymentFindUniqueArgs) => {
       if (args?.select) {
         if (!record) return null;
+        // Relecture sous verrou (lot 3b) : statut de l'échéance et du plan
+        if ((args.select as { status?: boolean }).status) {
+          return {
+            status: record.status,
+            paymentPlan: {
+              status: record.paymentPlan.status,
+              paidAmount: record.paymentPlan.paidAmount,
+              totalAmount: record.paymentPlan.totalAmount,
+            },
+          } as unknown as InstallmentPayment;
+        }
         return {
           paymentPlan: {
             student: { schoolId: record.paymentPlan.student.schoolId },
@@ -360,26 +407,32 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
     expect(response.status).toBe(400);
   });
 
-  it("encaisse la mensualité : statut PAID, montant cumulé, payment créé, notification", async () => {
+  it("encaisse la mensualité la plus ancienne non soldée pour son reste ; état final issu du recalcul (lot 3c)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockInstallmentLookups(installmentRecord());
-    vi.mocked(prisma.installmentPayment.update).mockResolvedValue({
-      id: installmentId,
-      status: "PAID",
-    } as unknown as InstallmentPayment);
-    vi.mocked(prisma.paymentPlan.update).mockResolvedValue({
+    // Solde relu sous verrou : 60 000 déjà encaissés sur 4 × 30 000
+    vi.mocked(getFeeBalance).mockResolvedValueOnce({ billed: 120000, settled: 60000, reserved: 0, remaining: 60000, available: 60000 });
+    const at = (m: number) => new Date(Date.UTC(2026, m, 1));
+    // Plan en vigueur (règle commune, lot 3d), lu sous verrou par findFirst
+    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValueOnce({
       id: planId,
       status: "ACTIVE",
-      installments: 4,
-      installmentPayments: [{ status: "PAID" }],
+      student: { schoolId: FIXTURES.schoolA },
+      fee: { schoolId: FIXTURES.schoolA },
+      installmentPayments: [
+        { id: cuid("echeance1"), amount: 30000, dueDate: at(6), status: "PAID" },
+        { id: cuid("echeance2"), amount: 30000, dueDate: at(7), status: "PAID" },
+        { id: installmentId, amount: 30000, dueDate: at(8), status: "PENDING" },
+        { id: cuid("echeance4"), amount: 30000, dueDate: at(9), status: "PENDING" },
+      ],
     } as unknown as PaymentPlan);
     vi.mocked(prisma.payment.create).mockResolvedValue({ id: cuid("pay1") } as unknown as Payment);
-    // syncPaymentPlanLedger : plan toujours actif après ce versement (90 000 / 120 000)
+    // syncPaymentPlanLedger (réel) : plan toujours actif après ce versement (90 000 / 120 000)
     vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue({
       id: planId,
       totalAmount: 120000,
       paidAmount: 60000,
-      fee: { dueDate: null },
+      student: { schoolId: FIXTURES.schoolA }, fee: { dueDate: null, schoolId: FIXTURES.schoolA },
       installmentPayments: [],
     } as unknown as PaymentPlan);
     vi.mocked(prisma.payment.findMany).mockResolvedValue([
@@ -387,6 +440,11 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
       { amount: 30000, paidAt: new Date("2026-09-01"), createdAt: new Date("2026-09-01") },
     ] as unknown as Payment[]);
     vi.mocked(prisma.installmentPayment.findMany).mockResolvedValue([] as unknown as InstallmentPayment[]);
+    vi.mocked(prisma.paymentPlan.update).mockResolvedValue({
+      id: planId,
+      status: "ACTIVE",
+      installmentPayments: [{ id: installmentId, status: "PAID" }],
+    } as unknown as PaymentPlan);
 
     const response = await POST_PAY(
       makeRequest("http://localhost:3000/api/payment-plans/x/installments/y/pay", {
@@ -399,18 +457,9 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
 
     expect(response.status).toBe(200);
     expect(body.isFullyPaid).toBe(false);
-
-    // La mensualité passe à PAID
-    expect(vi.mocked(prisma.installmentPayment.update).mock.calls[0][0]).toMatchObject({
-      where: { id: installmentId },
-      data: { status: "PAID" },
-    });
-    // Le cumul payé est mis à jour : 60 000 + 30 000
-    expect(vi.mocked(prisma.paymentPlan.update).mock.calls[0][0].data).toMatchObject({
-      paidAmount: 90000,
-      status: "ACTIVE",
-    });
-    // Une trace Payment VERIFIED est créée pour la mensualité
+    // État final (après recalcul) renvoyé
+    expect(body.installment).toMatchObject({ id: installmentId, status: "PAID" });
+    // Le reste de l'échéance est encaissé, numérotée à sa place dans l'échéancier
     expect(vi.mocked(prisma.payment.create).mock.calls[0][0].data).toMatchObject({
       studentId: FIXTURES.studentA,
       feeId: FIXTURES.feeA,
@@ -418,7 +467,12 @@ describe("POST /api/payment-plans/[id]/installments/[installmentId]/pay", () => 
       method: "CASH",
       reference: "RECU-42",
       status: "VERIFIED",
+      notes: " - Mensualité 3/4",
     });
+    // Plus aucune écriture manuelle avant le recalcul : seul syncPaymentPlanLedger
+    // écrit le total payé (90 000 = somme des paiements)
+    expect(vi.mocked(prisma.paymentPlan.update).mock.calls).toHaveLength(1);
+    expect(vi.mocked(prisma.paymentPlan.update).mock.calls[0][0].data).toMatchObject({ paidAmount: 90000, status: "ACTIVE" });
     expect(prisma.auditLog.create).toHaveBeenCalled();
     expect(prisma.notification.create).toHaveBeenCalled();
   });

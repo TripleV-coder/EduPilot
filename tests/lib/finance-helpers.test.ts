@@ -16,6 +16,7 @@ import {
   resolveFinanceDateRange,
   resolvePreviousFinanceDateRange,
   syncPaymentPlanLedger,
+  IncoherentPaymentPlanError,
 } from "@/lib/finance/helpers";
 import type { AcademicYear } from "@prisma/client";
 
@@ -211,6 +212,25 @@ describe("syncPaymentPlanLedger — moteur d'allocation paiements → échéance
     expect(db.payment.findMany).not.toHaveBeenCalled();
   });
 
+  it("plan incohérent (élève et frais d'écoles différentes) : refus avant toute lecture ou écriture (lot 3d)", async () => {
+    const db = makeDb({
+      plan: {
+        id: "plan1",
+        totalAmount: 90000,
+        paidAmount: 0,
+        student: { schoolId: "ecole-a" }, fee: { dueDate: futureDue, schoolId: "ecole-b" },
+        installmentPayments: [{ id: "i1", amount: 90000, dueDate: futureDue, status: "PENDING" }],
+      },
+      payments: [{ amount: 90000, paidAt: futureDue, createdAt: futureDue }],
+      refreshedInstallments: [],
+    });
+
+    await expect(syncPaymentPlanLedger(db, "student1", "fee1")).rejects.toBeInstanceOf(IncoherentPaymentPlanError);
+    expect(db.payment.findMany).not.toHaveBeenCalled();
+    expect(db.installmentPayment.update).not.toHaveBeenCalled();
+    expect(db.paymentPlan.update).not.toHaveBeenCalled();
+  });
+
   it("alloue les paiements dans l'ordre chronologique et marque PAID/OVERDUE/PENDING", async () => {
     const installments = [
       { id: "i1", amount: 30000, dueDate: pastDue, status: "PENDING" },
@@ -223,7 +243,7 @@ describe("syncPaymentPlanLedger — moteur d'allocation paiements → échéance
         id: "plan1",
         totalAmount: 90000,
         paidAmount: 0,
-        fee: { dueDate: futureDue },
+        student: { schoolId: "ecole-a" }, fee: { dueDate: futureDue, schoolId: "ecole-a" },
         installmentPayments: installments,
       },
       // 45 000 payés : i1 couverte, i2 à moitié → OVERDUE, i3 PENDING
@@ -264,7 +284,7 @@ describe("syncPaymentPlanLedger — moteur d'allocation paiements → échéance
         id: "plan1",
         totalAmount: 60000,
         paidAmount: 0,
-        fee: { dueDate: null },
+        student: { schoolId: "ecole-a" }, fee: { dueDate: null, schoolId: "ecole-a" },
         installmentPayments: [
           { id: "i1", amount: 30000, dueDate: pastDue, status: "CANCELLED" },
           { id: "i2", amount: 30000, dueDate: pastDue, status: "PENDING" },
@@ -300,7 +320,7 @@ describe("syncPaymentPlanLedger — moteur d'allocation paiements → échéance
         id: "plan1",
         totalAmount: 60000,
         paidAmount: 0,
-        fee: { dueDate: futureDue },
+        student: { schoolId: "ecole-a" }, fee: { dueDate: futureDue, schoolId: "ecole-a" },
         installmentPayments: [
           { id: "i1", amount: 20000, dueDate: futureDue, status: "PENDING" },
           { id: "i2", amount: 20000, dueDate: futureDue, status: "PENDING" },
@@ -344,7 +364,7 @@ describe("syncPaymentPlanLedger — moteur d'allocation paiements → échéance
         totalAmount: 100000,
         paidAmount: 0,
         // Pas d'échéancier : seul le frais porte la date limite (dépassée)
-        fee: { dueDate: pastDue },
+        student: { schoolId: "ecole-a" }, fee: { dueDate: pastDue, schoolId: "ecole-a" },
         installmentPayments: [],
       },
       payments: [{ amount: 30000, paidAt, createdAt: paidAt }],

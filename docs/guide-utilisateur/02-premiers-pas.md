@@ -5,6 +5,12 @@
 ## 2.1 Se connecter
 On se connecte avec son adresse e-mail et son mot de passe. À la première connexion, ou si l'établissement l'exige, l'application demande de **changer le mot de passe** avant d'aller plus loin.
 
+### Rester connecté ✅
+La case **« Rester connecté sur cet appareil »** garde la session ouverte **30 jours**, prolongés à chaque visite. Sans la case, la session se ferme après **24 heures sans activité**. À ne pas cocher sur un ordinateur partagé. Le super-administrateur de la plateforme n'a jamais de session longue. Se déconnecter, changer de mot de passe ou voir son compte désactivé ferme toujours la session.
+
+### Lien d'activation ✅
+La direction peut envoyer à un compte **pas encore activé** un **lien d'activation** (liste des comptes, statut « À activer »). Le lien, valable **72 heures** et à usage unique, permet de choisir directement son mot de passe, sans mot de passe provisoire. Il part par e-mail ; s'il ne peut pas partir, la direction le voit et peut le transmettre elle-même (SMS, WhatsApp). Un nouveau lien annule le précédent ; un compte déjà activé n'en reçoit plus.
+
 ### La double vérification (recommandée)
 Dans *Paramètres → Sécurité & accès*, on peut activer la **double vérification**. En plus du mot de passe, un code à 6 chiffres est alors demandé à chaque connexion ; il est donné par une application de codes sur le téléphone. Des **codes de secours** sont fournis à l'activation : gardez-les en lieu sûr.
 
@@ -12,6 +18,8 @@ Tant que le code n'est pas saisi, **aucun écran n'est accessible** : le mot de 
 
 ### Mot de passe oublié
 Le lien « mot de passe oublié » envoie un e-mail de réinitialisation. Pour protéger les comptes, les tentatives répétées de connexion sur un même compte sont freinées.
+
+✅ **Pour le super-administrateur de la plateforme** : l'envoi des e-mails se règle dans *Console root → Intégrations → E-mail* (clé du fournisseur ou serveur d'envoi, et adresse d'expédition). Le bouton **« Envoyer un e-mail d'essai »** envoie un message à votre propre adresse : s'il arrive, les réinitialisations de mot de passe partiront aussi. Tant que ce réglage n'est pas fait, aucun e-mail ne part.
 
 ---
 
@@ -29,6 +37,8 @@ Les modifications du profil sont **enregistrées au fur et à mesure**, sans bou
 ---
 
 ## 2.3 L'écran d'accueil
+Le menu reste court ; **« Tous les services »** regroupe toutes les pages permises au rôle (bibliothèque, transport, discipline, documents…), selon les modules activés par l'école et les cycles qu'elle offre.
+
 Chaque rôle a son propre accueil :
 - **direction** : effectifs, finances, appel du jour, alertes ;
 - **enseignant** : mes classes, ma journée, notes à saisir ;
@@ -38,7 +48,16 @@ Chaque rôle a son propre accueil :
 Le menu de gauche est regroupé par thème, et n'affiche que les modules et les cycles que l'école utilise (chapitre 1).
 
 ### L'assistant
-Selon le rôle et si le module est activé, un **assistant** répond aux questions, aide à rédiger une appréciation ou propose une analyse. Les informations envoyées à l'assistant sont **pseudonymisées** : les noms sont remplacés par des alias. Le nombre de demandes par personne est limité.
+Selon le rôle et si le module est activé, un **assistant** répond aux questions posées en français, même avec des fautes : « élèves à risque en 3e B », « prévision de Koffi », « absences d'hier », « emploi du temps de demain », « combien je dois encore payer ? ». Il répond avec les chiffres réels, montre la page où agir et propose les questions suivantes en un clic. Il retient le sujet de la conversation : après « prévision de Koffi », « et son plan d'action ? » suffit. Quand deux élèves portent le même prénom, il demande lequel au lieu de deviner.
+
+Il sait aussi :
+- **résumer un élève** en un paragraphe (« résume Koffi ») : résultats, points forts et faibles, assiduité, discipline et, pour la famille et la direction, reste à payer ;
+- **expliquer** (« pourquoi Koffi baisse ? ») : les causes classées par importance, d'après le modèle de risque de l'école et l'évolution par matière ;
+- **reformuler** (« tu peux répéter ? ») et **proposer la suite** (« autre chose ? », « d'accord »).
+
+Le ton s'adapte : bienveillant avec les familles, direct avec l'équipe. Les réponses sont rédigées à partir de phrases modèles : l'assistant ne tient pas de conversation libre sur un sujet qu'il ne connaît pas, il le dit et propose des exemples.
+
+L'assistant ne voit que ce que la personne a le droit de voir : toute l'école pour la direction, ses classes pour un enseignant, ses enfants pour un parent, lui-même pour un élève. **Tout est calculé dans EduPilot : rien n'est envoyé à un service extérieur.** Le nombre de demandes par minute est limité.
 
 ---
 

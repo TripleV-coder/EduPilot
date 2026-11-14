@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { computeWalletBalances } from "@/lib/finance/wallet";
 
 export const GET = createApiHandler(
     async (request, context) => {
@@ -25,7 +26,7 @@ export const GET = createApiHandler(
             100,
         );
 
-        const [accounts, transactions, disbursements] = await Promise.all([
+        const [accounts, transactions, disbursements, receipts] = await Promise.all([
             prisma.walletAccount.findMany({
                 where: { schoolId, isActive: true },
                 orderBy: [{ kind: "asc" }, { name: "asc" }],
@@ -41,12 +42,24 @@ export const GET = createApiHandler(
                 orderBy: { scheduledAt: "asc" },
                 take: 10,
             }),
+            // Encaissements réels validés (guichet, Mobile Money, en ligne) : ce que la caisse a reçu
+            prisma.payment.findMany({
+                where: { student: { schoolId }, status: { in: ["VERIFIED", "RECONCILED"] }, deletedAt: null },
+                orderBy: { createdAt: "desc" },
+                take: txLimit,
+                select: {
+                    id: true, amount: true, method: true, provider: true, reference: true, paidAt: true, createdAt: true,
+                    student: { select: { user: { select: { firstName: true, lastName: true } } } },
+                    fee: { select: { name: true } },
+                },
+            }),
         ]);
 
-        const totalBalanceFcfa = accounts.reduce<bigint>(
-            (sum, acc) => sum + acc.balanceFcfa,
-            BigInt(0),
-        );
+        // Soldes calculés sur les encaissements validés (lib/finance/wallet) :
+        // le champ balanceFcfa n'est que le solde d'ouverture déclaré.
+        const balances = await computeWalletBalances(schoolId, accounts);
+        const balanceOf = new Map(balances.map((b) => [b.accountId, b]));
+        const totalBalanceFcfa = balances.reduce<bigint>((sum, b) => sum + b.balanceFcfa, BigInt(0));
 
         return NextResponse.json(
             {
@@ -57,7 +70,13 @@ export const GET = createApiHandler(
                     name: acc.name,
                     kind: acc.kind,
                     accountRef: acc.accountRef,
-                    balanceFcfa: acc.balanceFcfa.toString(),
+                    balanceFcfa: (balanceOf.get(acc.id)?.balanceFcfa ?? acc.balanceFcfa).toString(),
+                    openingBalanceFcfa: acc.balanceFcfa.toString(),
+                    collectedFcfa: (balanceOf.get(acc.id)?.collectedFcfa ?? BigInt(0)).toString(),
+                    manualNetFcfa: (balanceOf.get(acc.id)?.manualNetFcfa ?? BigInt(0)).toString(),
+                    disbursedFcfa: (balanceOf.get(acc.id)?.disbursedFcfa ?? BigInt(0)).toString(),
+                    receivesPayments: balanceOf.get(acc.id)?.receivesPayments ?? false,
+                    declaredAt: acc.createdAt.toISOString(),
                     colorHex: acc.colorHex,
                 })),
                 transactions: transactions.map((tx) => ({
@@ -73,6 +92,16 @@ export const GET = createApiHandler(
                     matchStatus: tx.matchStatus,
                     matchLabel: tx.matchLabel,
                     occurredAt: tx.occurredAt.toISOString(),
+                })),
+                recentReceipts: receipts.map((p) => ({
+                    id: p.id,
+                    amountFcfa: Math.round(Number(p.amount)),
+                    method: p.method,
+                    online: Boolean(p.provider),
+                    reference: p.reference,
+                    occurredAt: (p.paidAt ?? p.createdAt).toISOString(),
+                    studentName: `${p.student.user.firstName} ${p.student.user.lastName}`.trim(),
+                    feeName: p.fee?.name ?? null,
                 })),
                 scheduledDisbursements: disbursements.map((d) => ({
                     id: d.id,

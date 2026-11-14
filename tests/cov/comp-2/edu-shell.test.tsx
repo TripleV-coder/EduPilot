@@ -13,6 +13,10 @@ const sidebar = vi.hoisted(() => ({
     isMobileOpen: false,
     toggle: (() => {}) as () => void,
     setIsMobileOpen: ((_v: boolean) => {}) as (v: boolean) => void,
+    // Comme le vrai contexte : le thème choisi est appliqué au document.
+    setThemePreference: (async (theme: string) => {
+        document.documentElement.classList.toggle("dark", theme === "dark");
+    }) as (theme: "light" | "dark" | "system") => Promise<void>,
 }));
 vi.mock("@/components/dashboard/DashboardLayoutClient", () => ({
     useSidebar: () => sidebar,
@@ -105,6 +109,15 @@ describe("Palette de commandes (EduCommandPalette)", () => {
         expect(screen.getByRole("option", { name: /Saisir des notes/ })).toBeInTheDocument();
     });
 
+    it("le personnel de vie scolaire ne propose pas la recherche d'élèves (page fermée)", () => {
+        asRole("STAFF");
+        renderPage(<EduCommandPalette open onOpenChange={vi.fn()} />);
+        fireEvent.change(screen.getByRole("textbox", { name: "Saisir une commande" }), {
+            target: { value: "zzz introuvable" },
+        });
+        expect(screen.queryByText(/dans les élèves/)).not.toBeInTheDocument();
+    });
+
     it("filtre par saisie et ajoute la recherche d'élèves, puis y navigue", async () => {
         asRole("TEACHER");
         const onOpenChange = vi.fn();
@@ -160,11 +173,11 @@ describe("Palette de commandes (EduCommandPalette)", () => {
         expect(navigation.push).toHaveBeenCalledWith("/dashboard/grades/entry");
     });
 
-    it("déconnecte via l'action « Se déconnecter »", () => {
+    it("déconnecte via l'action « Se déconnecter » (après purge des caches privés)", async () => {
         asRole("PARENT");
         renderPage(<EduCommandPalette open onOpenChange={vi.fn()} />);
         fireEvent.click(screen.getByRole("option", { name: /Se déconnecter/ }));
-        expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/login" });
+        await waitFor(() => expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/login" }));
         expect(navigation.push).not.toHaveBeenCalled();
     });
 
@@ -392,7 +405,8 @@ describe("Navigation mobile (EduMobileNav)", () => {
         ["ACCOUNTANT", ["Accueil", "Finance", "Portefeuille", "Menu"]],
         ["SUPER_ADMIN", ["Réseau", "Écoles", "Utilisateurs", "IA", "Menu"]],
         ["DIRECTOR", ["Accueil", "Élèves", "Finance", "IA", "Menu"]],
-        ["STAFF", ["Accueil", "Élèves", "Finance", "Menu"]],
+        ["STAFF", ["Accueil", "Appel", "Incidents", "Compte", "Menu"]],
+        ["NETWORK_ADMIN", ["Accueil", "Élèves", "Finance", "IA", "Menu"]],
     ])("présente les entrées adaptées au rôle %s (IA seulement si autorisée)", (role, labels) => {
         asRole(role);
         const { container } = renderPage(<EduMobileNav />);

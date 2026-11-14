@@ -1,5 +1,6 @@
 "use client";
 
+import { safeVideoLink, toEmbeddableVideoUrl } from "@/lib/utils/video-embed";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -53,6 +54,15 @@ type LessonDetail = {
 };
 
 export default function LessonViewerPage() {
+    // Garde avant chargement (TD-024) : une seule garde, aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <LessonViewerPageContent />
+        </PageGuard>
+    );
+}
+
+function LessonViewerPageContent() {
     const params = useParams();
     const router = useRouter();
     const id = params.id as string;
@@ -96,17 +106,17 @@ export default function LessonViewerPage() {
 
     if (isLoading) {
         return (
-            <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <>
                 <PageShell>
                     <PageLoading label="Chargement de votre leçon…" />
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     if (error || !lesson) {
         return (
-            <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <>
                 <PageShell>
                     <PageError
                         message="Nous n'avons pas pu charger le contenu de cette leçon."
@@ -116,12 +126,12 @@ export default function LessonViewerPage() {
                         <Button variant="outline">Retour au cours</Button>
                     </Link>
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     return (
-        <PageGuard permission={[Permission.CLASS_READ, Permission.SCHEDULE_READ]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+        <>
             <PageShell className="max-w-5xl pb-20">
                 {/* Header Navigation */}
                 <div className="flex items-center justify-between">
@@ -143,18 +153,27 @@ export default function LessonViewerPage() {
                         </div>
 
                         {/* Video Player */}
-                        {lesson.type === "VIDEO" && lesson.videoUrl && (
+                        {lesson.type === "VIDEO" && lesson.videoUrl && (toEmbeddableVideoUrl(lesson.videoUrl) ? (
                             <div className="aspect-video w-full rounded-xl overflow-hidden bg-black border border-border">
                                 <iframe
-                                    src={lesson.videoUrl.includes("youtube.com") 
-                                        ? lesson.videoUrl.replace("watch?v=", "embed/") 
-                                        : lesson.videoUrl}
+                                    src={toEmbeddableVideoUrl(lesson.videoUrl)!}
                                     className="w-full h-full"
                                     allowFullScreen
                                     title={lesson.title}
                                 />
                             </div>
-                        )}
+                        ) : safeVideoLink(lesson.videoUrl) ? (
+                            <a
+                                href={safeVideoLink(lesson.videoUrl)!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex text-sm font-medium text-primary underline"
+                            >
+                                Ouvrir la vidéo dans un nouvel onglet
+                            </a>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">Adresse de la vidéo invalide (une adresse https:// est attendue).</p>
+                        ))}
 
                         {/* Content Body */}
                         <Card className="border-border shadow-sm overflow-hidden">
@@ -191,7 +210,7 @@ export default function LessonViewerPage() {
                                     <Button variant="ghost" className="w-full sm:w-auto gap-2 group">
                                         <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                                         <div className="text-left">
-                                            <p className="text-[11px] font-bold text-muted-foreground">Précédent</p>
+                                            <p className="text-xs font-bold text-muted-foreground">Précédent</p>
                                             <p className="text-sm truncate max-w-[150px]">{prevLesson.title}</p>
                                         </div>
                                     </Button>
@@ -225,7 +244,7 @@ export default function LessonViewerPage() {
                                 <Link href={`/dashboard/courses/${id}/lessons/${nextLesson.id}`} className="w-full sm:w-auto">
                                     <Button variant="ghost" className="w-full sm:w-auto gap-2 group text-right">
                                         <div className="text-right">
-                                            <p className="text-[11px] font-bold text-muted-foreground">Suivant</p>
+                                            <p className="text-xs font-bold text-muted-foreground">Suivant</p>
                                             <p className="text-sm truncate max-w-[150px]">{nextLesson.title}</p>
                                         </div>
                                         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -244,7 +263,7 @@ export default function LessonViewerPage() {
                             <div className="p-2 space-y-1 max-h-[60vh] overflow-y-auto custom-scrollbar">
                                 {lesson.module.course.modules.map((m) => (
                                     <div key={m.id} className="space-y-1">
-                                        <p className="text-[11px] font-bold text-muted-foreground px-2 py-2 mt-2">{m.title}</p>
+                                        <p className="text-xs font-bold text-muted-foreground px-2 py-2 mt-2">{m.title}</p>
                                         {m.lessons.map((l) => {
                                             const isActive = l.id === lessonId;
                                             return (
@@ -284,7 +303,7 @@ export default function LessonViewerPage() {
                                     <span>{Math.round(((currentIndex + 1) / allLessons.length) * 100)}%</span>
                                 </div>
                                 <Progress value={((currentIndex + 1) / allLessons.length) * 100} className="h-2" />
-                                <p className="text-[11px] text-muted-foreground italic">
+                                <p className="text-xs text-muted-foreground italic">
                                     {lesson.isCompleted ? "Leçon validée ✓" : "Leçon en cours..."}
                                 </p>
                             </CardContent>
@@ -292,6 +311,6 @@ export default function LessonViewerPage() {
                     </div>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

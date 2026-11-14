@@ -2,8 +2,8 @@
  * GET /api/metrics — métriques Prometheus de la protection contre la surcharge.
  *
  * Accès : `Authorization: Bearer <METRICS_TOKEN>` (comparaison en temps
- * constant). Sans METRICS_TOKEN la route n'existe pas (404) : rien n'est
- * exposé par défaut. Aucune donnée personnelle, seulement des compteurs.
+ * constant). METRICS_TOKEN si défini, sinon dérivé du secret maître
+ * (`node scripts/secrets/print-derived.mjs`) ; sans aucun des deux, 404. Aucune donnée personnelle, seulement des compteurs.
  *
  * Exposé : taille de la file d'envoi et seuils, requêtes reçues et refusées
  * par motif (taux de rejet = rate(rejected) / rate(requests)), état de chaque
@@ -14,6 +14,7 @@ import { queueSettings } from "@/lib/resilience/config";
 import { renderPrometheus, type CircuitStateName, type GaugeSnapshot } from "@/lib/resilience/metrics";
 import { getJobQueueStats } from "@/lib/jobs/queue";
 import { verifyCronSecret } from "@/lib/security/cron-auth";
+import { resolveSecret } from "@/lib/security/derived-secrets";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +49,7 @@ async function circuitGauges(): Promise<GaugeSnapshot["circuits"]> {
 }
 
 export async function GET(request: Request): Promise<Response> {
-    const access = verifyCronSecret(request.headers.get("authorization"), process.env.METRICS_TOKEN);
+    const access = verifyCronSecret(request.headers.get("authorization"), resolveSecret("metrics") ?? undefined);
     if (access === "not-configured") return new Response("Not Found", { status: 404 });
     if (access === "invalid") {
         return new Response("Unauthorized", { status: 401, headers: { "WWW-Authenticate": "Bearer" } });

@@ -50,7 +50,8 @@ describe("GET /api/finance/fees", () => {
     vi.mocked(auth).mockResolvedValue(NO_SCHOOL_ROOT);
     const res = await GET(makeRequest("http://localhost/api/finance/fees"));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Identifiant d'établissement requis");
+    // S6 : sélection d'école exigée du super-admin
+    expect((await res.json()).code).toBe("SCHOOL_REQUIRED");
   });
 
   it("liste les frais actifs de l'école", async () => {
@@ -122,7 +123,8 @@ describe("POST /api/finance/fees", () => {
       makeRequest("http://localhost/api/finance/fees", { method: "POST", body: { name: "Scolarité T1", amount: 100000 } })
     );
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Utilisateur non rattaché à un établissement");
+    // S6 : sélection d'école exigée du super-admin
+    expect((await res.json()).code).toBe("SCHOOL_REQUIRED");
   });
 
   it("crée le frais actif dans l'école cible (201)", async () => {

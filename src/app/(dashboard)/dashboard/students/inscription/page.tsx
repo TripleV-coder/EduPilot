@@ -31,6 +31,15 @@ import { submitInscription } from "@/lib/students/inscription-submit";
 // de la découpe en steps (P3.1, 2026-06-11). Logique inchangée.
 
 export default function InscriptionPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.STUDENT_CREATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]} >
+            <InscriptionPageContent />
+        </PageGuard>
+    );
+}
+
+function InscriptionPageContent() {
     const router = useRouter();
     const [step, setStep] = useState<StepIndex>(0);
     const [form, setForm] = useState<FormState>(INITIAL_FORM);
@@ -137,6 +146,7 @@ export default function InscriptionPage() {
     const validateFamille = (): string | null => {
         if (!form.parentLastName.trim() || !form.parentFirstName.trim())
             return "Nom et prénom du responsable obligatoires.";
+        if (!form.parentPhone.trim()) return "Le téléphone du responsable est requis.";
         if (!/^(\+229)?[0-9]{8,10}$/.test(form.parentPhone.replace(/\s/g, "")))
             return "Téléphone du responsable invalide (8 à 10 chiffres, +229 facultatif).";
         return null;
@@ -205,10 +215,7 @@ export default function InscriptionPage() {
     }, []);
 
     return (
-        <PageGuard
-            permission={Permission.STUDENT_CREATE}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        <>
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/students">
@@ -463,7 +470,7 @@ export default function InscriptionPage() {
                         </Button>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-tertiary)",
                             }}
                         >
@@ -497,6 +504,6 @@ export default function InscriptionPage() {
 
                 {loading_spinner_placeholder(submitting)}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

@@ -209,7 +209,7 @@ export default function RootPlansPage() {
                     </div>
                 </div>
 
-                {error ? <PageError message="Impossible de charger les formules." onRetry={() => void mutate()} /> : null}
+                {error ? <PageError error={error} message="Impossible de charger les formules." onRetry={() => void mutate()} /> : null}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <MetricCardPro label="Formules" value={plans.length} hint="Catalogue complet" icon={Zap} tone="primary" />
@@ -263,7 +263,7 @@ export default function RootPlansPage() {
                                                 <CardTitle className="text-lg font-bold flex items-center gap-2">
                                                     {plan.name}
                                                     {plan.isFeatured ? (
-                                                        <Badge className="gap-1 text-[11px]"><Star className="w-3 h-3" aria-hidden="true" /> Mise en avant</Badge>
+                                                        <Badge className="gap-1 text-xs"><Star className="w-3 h-3" aria-hidden="true" /> Mise en avant</Badge>
                                                     ) : null}
                                                 </CardTitle>
                                                 <CardDescription className="text-xs font-mono">{plan.code}</CardDescription>
@@ -295,15 +295,15 @@ export default function RootPlansPage() {
                                         </div>
 
                                         <dl className="grid grid-cols-3 gap-2 py-3 border-y border-border/50 text-center">
-                                            <div><dt className="text-[11px] text-muted-foreground">Élèves</dt><dd className="text-sm font-semibold tabular-nums">{plan.maxStudents}</dd></div>
-                                            <div><dt className="text-[11px] text-muted-foreground">Enseignants</dt><dd className="text-sm font-semibold tabular-nums">{plan.maxTeachers}</dd></div>
-                                            <div><dt className="text-[11px] text-muted-foreground">Stockage</dt><dd className="text-sm font-semibold tabular-nums">{plan.maxStorageGB} Go</dd></div>
+                                            <div><dt className="text-xs text-muted-foreground">Élèves</dt><dd className="text-sm font-semibold tabular-nums">{plan.maxStudents}</dd></div>
+                                            <div><dt className="text-xs text-muted-foreground">Enseignants</dt><dd className="text-sm font-semibold tabular-nums">{plan.maxTeachers}</dd></div>
+                                            <div><dt className="text-xs text-muted-foreground">Stockage</dt><dd className="text-sm font-semibold tabular-nums">{plan.maxStorageGB} Go</dd></div>
                                         </dl>
 
                                         {plan.features.length > 0 ? (
                                             <div className="flex flex-wrap gap-1.5">
                                                 {plan.features.map((f) => (
-                                                    <Badge key={f} variant="outline" className="text-[11px]">{f}</Badge>
+                                                    <Badge key={f} variant="outline" className="text-xs">{f}</Badge>
                                                 ))}
                                             </div>
                                         ) : null}

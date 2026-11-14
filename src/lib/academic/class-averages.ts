@@ -28,6 +28,9 @@ import {
     type StudentAverages,
 } from "@/lib/academic/average-engine";
 import { frozenCalculationRules, frozenSubjectFormulas, getGradingSettings } from "@/lib/academic/grading-settings";
+import { memoizeAsync } from "@/lib/cache/memo";
+import { getDbContext } from "@/lib/db/db-context";
+import { onModelWrite } from "@/lib/db/write-events";
 
 type DecimalLike = number | string | { toString(): string };
 
@@ -174,7 +177,7 @@ export interface ClassPeriodResult {
 }
 
 /** Moyennes de période de tous les élèves inscrits actifs d'une classe. */
-export async function computeClassPeriod(params: {
+async function computeClassPeriodFresh(params: {
     classId: string;
     periodId: string;
     academicYearId: string;
@@ -271,15 +274,23 @@ export interface StudentAnnualResult {
     rank: number | null;
 }
 
+export interface ClassAnnualResult {
+    students: Map<string, StudentAnnualResult>;
+    classSize: number;
+    periods: Array<{ id: string }>;
+    /** Arrondi de chaque période (règles gelées par son conseil, sinon celles de l'école). */
+    roundingByPeriod: Map<string, CalculationOptions["rounding"]>;
+}
+
 /**
  * Moyennes annuelles de tous les élèves inscrits actifs d'une classe :
  * (S1 + S2) / 2 ou (T1 + T2 + T3) / 3, rang sur la moyenne annuelle.
  */
-export async function computeClassAnnual(params: {
+async function computeClassAnnualFresh(params: {
     classId: string;
     academicYearId: string;
     classSubjects: ClassSubjectRef[];
-}): Promise<{ students: Map<string, StudentAnnualResult>; classSize: number; periods: Array<{ id: string }> }> {
+}): Promise<ClassAnnualResult> {
     const { classId, academicYearId, classSubjects } = params;
     const [enrollments, periods, councils] = await Promise.all([
         prisma.enrollment.findMany({
@@ -304,7 +315,11 @@ export async function computeClassAnnual(params: {
     const studentIds = enrollments.map((e) => e.studentId);
     const grades = studentIds.length
         ? ((await prisma.grade.findMany({
-              where: { studentId: { in: studentIds }, deletedAt: null, evaluation: { period: { academicYearId } } },
+              // Filtre sur les périodes de l'année (déjà chargées) et non sur la
+              // relation période → année : sous RLS, la forme relationnelle
+              // faisait parcourir TOUTES les évaluations de l'école (1,5 s
+              // par classe mesurées contre 0,4 s, mêmes lignes).
+              where: { studentId: { in: studentIds }, deletedAt: null, evaluation: { periodId: { in: periods.map((p) => p.id) } } },
               select: gradeSelect,
           })) as unknown as RawGrade[])
         : [];
@@ -361,8 +376,88 @@ export async function computeClassAnnual(params: {
     }
     const all = Array.from(students.values()).map((s) => s.general);
     for (const s of students.values()) s.rank = competitionRank(s.general, all);
-    return { students, classSize: enrollments.length, periods };
+    const roundingByPeriod = new Map(periods.map((p) => [p.id, (rulesByPeriod.get(p.id) ?? rules).rounding]));
+    return { students, classSize: enrollments.length, periods, roundingByPeriod };
 }
+
+// ─────────────────────────── Calculs partagés ───────────────────────────
+
+/**
+ * Les moyennes d'une classe sont les mêmes pour chacun de ses élèves et de
+ * leurs parents : 33 élèves qui ouvrent « Mes notes » recalculaient 33 fois
+ * toute la classe, et le recalcul d'un établissement (un élève à la fois)
+ * recalculait la classe pour CHAQUE élève (audit du 2026-10-14 : vue famille
+ * plafonnée à ~1 requête/s, recalcul d'une école > 20 min de CPU).
+ *
+ * Calcul unique par classe (single-flight) pendant CLASS_AVERAGES_TTL_MS, par
+ * processus. Fraîcheur : `invalidateClassAverages()` est appelée avant tout
+ * recalcul d'analyses (donc après chaque écriture de notes, de règles ou de
+ * formules, AVANT la réponse) ; ailleurs, l'écart est borné par le TTL.
+ * La clé inclut le contexte de base (RLS) : un résultat n'est jamais servi à
+ * une requête qui verrait d'autres établissements que celle qui l'a calculé.
+ * Les résultats sont partagés : ne jamais les modifier.
+ */
+const CLASS_AVERAGES_TTL_MS = 15_000;
+
+function dbScopeKey(): string {
+    const context = getDbContext();
+    if (!context) return "aucun";
+    return context.kind === "system" ? "systeme" : [...context.schoolIds].sort().join(",");
+}
+
+function subjectsKey(classSubjects: ClassSubjectRef[]): string {
+    return classSubjects.map((cs) => `${cs.id}:${cs.subjectId}:${String(cs.coefficient)}`).join(";");
+}
+
+export const computeClassPeriod = memoizeAsync(
+    {
+        ttlMs: CLASS_AVERAGES_TTL_MS,
+        maxEntries: 500,
+        key: (p: Parameters<typeof computeClassPeriodFresh>[0]) =>
+            ["periode", dbScopeKey(), p.classId, p.periodId, p.academicYearId, subjectsKey(p.classSubjects)].join("|"),
+    },
+    computeClassPeriodFresh,
+);
+
+export const computeClassAnnual = memoizeAsync(
+    {
+        ttlMs: CLASS_AVERAGES_TTL_MS,
+        maxEntries: 500,
+        key: (p: Parameters<typeof computeClassAnnualFresh>[0]) =>
+            ["annee", dbScopeKey(), p.classId, p.academicYearId, subjectsKey(p.classSubjects)].join("|"),
+    },
+    computeClassAnnualFresh,
+);
+
+/** Oublie les moyennes de classe partagées (après une écriture qui les change). */
+export function invalidateClassAverages(): void {
+    computeClassPeriod.clear();
+    computeClassAnnual.clear();
+}
+
+/**
+ * Invalidation automatique : toute écriture (Prisma) sur une donnée qui entre
+ * dans une moyenne — note, évaluation, type, matière de classe, inscription,
+ * conseil, formule d'élève, période, moyenne d'origine, réglages (ConfigOption).
+ * Dans une transaction, le signal précède la validation : l'écart éventuel
+ * reste borné par CLASS_AVERAGES_TTL_MS, et les recalculs d'analyses
+ * invalident à nouveau.
+ */
+const AVERAGE_INPUT_MODELS = new Set([
+    "Grade",
+    "Evaluation",
+    "EvaluationType",
+    "ClassSubject",
+    "Enrollment",
+    "ClassCouncil",
+    "StudentFormula",
+    "Period",
+    "ExternalPeriodAverage",
+    "ConfigOption",
+]);
+onModelWrite((model) => {
+    if (AVERAGE_INPUT_MODELS.has(model)) invalidateClassAverages();
+});
 
 /**
  * Rang par promotion (option de l'établissement) : tous les élèves inscrits
@@ -429,40 +524,26 @@ export async function studentAveragesSummary(studentId: string): Promise<Student
     });
     if (!enrollment) return null;
     const classSubjects = enrollment.class.classSubjects;
-    // Calculs indépendants (lectures seules) lancés ensemble : en séquence, la
-    // vue « Mes notes » attendait l'année puis chaque période l'une après
-    // l'autre (3,6 s mesurées pour un élève, audit du 2026-10-14).
-    const yearPeriods = await prisma.period.findMany({
-        where: { academicYearId: enrollment.academicYearId },
-        select: { id: true },
+    // Un seul calcul : l'année calcule déjà chaque période (mêmes règles, mêmes
+    // formules, mêmes coefficients gelés) ; refaire chaque période doublait le
+    // travail (audit du 2026-10-14). Le calcul de la classe est partagé.
+    const annual = await computeClassAnnual({
+        classId: enrollment.classId,
+        academicYearId: enrollment.academicYearId,
+        classSubjects,
     });
-    const [annual, periodResults] = await Promise.all([
-        computeClassAnnual({ classId: enrollment.classId, academicYearId: enrollment.academicYearId, classSubjects }),
-        Promise.all(
-            yearPeriods.map(async (period) => {
-                const result = await computeClassPeriod({
-                    classId: enrollment.classId,
-                    periodId: period.id,
-                    academicYearId: enrollment.academicYearId,
-                    classSubjects,
-                });
-                return [period.id, result] as const;
-            }),
-        ),
-    ]);
-    const resultByPeriod = new Map(periodResults);
+    const ownPeriods = annual.students.get(studentId)?.annual.periods;
     const periods: StudentAveragesSummary["periods"] = {};
-    for (const period of annual.periods) {
-        const result = resultByPeriod.get(period.id);
-        if (!result) continue;
-        const own = result.students.get(studentId);
+    annual.periods.forEach((period, index) => {
+        const own = ownPeriods?.[index];
+        const rounding = annual.roundingByPeriod.get(period.id);
         periods[period.id] = {
-            general: own?.general ?? null,
+            general: toDisplay(own?.general ?? null, rounding),
             subjects: Object.fromEntries(
-                classSubjects.map((cs) => [cs.id, toDisplay(own?.averages.subjects.get(cs.id) ?? null, result.rules.rounding)]),
+                classSubjects.map((cs) => [cs.id, toDisplay(own?.subjects.get(cs.id) ?? null, rounding)]),
             ),
         };
-    }
+    });
     const ownAnnual = annual.students.get(studentId);
     const rounding = (await schoolRulesForClass(enrollment.classId)).rounding;
     return {

@@ -7,20 +7,9 @@ validateCriticalEnv();
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  prismaBase: PrismaClient | undefined;
 };
 
-/**
- * Taille du pool de connexions PAR PROCESSUS (analyse de capacité 2026-10-01).
- *
- * Par défaut Prisma ouvre 2 × cœurs + 1 connexions par processus : sur une
- * machine de 12 cœurs, 25 — et 4 processus (WEB_CONCURRENCY=4) en demandaient
- * 100, le maximum de PostgreSQL : mesuré, « Too many database connections »
- * et des pages en erreur dès le passage à plusieurs processus. Une valeur
- * explicite dans l'URL (`connection_limit=`) reste prioritaire ; sinon
- * DATABASE_POOL_SIZE (défaut 10). Règle : WEB_CONCURRENCY × DATABASE_POOL_SIZE
- * × instances + autres clients (n8n, sauvegardes) < max_connections de
- * PostgreSQL — au-delà, PgBouncer (mode transaction) devant PostgreSQL.
- */
 export function withPoolLimit(url: string | undefined): string | undefined {
   if (!url || /[?&]connection_limit=/.test(url)) return url;
   const configured = Number(process.env.DATABASE_POOL_SIZE);
@@ -30,20 +19,36 @@ export function withPoolLimit(url: string | undefined): string | undefined {
 
 const datasourceUrl = withPoolLimit(process.env.DATABASE_URL);
 
+/**
+ * Client brut, UN par processus (rangé sur `globalThis`, y compris en
+ * production) : le proxy, l'instrumentation et les routes sont des paquets
+ * distincts ; sans ce partage, chacun ouvrirait son propre pool de connexions.
+ */
+const base =
+  globalForPrisma.prismaBase ??
+  new PrismaClient({
+    ...(datasourceUrl ? { datasources: { db: { url: datasourceUrl } } } : {}),
+    log:
+      process.env.NODE_ENV === "development"
+        ? ["query", "error", "warn"]
+        : ["error"],
+  });
+globalForPrisma.prismaBase = base;
+
 // Chaque opération porte le contexte d'établissement de la requête, lu par les
 // politiques RLS des tables sensibles (audit M2, `lib/db/scoped-client.ts`).
-export const prisma =
-  globalForPrisma.prisma ??
-  createScopedClient(
-    new PrismaClient({
-      ...(datasourceUrl ? { datasources: { db: { url: datasourceUrl } } } : {}),
-      log:
-        process.env.NODE_ENV === "development"
-          ? ["query", "error", "warn"]
-          : ["error"],
-    }),
-  );
-
+// L'enveloppe, elle, reste propre à chaque paquet : elle lit le contexte posé
+// par la copie de `db-context` de CE paquet (AsyncLocalStorage locale au
+// module). La partager entre paquets ferait perdre le contexte RLS.
+export const prisma = globalForPrisma.prisma ?? createScopedClient(base);
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+/**
+ * Client SANS contexte d'établissement, même pool que `prisma`. Réservé à
+ * l'état technique partagé (`lib/shared-state`) : ses tables n'ont ni RLS ni
+ * donnée d'école, et une requête y fait UN aller-retour au lieu de quatre
+ * (transaction `set_config` + requête du client contextualisé).
+ */
+export const prismaBase = base;
 
 export default prisma;

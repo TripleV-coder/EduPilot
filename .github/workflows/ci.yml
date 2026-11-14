@@ -315,7 +315,9 @@ jobs:
     name: E2E démarrage à vide
     runs-on: ubuntu-latest
     needs: [build]
-    timeout-minutes: 45
+    # Build (~10 min) + parcours de toutes les pages d'une école vide pour
+    # 3 rôles (~60 min, test à 90 min de limite) : 45 min l'annulait toujours.
+    timeout-minutes: 120
     services:
       postgres:
         image: postgres:16-alpine
@@ -336,6 +338,8 @@ jobs:
       APP_DATABASE_URL: postgresql://edupilot_app:edupilot-app-fresh-password@localhost:5432/edupilot_fresh
       NEXTAUTH_URL: http://localhost:3100
       NEXTAUTH_SECRET: test-secret-at-least-32-characters-long-for-ci
+      # Installation : le premier super-administrateur exige ce jeton en production
+      INITIAL_SETUP_TOKEN: ci-initial-setup-token-0123456789abcdef
       TOTP_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
       SKIP_ENV_VALIDATION: "true"
       AUTH_TRUST_HOST: "true"

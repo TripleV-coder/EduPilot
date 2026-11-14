@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { taughtClassIds, teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
@@ -78,7 +79,25 @@ export const GET = createApiHandler(
         { status: 403 }
       );
     }
-    const studentIds = studentId ? [studentId] : ownStudentIds;
+    let studentIds = studentId ? [studentId] : ownStudentIds;
+
+    // Enseignant (MS-02) : ses classes et leurs élèves seulement, jamais toute l'école
+    if (role === "TEACHER") {
+      const taught = await taughtClassIds(session.user.id);
+      if (classId && !taught.includes(classId)) {
+        return NextResponse.json({ error: "Accès refusé : vous n'enseignez pas dans cette classe", code: "FORBIDDEN" }, { status: 403 });
+      }
+      if (studentId && !(await teacherTeachesStudent(session.user.id, studentId))) {
+        return NextResponse.json({ error: "Accès refusé : cet élève n'est pas dans vos classes", code: "FORBIDDEN" }, { status: 403 });
+      }
+      if (!classId && !studentId) {
+        const enrolled = await prisma.enrollment.findMany({
+          where: { classId: { in: taught }, status: "ACTIVE" },
+          select: { studentId: true },
+        });
+        studentIds = [...new Set(enrolled.map((row) => row.studentId))];
+      }
+    }
 
     const scope: GradeStatsScope = {
       schoolId: role === "SUPER_ADMIN" ? null : activeSchoolId,

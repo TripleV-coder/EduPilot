@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -15,6 +15,7 @@ import {
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError } from "@/components/layout/page-states";
 import { SubLabel } from "@/components/edu-homes/_shared";
+import { useLiveNotifications } from "@/hooks/use-live-notifications";
 
 type CatColor = "neutral" | "danger" | "warning" | "success" | "info" | "brand";
 
@@ -85,6 +86,15 @@ const CHANNELS = [
 ];
 
 export default function NotificationsCenterPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ}>
+            <NotificationsCenterPageContent />
+        </PageGuard>
+    );
+}
+
+function NotificationsCenterPageContent() {
     const [activeCat, setActiveCat] = useState("all");
     const [data, setData] = useState<FeedData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -116,6 +126,27 @@ export default function NotificationsCenterPage() {
             cancelled = true;
         };
     }, [activeCat]);
+
+    // Temps réel : une notification reçue est ajoutée sans recharger la page
+    // ni afficher d'état de chargement ; la sélection en cours est conservée.
+    const activeCatRef = useRef(activeCat);
+    useEffect(() => {
+        activeCatRef.current = activeCat;
+    }, [activeCat]);
+    useLiveNotifications((event) => {
+        if (event.kind !== "notifications") return;
+        const category = activeCatRef.current;
+        void fetch(`/api/notifications/feed?category=${category}`)
+            .then(async (res) => (res.ok ? ((await res.json()) as FeedData) : null))
+            .then((body) => {
+                if (!body || activeCatRef.current !== category) return;
+                setData(body);
+                setSelectedId((current) => current ?? body.preview?.id ?? null);
+            })
+            .catch(() => {
+                // relève suivante ou rechargement manuel
+            });
+    });
 
     const allItems = useMemo(() => {
         if (!data) return [] as NotifItem[];
@@ -174,7 +205,7 @@ export default function NotificationsCenterPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Centre de notifications"
@@ -282,7 +313,7 @@ export default function NotificationsCenterPage() {
                                             <span
                                                 className="tabular"
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     fontWeight: 700,
                                                     color:
                                                         "var(--eduflow-text-tertiary)",
@@ -333,7 +364,7 @@ export default function NotificationsCenterPage() {
                                 </div>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginTop: 10,
                                         lineHeight: 1.5,
@@ -463,7 +494,7 @@ export default function NotificationsCenterPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 
@@ -495,7 +526,7 @@ function NotifGroup({
                 </h2>
                 <span
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                     }}
                 >
@@ -590,7 +621,7 @@ function NotifRow({
                         </span>
                         <span
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-tertiary)",
                                 whiteSpace: "nowrap",
                                 fontVariantNumeric: "tabular-nums",
@@ -651,7 +682,7 @@ function PreviewCard({ preview }: { preview: NonNullable<Preview> }) {
                 </h2>
                 <p
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: `var(--eduflow-${preview.accent}-800)`,
                         margin: "4px 0 0",
                     }}

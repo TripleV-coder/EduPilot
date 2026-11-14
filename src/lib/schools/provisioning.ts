@@ -1,3 +1,4 @@
+import { defaultPeriodName } from "@/lib/academic/period-rules";
 import crypto from "crypto";
 import { hash } from "@/lib/auth/password";
 import { Prisma, SchoolLevel, SchoolType, SiteType, UserRole } from "@prisma/client";
@@ -50,9 +51,9 @@ function getDefaultAcademicCalendar(referenceDate = new Date()) {
     yearStart: t1Start,
     yearEnd: t3End,
     periods: [
-      { name: "Trimestre 1", type: "TRIMESTER" as const, startDate: t1Start, endDate: t1End, sequence: 1 },
-      { name: "Trimestre 2", type: "TRIMESTER" as const, startDate: t2Start, endDate: t2End, sequence: 2 },
-      { name: "Trimestre 3", type: "TRIMESTER" as const, startDate: t3Start, endDate: t3End, sequence: 3 },
+      { name: defaultPeriodName("TRIMESTER", 1), type: "TRIMESTER" as const, startDate: t1Start, endDate: t1End, sequence: 1 },
+      { name: defaultPeriodName("TRIMESTER", 2), type: "TRIMESTER" as const, startDate: t2Start, endDate: t2End, sequence: 2 },
+      { name: defaultPeriodName("TRIMESTER", 3), type: "TRIMESTER" as const, startDate: t3Start, endDate: t3End, sequence: 3 },
     ],
   };
 }
@@ -291,12 +292,13 @@ export async function createOrganizationMembership(
       userId: input.userId,
       title: trimOrNull(input.title),
       isOwner: input.isOwner ?? false,
-      canManageSites: input.canManageSites ?? true,
+      // Jamais implicite (S5) : l'appelant demande la gestion explicitement
+      canManageSites: input.canManageSites ?? false,
     },
     update: {
       title: trimOrNull(input.title),
       isOwner: input.isOwner ?? false,
-      canManageSites: input.canManageSites ?? true,
+      canManageSites: input.canManageSites ?? false,
     },
   });
 }

@@ -87,6 +87,15 @@ const POST_BAC_OPTIONS = [
 ];
 
 export default function OrientationPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"]}>
+            <OrientationPageContent />
+        </PageGuard>
+    );
+}
+
+function OrientationPageContent() {
     const [orientations, setOrientations] = useState<Orientation[]>([]);
     const [loading, setLoading] = useState(true);
     const [students, setStudents] = useState<StudentRecord[]>([]);
@@ -335,7 +344,7 @@ export default function OrientationPage() {
     });
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Orientation scolaire & universitaire"
@@ -622,11 +631,11 @@ export default function OrientationPage() {
                                                                     Série suggérée: {seriesLabel}
                                                                 </span>
                                                                 {topRec.isValidated ? (
-                                                                    <span className="text-[11px] text-success bg-success/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
+                                                                    <span className="text-xs text-success bg-success/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
                                                                         <CheckCircle2 className="w-3 h-3" /> Validé
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="text-[11px] text-warning bg-warning/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
+                                                                    <span className="text-xs text-warning bg-warning/10 px-2 py-0.5 rounded-full w-fit flex items-center gap-1 font-bold">
                                                                         <AlertCircle className="w-3 h-3" /> Non-validé
                                                                     </span>
                                                                 )}
@@ -655,6 +664,6 @@ export default function OrientationPage() {
                     </Card>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

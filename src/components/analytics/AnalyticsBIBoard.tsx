@@ -83,7 +83,9 @@ export function AnalyticsBIBoard({ schoolId, academicYearId, onOpenReport }: Ana
                     fontSize: 13,
                 }}
             >
-                Impossible de charger le tableau BI pour le contexte sélectionné.
+                <p>Impossible de charger le tableau BI pour le contexte sélectionné.</p>
+                {/* S6 : sans école sélectionnée, le serveur explique quoi faire */}
+                {error instanceof Error && error.message && <p className="mt-1">{error.message}</p>}
             </div>
         );
     }
@@ -199,7 +201,7 @@ function MetricCard({
                     <span
                         className="inline-flex items-center gap-1"
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 700,
                             color: trend >= 0 ? "var(--eduflow-success-700)" : "var(--eduflow-danger-700)",
                         }}
@@ -228,7 +230,7 @@ function MetricCard({
                 </div>
                 <div
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 600,
                         color: "var(--eduflow-text-tertiary)",
                         marginTop: 2,
@@ -266,7 +268,7 @@ function BillingBarChart({
                 <h2 className="m-0" style={{ fontSize: 14, fontWeight: 700 }}>
                     Encaissements · 12 mois
                 </h2>
-                <div className="flex gap-3.5" style={{ fontSize: 11 }}>
+                <div className="flex gap-3.5" style={{ fontSize: 12 }}>
                     <span className="inline-flex items-center gap-1.5">
                         <span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--eduflow-brand-700)" }} />
                         Encaissé
@@ -290,7 +292,7 @@ function BillingBarChart({
                         </div>
                         <span
                             className="font-mono"
-                            style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                            style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                         >
                             {m.label}
                         </span>
@@ -368,13 +370,13 @@ function PaymentMixCard({
                         >
                             {fmt2(totalInMillions)}
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             M FCFA
                         </div>
                     </div>
                 </div>
             </div>
-            <div className="flex flex-col gap-1" style={{ fontSize: 11 }}>
+            <div className="flex flex-col gap-1" style={{ fontSize: 12 }}>
                 {paymentMix.length === 0 ? (
                     <span style={{ color: "var(--eduflow-text-tertiary)" }}>
                         Aucun paiement enregistré sur la période.
@@ -417,7 +419,7 @@ function TopSubjectsCard({
             <SubLabel>Top 5 matières · moyennes période courante</SubLabel>
             <div className="mt-3 flex flex-col gap-2.5">
                 {subjects.length === 0 ? (
-                    <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                    <span style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                         Pas encore de moyennes calculées.
                     </span>
                 ) : subjects.map((s) => (
@@ -477,7 +479,7 @@ function InsightCard({
                 <Sparkles className="w-4 h-4" />
                 <span
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 700,
                         opacity: 0.85,
                     }}
@@ -522,7 +524,7 @@ function SubLabel({ children }: { children: React.ReactNode }) {
     return (
         <div
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--eduflow-text-tertiary)",
             }}

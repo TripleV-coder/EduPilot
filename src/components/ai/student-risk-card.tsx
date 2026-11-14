@@ -132,7 +132,7 @@ export function StudentRiskCard({ studentId }: { studentId: string }) {
                   alignItems: "center",
                   padding: "2px 8px",
                   borderRadius: 999,
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 600,
                   background: priorityStyle?.bg,
                   color: priorityStyle?.color,
@@ -167,7 +167,7 @@ export function StudentRiskCard({ studentId }: { studentId: string }) {
                 <p
                   style={{
                     margin: "0 0 6px",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                   }}
@@ -195,7 +195,7 @@ export function StudentRiskCard({ studentId }: { studentId: string }) {
                 <p
                   style={{
                     margin: "0 0 6px",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                   }}
@@ -327,7 +327,7 @@ export function StudentOrientationAction({ studentId }: { studentId: string }) {
               <p
                 style={{
                   margin: "0 0 4px",
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 600,
                   color: "var(--brand-700)",
                 }}

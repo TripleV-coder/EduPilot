@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { feeSchema } from "@/lib/validations/finance";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 
 const FINANCE_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"] as const;
 // Sans valeur par défaut : un PATCH du seul montant ne doit pas remettre
@@ -29,12 +30,18 @@ export const PATCH = createApiHandler(
         if (!fee || !canAccessSchool(context.session, fee.schoolId)) {
             return NextResponse.json({ error: "Frais introuvable" }, { status: 404 });
         }
+        const outOfScope = await superAdminTargetOutOfScope(context.session, fee.schoolId, "fees:update");
+        if (outOfScope) return outOfScope;
 
         const parsed = updateFeeSchema.safeParse(await request.json().catch(() => null));
         if (!parsed.success) {
             return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Données invalides" }, { status: 400 });
         }
         const data = parsed.data;
+        // Année du frais dans la même école (lot S2, doublé en base)
+        if (data.academicYearId && !(await prisma.academicYear.findFirst({ where: { id: data.academicYearId, schoolId: fee.schoolId }, select: { id: true } }))) {
+            return NextResponse.json({ error: "Cette année scolaire n'appartient pas à l'établissement concerné." }, { status: 400 });
+        }
 
         if (data.amount !== undefined && data.amount !== Number(fee.amount) && fee._count.payments > 0) {
             return NextResponse.json(
@@ -71,6 +78,8 @@ export const DELETE = createApiHandler(
         if (!fee || !canAccessSchool(context.session, fee.schoolId)) {
             return NextResponse.json({ error: "Frais introuvable" }, { status: 404 });
         }
+        const outOfScope = await superAdminTargetOutOfScope(context.session, fee.schoolId, "fees:delete");
+        if (outOfScope) return outOfScope;
         if (fee._count.payments > 0) {
             return NextResponse.json(
                 { error: "Des paiements ont déjà été encaissés sur ce frais : il ne peut pas être supprimé." },

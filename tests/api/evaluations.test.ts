@@ -4,8 +4,8 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/prisma", () => ({
-  default: {
+vi.mock("@/lib/prisma", () => {
+  const client: Record<string, unknown> = {
     teacherProfile: { findFirst: vi.fn() },
     classSubject: { findUnique: vi.fn(), findMany: vi.fn() },
     evaluation: { findMany: vi.fn(), count: vi.fn(), create: vi.fn() },
@@ -16,8 +16,13 @@ vi.mock("@/lib/prisma", () => ({
     studentProfile: { findUnique: vi.fn() },
     enrollment: { findMany: vi.fn() },
     classCouncil: { findUnique: vi.fn() },
-  },
-}));
+    $queryRaw: vi.fn(),
+  };
+  // La création passe par une transaction (verrou + plafond du type) : le
+  // client transactionnel est le client mocké lui-même.
+  client.$transaction = vi.fn((fn: (tx: unknown) => unknown) => fn(client));
+  return { default: client };
+});
 
 import prisma from "@/lib/prisma";
 import { GET, POST } from "@/app/api/evaluations/route";
@@ -285,6 +290,30 @@ describe("POST /api/evaluations", () => {
     } as never);
     const res = await POST(makeRequest(evaluationRoute, { method: "POST", body: validBody }));
     expect(res.status).toBe(403);
+  });
+
+  it("refuse au-delà du plafond du type d'évaluation (409)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { id: teacherUserId }));
+    vi.mocked(prisma.classSubject.findUnique).mockResolvedValue({
+      id: classSubjectId,
+      class: { schoolId: FIXTURES.schoolA },
+      teacher: { userId: teacherUserId },
+    } as never);
+    vi.mocked(prisma.period.findUnique).mockResolvedValue({
+      id: periodId,
+      academicYear: { schoolId: FIXTURES.schoolA },
+    } as never);
+    vi.mocked(prisma.evaluationType.findUnique).mockResolvedValue({
+      schoolId: FIXTURES.schoolA,
+      maxCount: 2,
+      name: "Devoir surveillé",
+    } as never);
+    vi.mocked(prisma.evaluation.count).mockResolvedValue(2 as never);
+
+    const res = await POST(makeRequest(evaluationRoute, { method: "POST", body: validBody }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("EVALUATION_TYPE_CAP_REACHED");
+    expect(prisma.evaluation.create).not.toHaveBeenCalled();
   });
 
   it("crée l'évaluation (201)", async () => {

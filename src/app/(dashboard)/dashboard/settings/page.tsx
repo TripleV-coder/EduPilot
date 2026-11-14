@@ -7,7 +7,6 @@ import { useSession } from "next-auth/react";
 import { Badge, Card, Icon, type IconName } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { roleSatisfies } from "@/lib/rbac/permissions";
-import { pick, useUiLang } from "@/lib/i18n/ui-lang";
 
 interface SettingItem {
     icon: IconName;
@@ -63,6 +62,29 @@ const PERSONAL_SETTINGS: SettingItem[] = [
 ];
 
 const ADMIN_SETTINGS: SettingItem[] = [
+    // Équipe et organisation : le menu de la direction est limité à 8 entrées ;
+    // ces écrans n'étaient plus atteignables que par leur adresse.
+    {
+        icon: "users",
+        title: "Enseignants",
+        desc: "Équipe pédagogique, invitations d'enseignants d'autres écoles",
+        href: "/dashboard/teachers",
+        accent: "brand",
+    },
+    {
+        icon: "school",
+        title: "Classes",
+        desc: "Classes, effectifs et professeurs principaux",
+        href: "/dashboard/classes",
+        accent: "info",
+    },
+    {
+        icon: "clock",
+        title: "Emploi du temps",
+        desc: "Créneaux, salles et disponibilités des enseignants",
+        href: "/dashboard/schedule",
+        accent: "success",
+    },
     {
         icon: "calendar",
         title: "Années académiques",
@@ -75,6 +97,13 @@ const ADMIN_SETTINGS: SettingItem[] = [
         title: "Cycles de l'établissement",
         desc: "Primaire, Collège, Lycée offerts",
         href: "/dashboard/settings/cycles",
+        accent: "brand",
+    },
+    {
+        icon: "money",
+        title: "Paiement en ligne",
+        desc: "Compte FedaPay propre à l'établissement",
+        href: "/dashboard/settings/payments",
         accent: "brand",
     },
     {
@@ -154,10 +183,45 @@ const ADMIN_SETTINGS: SettingItem[] = [
         href: "/dashboard/settings/roles",
         accent: "brand",
     },
+    // Pages de paramétrage qui n'avaient aucun point d'entrée
+    {
+        icon: "arrowUp",
+        title: "Promotion de fin d'année",
+        desc: "Passage des élèves dans la classe supérieure",
+        href: "/dashboard/settings/academic/promotion",
+        accent: "warning",
+    },
+    {
+        icon: "pencil",
+        title: "Types d'évaluation",
+        desc: "Interrogations, devoirs, compositions et plafonds",
+        href: "/dashboard/settings/evaluation-types",
+        accent: "info",
+    },
+    {
+        icon: "book",
+        title: "Matières par classe",
+        desc: "Coefficients et enseignants de chaque classe",
+        href: "/dashboard/settings/class-subjects",
+        accent: "success",
+    },
+    {
+        icon: "book",
+        title: "Programmes",
+        desc: "Programmes officiels par niveau",
+        href: "/dashboard/settings/curriculum",
+        accent: "neutral",
+    },
+    {
+        icon: "grid",
+        title: "Cycles, niveaux et séries",
+        desc: "Vue d'ensemble de la structure",
+        href: "/dashboard/settings/levels",
+        accent: "info",
+    },
 ];
 
 export default function SettingsPage() {
-    const lang = useUiLang();
     const { data: session } = useSession();
     const [search, setSearch] = useState("");
 
@@ -174,7 +238,7 @@ export default function SettingsPage() {
     return (
         <PageShell>
             <PageHeader
-                title={pick(lang, "Paramètres", "Settings")}
+                title="Paramètres"
                 description="Préférences de ton compte et configuration de l'établissement."
             />
 
@@ -208,7 +272,7 @@ export default function SettingsPage() {
             {/* Personnel */}
             <Section
                 eyebrow="Compte"
-                title={pick(lang, "Paramètres personnels", "Personal settings")}
+                title="Paramètres personnels"
                 empty={search ? personalFiltered.length === 0 : false}
             >
                 <SettingsGrid items={personalFiltered} />
@@ -258,14 +322,13 @@ function Section({
     empty?: boolean;
     children: React.ReactNode;
 }) {
-    const lang = useUiLang();
     return (
         <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
                 <div>
                     <div
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 700,
                             color: "var(--brand-700)",
                         }}
@@ -297,7 +360,7 @@ function Section({
                                 color: "var(--eduflow-text-secondary)",
                             }}
                         >
-                            {pick(lang, "Aucun paramètre ne correspond à la recherche dans cette section.", "No setting matches the search in this section.")}
+                            {"Aucun paramètre ne correspond à la recherche dans cette section."}
                         </p>
                     </div>
                 </Card>

@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { disciplineAverages, OFFICIAL_SERIES, seriesFullLabel, seriesReadingFor } from "@/lib/benin/series";
+import { disciplineAverages, seriesReadingFor } from "@/lib/benin/series";
 import { getGradingSettings, getPassingGrade } from "@/lib/academic/grading-settings";
 import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import prisma from "@/lib/prisma";
@@ -9,12 +9,10 @@ import { persistStudentAnalyticsSnapshot } from "@/lib/services/analytics-sync";
 import { generateStudentPredictions } from "@/lib/services/ai-predictive";
 import { predictFailureRisk as predictStudentFailureRisk } from "@/lib/services/ai-predictive/predict-failure";
 import { logger } from "@/lib/utils/logger";
-import { studentAlias } from "./pii";
 import { forecastNextAverage } from "@/lib/services/ai-predictive/algorithms/forecast";
 import { templateThresholdsForSchool } from "./school-template-thresholds";
-import { callExternalAI } from "./external-client";
-import { appEnv } from "@/lib/env";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 import {
   generateAppreciation,
   generateActionPlan,
@@ -122,10 +120,6 @@ function getRiskPriority(level: string | null | undefined) {
   }
 }
 
-export function hasExternalAIConfigured() {
-  return appEnv.ai.enabled && appEnv.ai.hasExternalKeys;
-}
-
 class GovernanceService {
   async execute(request: GovernanceRequest, startTime: number): Promise<GovernanceResponse> {
     let result: GovernanceActionResult;
@@ -208,23 +202,7 @@ class GovernanceService {
       { thresholds: await templateThresholdsForSchool(student.schoolId) }
     );
 
-    let planData;
-    if (hasExternalAIConfigured() && analytics) {
-        try {
-            const prompt = `Crée un plan d'action de remédiation personnalisé pour ${studentAlias(student.user?.firstName, student.user?.lastName)} en classe de ${student.enrollments[0]?.class.name}. Moyenne actuelle: ${analytics.generalAverage}. Risque: ${analytics.riskLevel}. Faiblesses: ${analytics.subjectPerformances.filter(s => s.isWeakness).map(s => s.subject.name).join(', ')}. Renvoie un JSON strict: { "title": "...", "description": "...", "priority": "HIGH", "steps": ["étape 1", "étape 2"], "suggestedBy": "Gemini AI" }`;
-            const externalResponse = await callExternalAI({ message: prompt, role: request.userRole });
-            if (externalResponse.success) {
-                const jsonMatch = externalResponse.response.match(/\{[\s\S]*\}/);
-                if (jsonMatch) planData = JSON.parse(jsonMatch[0]);
-            }
-        } catch (error) {
-             logger.warn("Failed to generate action plan via external AI", { error });
-        }
-    }
-
-    if (!planData) {
-        planData = generateActionPlan(templateCtx);
-    }
+    const planData = generateActionPlan(templateCtx);
 
     return { data: planData, confidence: 0.85 };
   }
@@ -256,22 +234,9 @@ class GovernanceService {
       { thresholds: await templateThresholdsForSchool(student.schoolId) }
     );
 
-    let comment = generateAppreciation(templateCtx);
+    const comment = generateAppreciation(templateCtx);
 
-    if (hasExternalAIConfigured() && analytics) {
-        try {
-            const average = analytics?.generalAverage ? Number(analytics.generalAverage) : 0;
-            const prompt = `Rédige une appréciation de bulletin bienveillante et constructive (max 2 phrases) pour ${studentAlias(student.user?.firstName, student.user?.lastName)}. Moyenne générale: ${average.toFixed(2)}/20. Tendance: ${analytics?.progressionRate && Number(analytics.progressionRate) > 0 ? 'En progrès' : 'En baisse'}. Renvoie UNIQUEMENT le texte de l'appréciation.`;
-            const externalResponse = await callExternalAI({ message: prompt, role: request.userRole });
-            if (externalResponse.success && externalResponse.response.trim()) {
-                comment = externalResponse.response.replace(/^["']|["']$/g, '').trim();
-            }
-        } catch (error) {
-            logger.warn("Failed to draft comment via external AI, keeping template", { error });
-        }
-    }
-
-    return { data: { comment }, confidence: hasExternalAIConfigured() ? 0.9 : 0.85 };
+    return { data: { comment }, confidence: 0.85 };
   }
 
   private resolveRequestedStudentId(request: GovernanceRequest) {
@@ -344,6 +309,16 @@ class GovernanceService {
           "FORBIDDEN"
         );
       }
+    }
+
+    // TD-020 : un enseignant n'analyse que les élèves de SES classes, comme
+    // pour les analyses de classe (ensureClassScope).
+    if (request.userRole === "TEACHER" && !(await teacherTeachesStudent(request.userId, student.id))) {
+      throw new AIServiceError(
+        "Accès refusé : cet élève n'est pas dans vos classes",
+        403,
+        "FORBIDDEN"
+      );
     }
 
     if (request.userRole === "STUDENT" && student.userId !== request.userId) {
@@ -1218,88 +1193,17 @@ class GovernanceService {
       (await getGradingSettings(student.schoolId)).orientation,
       seriesReadingFor((await getSchoolParameters(student.schoolId)).exams),
     );
-    let result: {
-      series: string;
-      score?: number;
-      justification: string;
-      alternatives: string[];
-      synthesis: string;
-    } = {
+    const result = {
       series: templateResult.series,
       score: templateResult.score,
       justification: templateResult.justification,
       alternatives: templateResult.alternatives,
       synthesis: templateResult.synthesis,
     };
-    let engine: "external" | "template" = "template";
-
-    if (hasExternalAIConfigured()) {
-      try {
-        const context = {
-          studentName: studentAlias(student.user?.firstName, student.user?.lastName),
-          currentClass: student.enrollments[0]?.class.name,
-          // Une matière ou une moyenne absente n'est jamais envoyée comme un 0
-          generalAverage: analytics.generalAverage === null ? null : Number(analytics.generalAverage),
-          subjects: analytics.subjectPerformances
-            .filter((p) => p.average !== null)
-            .map((p) => ({
-              name: p.subject.name,
-              average: Number(p.average),
-              isStrength: p.isStrength,
-              isWeakness: p.isWeakness,
-            })),
-        };
-
-        const prompt = `En tant qu'expert en orientation scolaire du système béninois, analyse les résultats de l'élève ${context.studentName} (${context.currentClass}) qui finit son cycle BEPC.
-        Notes: ${JSON.stringify(context.subjects)}
-        Moyenne Générale: ${context.generalAverage ?? "non disponible"}
-
-        Recommande la meilleure série pour la classe de Seconde parmi (codes exacts) :
-        ${OFFICIAL_SERIES.map((s) => `${s.code} = ${seriesFullLabel(s.code)}`).join("\n        ")}
-        
-        Réponds UNIQUEMENT par un objet JSON au format:
-        {
-          "series": "CODE_SERIE",
-          "justification": "Explication pédagogique concise (30-50 mots)",
-          "alternatives": ["SERIE2", "SERIE3"]
-        }`;
-
-        const externalResponse = await callExternalAI({
-          message: prompt,
-          role: request.userRole,
-          studentData: context,
-        });
-
-        if (externalResponse.success) {
-          const jsonMatch = externalResponse.response.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            // Réponse du modèle acceptée seulement si les séries existent au référentiel officiel
-            const parsed = JSON.parse(jsonMatch[0]) as { series?: unknown; justification?: unknown; alternatives?: unknown };
-            const official = new Set<string>(OFFICIAL_SERIES.map((s) => s.code));
-            const alternatives = Array.isArray(parsed.alternatives)
-              ? parsed.alternatives.filter((a): a is string => typeof a === "string" && official.has(a))
-              : [];
-            if (typeof parsed.series === "string" && official.has(parsed.series) && typeof parsed.justification === "string") {
-              result = {
-                series: parsed.series,
-                justification: parsed.justification,
-                alternatives,
-                synthesis: templateResult.synthesis,
-              };
-              engine = "external";
-            } else {
-              logger.warn("Orientation IA externe hors référentiel, synthèse locale conservée", { series: parsed.series });
-            }
-          }
-        }
-      } catch (error) {
-        logger.warn("Orientation via external AI failed, keeping template", { error });
-      }
-    }
 
     return {
       data: result,
-      confidence: engine === "external" ? 0.9 : 0.75,
+      confidence: 0.75,
       recommendations: result.alternatives || [],
     };
   }
@@ -1331,8 +1235,6 @@ class GovernanceService {
 
     const { predictFailureRisk } = await import("@/lib/services/ai-predictive/predict-failure");
     const localRisk = await predictFailureRisk(student.id);
-    // Seuils de priorité = niveaux de risque réglés par l'école
-    const riskLevels = (await getSchoolParameters(student.schoolId)).analysis;
 
     const analytics = await this.getLatestStudentAnalytics(student.id, student.schoolId);
 
@@ -1352,66 +1254,6 @@ class GovernanceService {
     );
 
     const templateRisk = generateRiskSummary(templateCtx);
-
-    if (hasExternalAIConfigured()) {
-      try {
-        const context = {
-          studentName: studentAlias(student.user?.firstName, student.user?.lastName),
-          currentClass: student.enrollments[0]?.class.name,
-          riskLevel: localRisk.level,
-          riskProbability: localRisk.probability,
-          factors: localRisk.factors,
-          causalFactors: localRisk.causalFactors,
-        };
-
-        const prompt = `En tant qu'expert en psychopédagogie et réussite scolaire, analyse le risque d'échec de l'élève ${context.studentName} (${context.currentClass}).
-        Niveau de risque: ${context.riskLevel} (${context.riskProbability}%)
-        Facteurs identifiés: ${context.factors.join(", ")}
-        Détails techniques: ${JSON.stringify(context.causalFactors)}
-
-        Propose un plan d'action RÉALISTE, CONCRET et IMMÉDIAT. 
-        Inclus des suggestions très spécifiques comme:
-        - Recours à un répétiteur spécialisé (ex: "Étudiant en Master de Maths pour renforcement en calcul matriciel")
-        - Aménagement spécifique (ex: "Tiers-temps pour les évaluations", "Place au premier rang")
-        - Actions de suivi (ex: "Entretien hebdomadaire avec le conseiller d'orientation")
-        - Implication des parents (ex: "Installation d'un contrôle parental sur les écrans le soir")
-
-        Réponds UNIQUEMENT par un objet JSON au format:
-        {
-          "riskLevel": "${context.riskLevel}",
-          "riskScore": ${context.riskProbability},
-          "factors": ${JSON.stringify(context.factors)},
-          "recommendations": ["Recommandation 1", "Recommandation 2"],
-          "priority": "${localRisk.probability >= riskLevels.levelVeryHigh ? 'CRITICAL' : localRisk.probability >= riskLevels.levelHigh ? 'HIGH' : 'MEDIUM'}",
-          "suggestedActions": [
-            { "title": "Titre court", "description": "Description détaillée", "type": "Pédagogique" | "Suivi" }
-          ],
-          "summary": "Synthèse narrative en français"
-        }`;
-
-        const externalResponse = await callExternalAI({
-          message: prompt,
-          role: request.userRole,
-          studentData: context,
-        });
-
-        if (externalResponse.success) {
-          const jsonMatch = externalResponse.response.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const aiData = JSON.parse(jsonMatch[0]);
-            return {
-              data: {
-                ...aiData,
-                summary: aiData.summary ?? templateRisk.summary,
-              },
-              confidence: 0.9,
-            };
-          }
-        }
-      } catch (error) {
-        logger.warn("Risk intervention via external AI failed, using templates", { error });
-      }
-    }
 
     return {
       data: {

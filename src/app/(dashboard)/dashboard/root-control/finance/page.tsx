@@ -54,7 +54,7 @@ export default function RootFinancePage() {
                     d'affaires et 0 établissement actif : un écran de crise
                     parfaitement lisible, et parfaitement faux. */}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les chiffres de la plateforme."
                         onRetry={() => void mutate()}
                     />

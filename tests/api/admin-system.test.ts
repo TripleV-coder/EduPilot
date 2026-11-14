@@ -174,12 +174,20 @@ describe("POST /api/admin/system/info", () => {
   it("should clear the cache and log the action", async () => {
     vi.mocked(auth).mockResolvedValue(ROOT);
     vi.mocked(prisma.auditLog.create).mockResolvedValue({ id: cuid("log1") } as never);
+    const { getCacheService } = await import("@/lib/cache/service");
+    await getCacheService().set("api:test:a", { valeur: 1 }, 60);
+    await getCacheService().set("api:test:b", { valeur: 2 }, 60);
+
     const res = await POST(makeRequest("http://localhost/api/admin/system/info", { method: "POST", body: { action: "clear-cache" } }));
     const body = await res.json();
 
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(body.message).toBe("Cache effacé avec succès");
+    // Le cache est réellement vidé (avant : réponse de succès sans rien effacer)
+    expect(body.cleared).toBeGreaterThanOrEqual(2);
+    expect(body.message).toContain("Cache vidé");
+    expect(await getCacheService().get("api:test:a")).toBeNull();
+    expect(await getCacheService().get("api:test:b")).toBeNull();
     expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         userId: ROOT.user!.id,

@@ -44,6 +44,15 @@ const SECTION_ICONS: Record<string, IconName> = {
 const fr = (n: number) => String(n).replace(".", ",");
 
 export default function SchoolParametersPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF"]}>
+            <SchoolParametersPageContent />
+        </PageGuard>
+    );
+}
+
+function SchoolParametersPageContent() {
     const { data, error, isLoading, mutate } = useSWR<ParametersResponse>("/api/config/parameters", fetcher);
     const [draft, setDraft] = useState<Values | null>(null);
     const [saving, setSaving] = useState(false);
@@ -112,7 +121,7 @@ export default function SchoolParametersPage() {
     })).filter(({ section, params }) => params.length > 0 || section.title.toLowerCase().includes(q));
 
     return (
-        <PageGuard roles={["SUPER_ADMIN", "NETWORK_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "ACCOUNTANT", "STAFF"]}>
+        <>
             <PageShell className="max-w-4xl pb-28">
                 <PageHeader
                     title="Paramètres de l'établissement"
@@ -121,7 +130,7 @@ export default function SchoolParametersPage() {
                 />
 
                 {error ? (
-                    <PageError message="Impossible de charger les paramètres de l'établissement." onRetry={() => void mutate()} />
+                    <PageError error={error} message="Impossible de charger les paramètres de l'établissement." onRetry={() => void mutate()} />
                 ) : null}
                 {!error && (isLoading || !draft) ? (
                     <Card padding={20}>
@@ -237,7 +246,7 @@ export default function SchoolParametersPage() {
                     </div>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 
@@ -252,7 +261,7 @@ function Section({ icon, title, subtitle, children }: { icon: IconName; title: s
                     <h2 className="eduflow-display" style={{ fontSize: 16, margin: 0 }}>
                         {title}
                     </h2>
-                    {subtitle ? <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>{subtitle}</p> : null}
+                    {subtitle ? <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>{subtitle}</p> : null}
                 </div>
             </div>
             <div className="px-5 py-5">{children}</div>
@@ -326,13 +335,13 @@ function NumberField({
                     <button
                         type="button"
                         onClick={onReset}
-                        style={{ fontSize: 11, color: "var(--brand-700)", background: "none", border: 0, padding: 0, cursor: "pointer", textDecoration: "underline" }}
+                        style={{ fontSize: 12, color: "var(--brand-700)", background: "none", border: 0, padding: 0, cursor: "pointer", textDecoration: "underline" }}
                     >
                         Revenir à {typeof defaultValue === "number" ? fr(defaultValue) : "l'origine"}
                     </button>
                 ) : null}
             </div>
-            <p id={helpId} style={{ margin: "4px 0 0", fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+            <p id={helpId} style={{ margin: "4px 0 0", fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                 {info.help ? `${info.help} ` : ""}
                 Entre {fr(info.min)} et {fr(info.max)} · origine : {typeof defaultValue === "number" ? fr(defaultValue) : "—"}
             </p>

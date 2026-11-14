@@ -261,7 +261,7 @@ export function StudentOnboarding({ user }: { user: string }) {
                                 />
                                 <span
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         color: `var(--eduflow-${o.color}-800)`,
                                     }}

@@ -15,11 +15,10 @@
  *   WEB_CONCURRENCY=4           → 4 processus ;
  *   WEB_CONCURRENCY=max         → un processus par cœur disponible.
  *
- * Au-delà d'un processus, les limites de débit, les compteurs d'échecs de
- * connexion et le coupe-circuit DOIVENT être partagés : `REDIS_URL` est
- * obligatoire, sinon chaque processus aurait ses propres compteurs et les
- * limites seraient multipliées par le nombre de processus (une protection
- * contre la force brute divisée d'autant). Le lanceur refuse alors de démarrer.
+ * Les limites de débit, les compteurs d'échecs de connexion et les
+ * coupe-circuits sont partagés par PostgreSQL (`src/lib/shared-state`,
+ * depuis le 2026-11-07) : plusieurs processus ne multiplient pas les limites,
+ * sans aucun service supplémentaire.
  *
  * Chaque processus charge les deux préchargements (adresse client fiable H3,
  * arrêt propre Lot 7). Le processus principal ne sert aucune requête : il
@@ -44,12 +43,6 @@ function workerCount() {
     return Number.isInteger(n) && n >= 1 ? n : 1;
 }
 
-function hasSharedStore() {
-    return Boolean(
-        process.env.REDIS_URL || (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN),
-    );
-}
-
 const count = workerCount();
 
 if (count === 1) {
@@ -57,15 +50,6 @@ if (count === 1) {
     for (const preload of PRELOADS) require(preload);
     require(serverEntry);
 } else if (cluster.isPrimary) {
-    if (!hasSharedStore() && process.env.CLUSTER_ALLOW_LOCAL_LIMITS !== "true") {
-        console.error(
-            `[cluster] REFUS : WEB_CONCURRENCY=${count} sans REDIS_URL. Les limites de débit et les compteurs ` +
-                "d'échecs de connexion seraient propres à chaque processus (protections multipliées par " +
-                `${count}). Configurer REDIS_URL, ou WEB_CONCURRENCY=1.`,
-        );
-        process.exit(1);
-    }
-
     cluster.setupPrimary({
         exec: serverEntry,
         execArgv: [...process.execArgv, ...PRELOADS.flatMap((preload) => ["--require", preload])],

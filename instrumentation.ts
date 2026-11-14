@@ -30,19 +30,35 @@ export async function register() {
       log.info("Connexions PostgreSQL fermées", { module: "server/shutdown" });
     });
     registerShutdownTask(async () => {
-      const { closeRedis } = await import("./src/lib/cache/redis");
-      await closeRedis();
-      log.info("Client Redis fermé", { module: "server/shutdown" });
-    });
-    registerShutdownTask(async () => {
-      const { closeTcpRedis } = await import("./src/lib/redis/tcp");
-      await closeTcpRedis();
+      const { closeCache } = await import("./src/lib/cache/service");
+      await closeCache();
     });
 
     // RLS effective (audit M2) : refus d'un rôle PostgreSQL qui l'ignorerait.
     if (process.env.NODE_ENV === "production") {
       const { assertRlsEnforcedAtStartup } = await import("./src/lib/db/rls-guard");
       await assertRlsEnforcedAtStartup(db, (message) => log.warn(message));
+    }
+
+    // Installation pas encore faite : le jeton (dérivé du secret maître) est
+    // donné à l'exploitant dans ce journal, plus de variable à définir.
+    if (process.env.NODE_ENV === "production") {
+      const { logPendingSetup } = await import("./src/lib/auth/setup-token");
+      const { prismaBase } = await import("./src/lib/prisma");
+      await logPendingSetup(() => prismaBase.user.count(), (message) => log.warn(message)).catch(() => {});
+    }
+
+    // Réglages e-mail / SMS / voix / WhatsApp saisis dans la console root (relus toutes les 30 s)
+    const { startIntegrationSettingsRefresh } = await import("./src/lib/system/integration-settings");
+    await startIntegrationSettingsRefresh();
+    if (process.env.NODE_ENV === "production" && process.env.SKIP_ENV_VALIDATION !== "true") {
+      const { emailEnv, resolveEmailProvider } = await import("./src/lib/email");
+      if (!resolveEmailProvider() || !emailEnv().EMAIL_FROM?.trim()) {
+        log.warn(
+          "E-mail non configuré : les réinitialisations de mot de passe ne partiront pas. " +
+            "Le régler dans la console root › Intégrations › E-mail.",
+        );
+      }
     }
 
     const { warmCache } = await import("./src/lib/cache/warm");
@@ -54,55 +70,27 @@ export async function register() {
       jobs.startJobWorker();
     }
 
-    // Surveillance des erreurs — facultative, et chargée en dernier.
-    //
-    // Sentry entraîne avec lui l'instrumentation OpenTelemetry, dont les
-    // modules externes (`require-in-the-middle`) ne sont pas embarqués dans la
-    // sortie standalone. Une dépendance absente y faisait échouer TOUT ce
-    // hook : plus de validation d'environnement, plus de garde RLS, plus de
-    // fermetures à l'arrêt. Sans DSN, on ne la charge même pas ; avec DSN, un
-    // échec est signalé et le serveur démarre quand même.
-    if (process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN) {
-      try {
-        const { initSentryServer } = await import("./src/lib/monitoring/sentry");
-        initSentryServer();
-      } catch (error) {
-        log.warn("Sentry n'a pas pu être initialisé — le serveur démarre sans surveillance des erreurs.", {
-          module: "monitoring/sentry",
-          reason: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-  }
-
-  if (process.env.NEXT_RUNTIME === "edge") {
-    if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) return;
-    try {
-      const { initSentryEdge } = await import("./src/lib/monitoring/sentry");
-      initSentryEdge();
-    } catch {
-      // Runtime Edge : pas de journal applicatif ici, et l'absence de
-      // surveillance ne doit pas empêcher le middleware de tourner.
-    }
+    // Notifications push (Lot F) : toute notification créée part aussi vers les
+    // appareils abonnés de son destinataire, via la file ci-dessus. Écouteur
+    // inscrit dans tous les processus web (là où les notifications naissent).
+    const { registerPushDispatch } = await import("./src/lib/push/dispatch");
+    registerPushDispatch();
   }
 }
 
 /**
- * Capture des erreurs de rendu App Router (erreurs serveur non interceptées).
- * Requis par le SDK Sentry v10 pour un monitoring complet.
- * Note : le type du bundle edge n'expose pas ces helpers — cast contrôlé.
+ * Erreurs de rendu et de route non interceptées (App Router) : inscrites au
+ * journal des erreurs, avec alerte aux super-administrateurs (remplace
+ * Sentry, 2026-11-08). Les erreurs 500 des routes API passant par
+ * createApiHandler y sont inscrites par le gestionnaire lui-même.
  */
-export async function onRequestError(error: unknown, request: unknown, context: unknown) {
-  if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) return;
+export async function onRequestError(error: unknown, request: { path?: string } | unknown) {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
   try {
-    const Sentry = (await import("@sentry/nextjs")) as unknown as {
-      captureRequestError: (error: unknown, request: unknown, context: unknown) => void;
-      flush: (timeout?: number) => Promise<boolean>;
-    };
-    Sentry.captureRequestError(error, request, context);
-    await Sentry.flush(2000);
+    const { recordError, serverErrorReport } = await import("./src/lib/monitoring/error-journal");
+    const path = (request as { path?: string } | null)?.path ?? null;
+    await recordError(serverErrorReport(error, path));
   } catch {
-    // Surveillance indisponible : l'erreur d'origine a déjà été journalisée
-    // par l'application, il n'y a rien de plus à faire ici.
+    // Journal indisponible : l'erreur d'origine a déjà été écrite par Next
   }
 }

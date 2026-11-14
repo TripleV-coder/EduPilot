@@ -17,8 +17,15 @@ vi.mock("@/lib/notifications/sms-service", () => ({
   sendAttendanceSMS: vi.fn(),
   sendPaymentReminderSMS: vi.fn(),
   sendGradesNotificationSMS: vi.fn(),
-  sendBulkSMS: vi.fn(),
+  attendanceSmsMessage: vi.fn(({ studentName, status }: { studentName: string; status: string }) => `${studentName} ${status}`),
+  paymentReminderMessage: vi.fn(() => "Rappel paiement"),
+  gradesMessage: vi.fn(() => "Notes disponibles"),
   SMSType: {},
+}));
+// WhatsApp prioritaire : par défaut non configuré (chemin SMS d'origine)
+vi.mock("@/lib/notifications/family-channel", () => ({
+  familyChannels: vi.fn(() => ({ whatsapp: false, sms: true, any: true })),
+  queueFamilyMessages: vi.fn(async (items: unknown[]) => ({ whatsapp: 0, sms: items.length, skipped: 0 })),
 }));
 
 import prisma from "@/lib/prisma";
@@ -27,8 +34,8 @@ import {
   sendAttendanceSMS,
   sendPaymentReminderSMS,
   sendGradesNotificationSMS,
-  sendBulkSMS,
 } from "@/lib/notifications/sms-service";
+import { familyChannels, queueFamilyMessages } from "@/lib/notifications/family-channel";
 import { POST } from "@/app/api/notifications/sms/route";
 
 const PHONE = "0199001122";
@@ -48,7 +55,7 @@ beforeEach(() => {
   vi.mocked(sendAttendanceSMS).mockResolvedValue({ success: true, messageId: "sms2", queued: true });
   vi.mocked(sendPaymentReminderSMS).mockResolvedValue({ success: true, messageId: "sms3", queued: true });
   vi.mocked(sendGradesNotificationSMS).mockResolvedValue({ success: true, messageId: "sms4", queued: true });
-  vi.mocked(sendBulkSMS).mockResolvedValue({ sent: 0, failed: 0, queued: 1 });
+  vi.mocked(familyChannels).mockReturnValue({ whatsapp: false, sms: true, any: true });
 });
 
 describe("POST /api/notifications/sms — envoi simple", () => {
@@ -169,7 +176,6 @@ describe("POST /api/notifications/sms — envoi simple", () => {
 describe("POST /api/notifications/sms?bulk=true — envoi groupé", () => {
   it("met en file les SMS des destinataires fournis explicitement", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { schoolId: FIXTURES.schoolA }));
-    vi.mocked(sendBulkSMS).mockResolvedValue({ sent: 0, failed: 0, queued: 2 });
     const res = await smsRequest(
       {
         type: "CUSTOM",
@@ -185,10 +191,9 @@ describe("POST /api/notifications/sms?bulk=true — envoi groupé", () => {
     expect(body.queued).toBe(2);
     expect(body.failed).toBe(0);
     expect(body.recipientsCount).toBe(2);
-    expect(sendBulkSMS).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ phone: "0101010101" })]),
-      "CUSTOM",
-      FIXTURES.schoolA
+    expect(queueFamilyMessages).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ kind: "CUSTOM", schoolId: FIXTURES.schoolA, smsFallback: true,  phone: "0101010101" })]),
+      "BULK"
     );
   });
 
@@ -204,12 +209,11 @@ describe("POST /api/notifications/sms?bulk=true — envoi groupé", () => {
       "?bulk=true"
     );
     expect(res.status).toBe(200);
-    expect(sendBulkSMS).toHaveBeenCalledWith(
+    expect(queueFamilyMessages).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ phone: "0303030303", message: "Réunion Paul" }),
+        expect.objectContaining({ kind: "CUSTOM", schoolId: FIXTURES.schoolA, smsFallback: true,  phone: "0303030303", message: "Réunion Paul" }),
       ]),
-      "CUSTOM",
-      FIXTURES.schoolA
+      "BULK"
     );
     expect(vi.mocked(prisma.user.findMany)).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ schoolId: FIXTURES.schoolA, role: "TEACHER" }) })
@@ -234,12 +238,11 @@ describe("POST /api/notifications/sms?bulk=true — envoi groupé", () => {
       "?bulk=true"
     );
     expect(res.status).toBe(200);
-    expect(sendBulkSMS).toHaveBeenCalledWith(
+    expect(queueFamilyMessages).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ phone: "0404040404", message: "Solde 40000 FCFA" }),
+        expect.objectContaining({ kind: "REMINDER", schoolId: FIXTURES.schoolA, smsFallback: true,  phone: "0404040404", message: "Solde 40000 FCFA" }),
       ]),
-      "REMINDER",
-      FIXTURES.schoolA
+      "BULK"
     );
   });
 
@@ -257,12 +260,11 @@ describe("POST /api/notifications/sms?bulk=true — envoi groupé", () => {
       "?bulk=true"
     );
     expect(res.status).toBe(200);
-    expect(sendBulkSMS).toHaveBeenCalledWith(
+    expect(queueFamilyMessages).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ phone: "0505050505", message: "Votre enfant Kofi Ade" }),
+        expect.objectContaining({ kind: "ATTENDANCE", schoolId: FIXTURES.schoolA, smsFallback: true,  phone: "0505050505", message: "Votre enfant Kofi Ade" }),
       ]),
-      "ATTENDANCE",
-      FIXTURES.schoolA
+      "BULK"
     );
   });
 
@@ -293,5 +295,29 @@ describe("POST /api/notifications/sms — SUPER_ADMIN sans école", () => {
     const res = await smsRequest({ type: "CUSTOM", phoneNumber: PHONE, message: "Global" });
     expect(res.status).toBe(200);
     expect(queueSMS).toHaveBeenCalledWith(expect.objectContaining({ schoolId: "super_admin" }));
+  });
+});
+
+describe("POST /api/notifications/sms — WhatsApp prioritaire", () => {
+  it("message unique : part par WhatsApp quand il est configuré (SMS en secours)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { schoolId: FIXTURES.schoolA }));
+    vi.mocked(familyChannels).mockReturnValue({ whatsapp: true, sms: true, any: true });
+    vi.mocked(queueFamilyMessages).mockResolvedValueOnce({ whatsapp: 1, sms: 0, skipped: 0 });
+    const res = await smsRequest({ type: "CUSTOM", phoneNumber: PHONE, message: "Réunion jeudi" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ success: true, channel: "WHATSAPP", whatsapp: 1 });
+    expect(queueFamilyMessages).toHaveBeenCalledWith(
+      [{ phone: PHONE, message: "Réunion jeudi", kind: "CUSTOM", schoolId: FIXTURES.schoolA, smsFallback: true }],
+      "MANUAL",
+    );
+    expect(queueSMS).not.toHaveBeenCalled();
+  });
+
+  it("envoi groupé sans aucun canal configuré : 503 explicite", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { schoolId: FIXTURES.schoolA }));
+    vi.mocked(queueFamilyMessages).mockResolvedValueOnce({ whatsapp: 0, sms: 0, skipped: 1 });
+    const res = await smsRequest({ type: "CUSTOM", recipients: [{ phone: "0101010101", message: "Hi" }] }, "?bulk=true");
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toMatch(/WhatsApp ou SMS/);
   });
 });

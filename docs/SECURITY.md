@@ -22,7 +22,7 @@ Document de référence pour l'équipe de sécurité, les auditeurs externes et 
 ## 2. Authentification et session
 
 ### 2.1 Hachage des mots de passe
-- **Algorithme** : `bcryptjs` avec coût **12** rounds (`src/lib/auth/config.ts`)
+- **Algorithme** : `bcrypt` (module natif, calcul hors du thread des requêtes) avec coût **12** rounds (`src/lib/auth/password.ts`)
 - **Pepper** : non utilisé (à évaluer en V2)
 - **Politique de complexité** : `strongPasswordSchema` exige 8+ caractères, 1 majuscule, 1 minuscule, 1 chiffre
 - **Politique renforcée** : `veryStrongPasswordSchema` exige en plus 1 caractère spécial (utilisée pour les comptes admin via `schoolDeploymentSchema`)
@@ -35,7 +35,7 @@ Document de référence pour l'équipe de sécurité, les auditeurs externes et 
 - **Expiration** : 30 jours glissants, invalidation au logout et au changement de mot de passe
 
 ### 2.3 Multi-facteur (MFA / 2FA)
-- **Standard** : TOTP (RFC 6238) via `otplib`, 6 chiffres, période 30s, fenêtre ±1
+- **Standard** : TOTP (RFC 6238) implémenté avec `node:crypto` (`src/lib/auth/totp.ts`, vérifié contre les vecteurs officiels des RFC 4226 et 6238), HMAC-SHA1, 6 chiffres, période 30s, fenêtre ±1, comparaison à temps constant
 - **Secret chiffré** : AES-256-GCM en base via `TOTP_ENCRYPTION_KEY` (64 chars hex). Format DB : `iv:authTag:ciphertext`
 - **QR code** : généré à la volée via `qrcode`, jamais persisté
 - **Activation** : optionnelle pour STUDENT/PARENT, recommandée pour TEACHER, à imposer pour DIRECTOR+ en V2
@@ -167,7 +167,7 @@ Source : `next.config.js`, appliqué sur toutes les routes (`source: "/(.*)"`).
 | `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Force HTTPS pendant 2 ans |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Désactive les API navigateur sensibles |
 
-**Connect-src** autorise explicitement : `*.upstash.io` (cache), `*.ingest.sentry.io` (monitoring), `generativelanguage.googleapis.com` (Gemini), `api.openai.com`, `api.anthropic.com`.
+**Connect-src** autorise explicitement : `*.upstash.io` (cache), `*.ingest.sentry.io` (monitoring), `api.fedapay.com` et `sandbox-api.fedapay.com` (paiement). Aucun service d'IA externe : l'assistant est calculé sur le serveur (ADR-0012).
 
 ---
 
@@ -236,7 +236,7 @@ Index sur `(userId)`, `(entity, entityId)`, `(createdAt)`. Consultable via `/das
 | A06 | Vulnerable Components | OK | `npm audit` en CI (fail on high), Dependabot hebdo, Trivy filesystem + image scan |
 | A07 | Auth Failures | OK | bcrypt + MFA + lockout + rate limit + session rotation |
 | A08 | Software/Data Integrity | OK | SBOM CycloneDX généré en CI, build provenance (`attest-build-provenance`), image GHCR signée |
-| A09 | Logging/Monitoring | OK | Pino logger structuré, Sentry (frontend + backend), audit log immuable |
+| A09 | Logging/Monitoring | OK | Logger structuré, journal des erreurs interne (serveur + navigateur), audit log immuable |
 | A10 | SSRF | OK | Pas d'URL utilisateur appelée côté serveur sans whitelist (uniquement webhooks signés) |
 
 ---
@@ -253,7 +253,7 @@ EduPilot stocke des données personnelles de **mineurs** (élèves) — vigilanc
 | Droit à la portabilité (Art.20) | Export JSON structuré identique au droit d'accès |
 | Limitation du traitement | Toggle `dataProcessingPaused` sur le compte parent |
 | Registre des traitements | `docs/data-registry.md` (à compléter pour l'auditeur DPO) |
-| Sous-traitants (DPA) | Vercel (hébergement), Upstash (cache), Sentry (monitoring), Resend (email), Stripe/Flutterwave (paiement). Tous DPA signés avant prod |
+| Sous-traitants (DPA) | Vercel (hébergement), Resend (email), Stripe/Flutterwave (paiement). Tous DPA signés avant prod |
 | Notification de breach | 72h vers CNIL via `bosco29962355977@gmail.com` (DPO interne) + email aux utilisateurs impactés. Procédure dans [`RUNBOOK.md`](./RUNBOOK.md#data-breach) |
 | Rétention | Voir tableau ci-dessous |
 
@@ -267,7 +267,7 @@ EduPilot stocke des données personnelles de **mineurs** (élèves) — vigilanc
 | Paiements / factures | 10 ans | Obligation comptable |
 | Audit logs | 12 mois en chaud, 5 ans en archive | Investigation + conformité |
 | Sessions | 30 jours glissants | Sécurité |
-| Logs applicatifs (Sentry) | 90 jours | Debug |
+| Journal des erreurs | 30 jours | Debug |
 
 ---
 

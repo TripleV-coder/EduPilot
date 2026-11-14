@@ -54,7 +54,8 @@ describe("GET /api/system/health", () => {
     expect(body.dbResponseTimeMs).toBeGreaterThanOrEqual(0);
     expect(body.checks.database).toBe("healthy");
     expect(body.checks.api).toBe("healthy");
-    expect(body.checks.cache).toBe("disabled");
+    // État partagé PostgreSQL joignable (coupe-circuit fermé)
+    expect(body.checks.cache).toBe("healthy");
     expect(body.checks.jobs).toBe("healthy");
     expect(body.jobs).toMatchObject({ PENDING: 0, DONE: 3, backlogMs: 0 });
     expect(prisma.$queryRaw).toHaveBeenCalled();

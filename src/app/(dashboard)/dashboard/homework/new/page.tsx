@@ -23,6 +23,15 @@ import type { ClassSubjectWithTeacher } from "@/lib/types";
 import { Spinner } from "@/components/edu";
 
 export default function NewHomeworkPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.EVALUATION_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+            <NewHomeworkPageContent />
+        </PageGuard>
+    );
+}
+
+function NewHomeworkPageContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -87,7 +96,7 @@ export default function NewHomeworkPage() {
   };
 
   return (
-    <PageGuard permission={[Permission.EVALUATION_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}>
+    <>
       <div className="space-y-6 max-w-3xl mx-auto pb-10">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/homework">
@@ -201,6 +210,6 @@ export default function NewHomeworkPage() {
           </div>
         </form>
       </div>
-    </PageGuard>
+    </>
   );
 }

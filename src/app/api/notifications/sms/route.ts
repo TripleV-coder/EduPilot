@@ -9,13 +9,37 @@ import {
     sendAttendanceSMS,
     sendPaymentReminderSMS,
     sendGradesNotificationSMS,
-    sendBulkSMS,
+    attendanceSmsMessage,
+    paymentReminderMessage,
+    gradesMessage,
     SMSType
 } from "@/lib/notifications/sms-service";
+import { familyChannels, queueFamilyMessages } from "@/lib/notifications/family-channel";
+import { toInternationalDigits } from "@/lib/notifications/phone";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 type BulkTarget = "parents_all" | "parents_debt" | "teachers_all";
+
+/** Texte d'un message unique, ou null si un champ requis manque (refusé plus bas). */
+function singleMessageText(data: z.infer<typeof smsSchema>): string | null {
+    switch (data.type) {
+        case "ATTENDANCE":
+            return data.studentName && data.status
+                ? attendanceSmsMessage({ studentName: data.studentName, status: data.status, date: new Date() })
+                : null;
+        case "PAYMENT":
+            return data.studentName && data.amount && data.dueDate
+                ? paymentReminderMessage({ studentName: data.studentName, amount: data.amount, dueDate: new Date(data.dueDate) })
+                : null;
+        case "GRADES":
+            return data.studentName && data.period
+                ? gradesMessage({ studentName: data.studentName, period: data.period, average: data.average })
+                : null;
+        default:
+            return data.message ?? null;
+    }
+}
 
 const smsSchema = z.object({
     type: z.enum(["ATTENDANCE", "GRADES", "PAYMENT", "REMINDER", "CUSTOM"]),
@@ -267,23 +291,48 @@ export const POST = createApiHandler(async (request, { session }) => {
                 );
             }
 
-            const result = await sendBulkSMS(
-                recipients,
-                validated.type as SMSType,
-                schoolId || "super_admin"
+            // WhatsApp d'abord, SMS en secours (lib/notifications/family-channel.ts)
+            const result = await queueFamilyMessages(
+                recipients.map((recipient) => ({
+                    phone: recipient.phone,
+                    message: recipient.message,
+                    kind: validated.type as SMSType,
+                    schoolId: schoolId || "super_admin",
+                    smsFallback: true,
+                })),
+                "BULK",
             );
+            if (result.whatsapp + result.sms === 0) {
+                return NextResponse.json(
+                    { error: "Aucun canal configuré : WhatsApp ou SMS (console root › Intégrations)." },
+                    { status: 503 }
+                );
+            }
 
             return NextResponse.json({
                 success: true,
-                sent: result.sent,
-                failed: result.failed,
-                queued: result.queued,
+                sent: 0,
+                failed: result.skipped,
+                queued: result.whatsapp + result.sms,
+                whatsapp: result.whatsapp,
+                sms: result.sms,
                 recipientsCount: recipients.length,
             });
         }
 
-        // Single SMS
+        // Message unique
         const validated = smsSchema.parse(body);
+
+        // WhatsApp en priorité quand il est disponible pour ce type de message ;
+        // sinon (ou champs incomplets, refusés plus bas) : chemin SMS.
+        const text = singleMessageText(validated);
+        if (text && schoolId && toInternationalDigits(validated.phoneNumber) && familyChannels(validated.type).whatsapp) {
+            const queued = await queueFamilyMessages(
+                [{ phone: validated.phoneNumber, message: text, kind: validated.type, schoolId, smsFallback: true }],
+                "MANUAL",
+            );
+            return NextResponse.json({ success: true, queued: true, channel: "WHATSAPP", whatsapp: queued.whatsapp });
+        }
 
         let result;
 

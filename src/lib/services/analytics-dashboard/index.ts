@@ -8,6 +8,7 @@ export {
   buildSubjectSummary,
   buildAtRiskStudents,
 } from "./builders";
+import prisma from "@/lib/prisma";
 import { memoizeAsync } from "@/lib/cache/memo";
 import { getAdminDashboardData as computeAdmin, getGlobalDashboardData as computeGlobal } from "./admin";
 import { getTeacherDashboardData as computeTeacher } from "./teacher";
@@ -50,10 +51,29 @@ export const getStudentDashboardData = memoizeAsync(
   { ttlMs: PERSONAL_TTL_MS, key: (userId, yearId) => ["student", userId, yearId].join("|") },
   computeStudent,
 );
-export const getParentDashboardData = memoizeAsync(
-  { ttlMs: PERSONAL_TTL_MS, key: (userId, yearId) => ["parent", userId, yearId].join("|") },
-  computeParent,
+const memoParent = memoizeAsync(
+  {
+    ttlMs: PERSONAL_TTL_MS,
+    key: (userId: string, yearId: string, childIds: string) => ["parent", userId, yearId, childIds].join("|"),
+  },
+  (userId: string, yearId: string, _childIds: string) => computeParent(userId, yearId),
 );
+
+/**
+ * Accueil parent : la clé porte aussi la liste des enfants rattachés (une
+ * lecture indexée). Un enfant rattaché ou retiré change la clé : la vue est
+ * recalculée tout de suite, dans tous les processus — sans cela, le parent
+ * qui venait de saisir son code de liaison voyait encore « aucun enfant »
+ * pendant 30 s (E2E d'installation à vide, 2026-11-12).
+ */
+export async function getParentDashboardData(userId: string, yearId: string): ReturnType<typeof computeParent> {
+  const links = await prisma.parentStudent.findMany({
+    where: { parent: { userId } },
+    select: { studentId: true },
+    orderBy: { studentId: "asc" },
+  });
+  return memoParent(userId, yearId, links.map((link) => link.studentId).join(","));
+}
 export const getAccountantDashboardData = memoizeAsync(
   { ttlMs: SCHOOL_TTL_MS, key: (schoolId) => ["accountant", schoolId].join("|") },
   computeAccountant,

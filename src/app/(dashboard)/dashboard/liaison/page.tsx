@@ -78,6 +78,15 @@ const FR_DATE = (iso: string): string => {
 };
 
 export default function LiaisonPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["PARENT", "STUDENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN"]} >
+            <LiaisonPageContent />
+        </PageGuard>
+    );
+}
+
+function LiaisonPageContent() {
     const [data, setData] = useState<LiaisonData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -167,10 +176,7 @@ export default function LiaisonPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["PARENT", "STUDENT", "TEACHER", "DIRECTOR", "SCHOOL_ADMIN"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title={
@@ -216,7 +222,7 @@ export default function LiaisonPage() {
                     <PageLoading label="Chargement du cahier…" />
                 ) : null}
 
-                {error ? <PageError message={error} /> : null}
+                {error ? <PageError error={error} message={error} /> : null}
 
                 {needsStudent ? (
                     <PageEmpty
@@ -382,7 +388,7 @@ export default function LiaisonPage() {
                                                     </span>
                                                     <span
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                         }}
@@ -416,7 +422,7 @@ export default function LiaisonPage() {
                                                 </p>
                                                 <div
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
                                                         marginTop: 6,
@@ -552,7 +558,7 @@ export default function LiaisonPage() {
                                     {composeStatus ? (
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-secondary)",
                                                 marginTop: 4,
                                             }}
@@ -574,7 +580,7 @@ export default function LiaisonPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 
@@ -608,7 +614,7 @@ function RecapTile({
             </div>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: `var(--eduflow-${tone}-800)`,
                     fontWeight: 600,
                 }}

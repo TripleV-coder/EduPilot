@@ -23,6 +23,7 @@ import {
 } from "@/components/edu";
 import { DataTable } from "@/components/layout/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
+import { TeacherInvitationsPanel } from "@/components/teachers/teacher-invitations-panel";
 import { PersonList, PersonRow } from "@/components/edu-homes/person-list";
 import { PageEmpty, PageError, PageLoading } from "@/components/layout/page-states";
 
@@ -45,6 +46,15 @@ type TeachersResponse = {
 };
 
 export default function TeachersPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.TEACHER_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]} >
+            <TeachersPageContent />
+        </PageGuard>
+    );
+}
+
+function TeachersPageContent() {
     const [searchTerm, setSearchTerm] = useState("");
     const debouncedSearch = useDebounce(searchTerm, 500);
     const [selectedStatus, setSelectedStatus] = useState("ALL");
@@ -148,10 +158,7 @@ export default function TeachersPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.TEACHER_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Enseignants"
@@ -223,7 +230,7 @@ export default function TeachersPage() {
 
                 {loading ? <PageLoading label="Chargement des enseignants…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les enseignants."
                         onRetry={() => void mutateTeachers()}
                     />
@@ -298,7 +305,7 @@ export default function TeachersPage() {
                                                 <div className="text-[13px] font-semibold">{fullName}</div>
                                                 {teacher.user?.email ? (
                                                     <div
-                                                        className="truncate text-[11px]"
+                                                        className="truncate text-xs"
                                                         style={{ color: "var(--eduflow-text-tertiary)" }}
                                                     >
                                                         {teacher.user.email}
@@ -396,6 +403,8 @@ export default function TeachersPage() {
                         ]}
                     />
                 ) : null}
+
+                <TeacherInvitationsPanel onMembersChanged={() => void mutateTeachers()} />
             </PageShell>
 
             <ConfirmActionDialog
@@ -416,7 +425,7 @@ export default function TeachersPage() {
                 isConfirmLoading={isDeleting}
                 onConfirm={confirmDelete}
             />
-        </PageGuard>
+        </>
     );
 }
 
@@ -490,7 +499,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -546,7 +555,7 @@ function FieldSearch({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

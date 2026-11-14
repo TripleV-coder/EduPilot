@@ -1,21 +1,10 @@
+/**
+ * Création des notifications in-app. Le flux SSE (`/api/notifications/stream`)
+ * les reçoit par le relevé commun du processus (`realtime-hub`) ; une
+ * notification créée ici est livrée sans attendre ce relevé.
+ */
 import prisma from "@/lib/prisma";
-import Redis from "ioredis";
-import { logger } from "@/lib/utils/logger";
-
-const redisUrl = process.env.REDIS_URL;
-if (!redisUrl) {
-  logger.warn("REDIS_URL non défini — les notifications temps réel seront désactivées", {
-    module: "notification.service",
-  });
-}
-let publisher: Redis | null = null;
-function getPublisher(): Redis | null {
-  if (!redisUrl) return null;
-  if (!publisher) {
-    publisher = new Redis(redisUrl);
-  }
-  return publisher;
-}
+import { notificationHub } from "@/lib/notifications/realtime-hub";
 
 type NotificationType = "INFO" | "SUCCESS" | "WARNING" | "ERROR" | "GRADE" | "PAYMENT" | "BULLETIN" | "ENROLLMENT" | "SYSTEM" | "MESSAGE" | "ATTENDANCE";
 
@@ -45,8 +34,9 @@ export async function createNotification(params: CreateNotificationParams) {
       link: params.link,
     },
   });
+  // Destinataire connecté à ce processus : livré tout de suite
+  notificationHub.publish(notif);
 
-  getPublisher()?.publish(`notifications:${params.userId}`, JSON.stringify(notif)).catch(() => { });
   return notif;
 }
 
@@ -63,11 +53,6 @@ export async function createNotifications(items: CreateNotificationParams[]) {
     })),
   });
 
-  const pub = getPublisher();
-  for (const userId of new Set(items.map((item) => item.userId))) {
-    pub?.publish(`notifications:${userId}`, JSON.stringify({ REFRESH_REQUIRED: true })).catch(() => { });
-  }
-
   return result;
 }
 
@@ -80,12 +65,5 @@ export async function createBulkNotifications(params: BulkNotificationParams) {
     link: params.link,
   }));
 
-  const result = await prisma.notification.createMany({ data });
-
-  const pub = getPublisher();
-  params.userIds.forEach(userId => {
-    pub?.publish(`notifications:${userId}`, JSON.stringify({ REFRESH_REQUIRED: true })).catch(() => { });
-  });
-
-  return result;
+  return prisma.notification.createMany({ data });
 }

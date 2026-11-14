@@ -47,6 +47,15 @@ const COMPETENCE_OPTIONS = [
 ];
 
 export default function CompetencesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]} >
+            <CompetencesPageContent />
+        </PageGuard>
+    );
+}
+
+function CompetencesPageContent() {
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [subjects, setSubjects] = useState<SubjectOption[]>([]);
     const [selectedClass, setSelectedClass] = useState("");
@@ -107,10 +116,7 @@ export default function CompetencesPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Évaluations par compétences"
@@ -329,7 +335,7 @@ export default function CompetencesPage() {
                                                     textAlign: "left",
                                                     background:
                                                         "var(--eduflow-surface-sunken)",
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     fontWeight: 700,
                                                     color:
                                                         "var(--eduflow-text-tertiary)",
@@ -345,7 +351,7 @@ export default function CompetencesPage() {
                                                             padding: "12px 14px",
                                                             background:
                                                                 "var(--eduflow-surface-sunken)",
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             fontWeight: 700,
                                                             color: `var(--eduflow-${STATUS_META[k].color}-700)`,
                                                             textAlign: "center",
@@ -440,7 +446,7 @@ export default function CompetencesPage() {
                             className="insight-grid"
                         >
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Compétences solides (&gt;70% acquis)</p>
+                                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Compétences solides (&gt;70% acquis)</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -464,7 +470,7 @@ export default function CompetencesPage() {
                                 </p>
                             </Card>
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>À renforcer</p>
+                                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>À renforcer</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -494,7 +500,7 @@ export default function CompetencesPage() {
                                     border: "1px solid var(--eduflow-danger-200)",
                                 }}
                             >
-                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Priorité absolue</p>
+                                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Priorité absolue</p>
                                 <div
                                     style={{
                                         marginTop: 8,
@@ -530,7 +536,7 @@ export default function CompetencesPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 
@@ -552,7 +558,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

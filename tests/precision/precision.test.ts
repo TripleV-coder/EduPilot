@@ -120,7 +120,12 @@ function gradeShape(g: DGrade) {
 function matchEval(e: DEval, w: Record<string, unknown> | undefined): boolean {
   if (!w) return true;
   for (const [k, v] of Object.entries(w)) {
-    if (k === "periodId") { if (e.periodId !== v) return false; }
+    if (k === "periodId") {
+      // Égalité ou liste (`{ in: [...] }`), comme Prisma
+      if (typeof v === "string") { if (e.periodId !== v) return false; }
+      else if (v && typeof v === "object" && Array.isArray((v as { in?: unknown }).in)) { if (!(v as { in: string[] }).in.includes(e.periodId)) return false; }
+      else throw new Error("filtre evaluation.periodId non géré");
+    }
     else if (k === "classSubjectId") { if (e.csId !== v) return false; }
     else if (k === "classSubject") {
       const cw = v as Record<string, unknown>;

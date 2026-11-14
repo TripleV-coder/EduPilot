@@ -78,17 +78,18 @@ describe("school access helpers", () => {
       expect(result).toEqual(["annexe-school"]);
     });
 
-    it("returns multiple schools for a TEACHER based on assignments", async () => {
+    it("returns the primary school and active assignments for a TEACHER — courses alone grant nothing", async () => {
       const { getAccessibleSchoolIdsForUser } = await import("@/lib/auth/school-access");
       const { prisma } = await import("@/lib/prisma");
+      const courseQueries = () =>
+        (prisma.classSubject.findMany as unknown as ReturnType<typeof vi.fn>).mock.calls.length +
+        (prisma.class.findMany as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+      const before = courseQueries();
 
-      // Mock assignments
-      (prisma.classSubject.findMany as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
-        { class: { schoolId: "school-a" } }
-      ]);
-      (prisma.class.findMany as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
-        { schoolId: "school-b" }
-      ]);
+      (prisma.teacherProfile.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        schoolId: "school-primary",
+        schoolAssignments: [{ schoolId: "school-a" }],
+      });
 
       const result = await getAccessibleSchoolIdsForUser({
         userId: "teacher-1",
@@ -96,9 +97,9 @@ describe("school access helpers", () => {
         primarySchoolId: "school-primary",
       });
 
-      expect(result).toContain("school-primary");
-      expect(result).toContain("school-a");
-      expect(result).toContain("school-b");
+      // Audit MS-01 : un rattachement actif est nécessaire, les cours ne comptent pas
+      expect(result).toEqual(["school-primary", "school-a"]);
+      expect(courseQueries()).toBe(before);
     });
   });
 

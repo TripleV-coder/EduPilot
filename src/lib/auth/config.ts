@@ -19,10 +19,19 @@ import {
 } from "@/lib/rate-limit";
 import { getRolePermissions, Permission } from "@/lib/rbac/permissions";
 import { getOrganizationAccessForUser } from "./organization-access";
-import { getAccessibleSchoolIdsForUser, resolveActiveSchoolId } from "./school-access";
+import { assignedRoles } from "@/lib/rbac/permissions";
+import { getSchoolAccessForAssignedRoles, resolveActiveSchoolId } from "./school-access";
+import { getUserStatus, invalidateUserStatusCache } from "./user-status-cache";
+import { isSessionRevoked, revokeSession } from "./session-revocation";
 import { InvalidTwoFactorSignin, SchoolSuspendedSignin, withSigninErrorMapping } from "./login-failure";
 import { isBlockedBySchoolSuspension } from "./school-suspension";
 import { resolveAuthRedirect } from "@/lib/security/safe-redirect";
+import {
+  LONG_SESSION_SECONDS,
+  isSessionExpiredByInactivity,
+  parseRememberFlag,
+  rememberAllowed,
+} from "./session-lifetime";
 
 /**
  * Extended user type for authentication.
@@ -32,10 +41,10 @@ import { resolveAuthRedirect } from "@/lib/security/safe-redirect";
  * At login, if `user.roles` is populated, it is used; otherwise `[user.role]` is the fallback.
  * The session always exposes both fields for maximum flexibility.
  *
- * P15 NOTE: The JWT status cache (`userStatusCache`) is an in-memory Map with 30s TTL.
- * In multi-instance deployments (Vercel serverless, PM2 cluster), each instance has its own cache.
- * Token invalidation after password/role changes may take up to 30s × instances to propagate.
- * This is an acceptable trade-off vs. adding a Redis dependency for this single use case.
+ * P15 NOTE: the account row (status, role, primary school, rights marker `roleChangedAt`) is
+ * read on EVERY request; school access is recomputed whenever that marker changes
+ * (`user-status-cache.ts`, PostgreSQL triggers). Revocation applies on the next request on
+ * every instance, without logging the user out (audit MS-01).
  */
 export interface AuthUser {
   id: string;
@@ -51,10 +60,13 @@ export interface AuthUser {
   primarySchoolId: string | null;
   schoolId: string | null;
   accessibleSchoolIds: string[];
+  schoolIdsByRole?: Partial<Record<UserRole, string[]>>;
   isTwoFactorEnabled: boolean;
   isTwoFactorAuthenticated: boolean;
   /** Compte créé par un tiers : mot de passe provisoire à remplacer (M1). */
   mustChangePassword: boolean;
+  /** « Rester connecté » coché (et permis pour ce rôle) : session de 30 jours. */
+  rememberMe: boolean;
   permissions?: Permission[]; // Union of permissions
   avatar?: string | null;
 }
@@ -71,58 +83,10 @@ const loginSchema = z.object({
     .regex(/^[^\s@]+@[^\s@]+$/, "Email invalide"),
   password: z.string().min(1, "Le mot de passe est requis"),
   twoFactorCode: z.string().optional(),
+  remember: z.unknown().optional(),
 });
 
-// P15: In-memory cache for JWT token invalidation checks (30s TTL).
-// Prevents a `SELECT` per authenticated request. Trade-off: multi-instance inconsistency (see AuthUser doc).
-const JWT_CACHE_TTL_MS = 30_000;
-interface CachedUserStatus {
-  passwordChangedAt: Date | null;
-  roleChangedAt: Date | null;
-  role: UserRole;
-  isActive: boolean;
-  school: { isActive: boolean } | null;
-  fetchedAt: number;
-}
-const userStatusCache = new Map<string, CachedUserStatus>();
-
-async function getCachedUserStatus(userId: string): Promise<CachedUserStatus | null> {
-  const cached = userStatusCache.get(userId);
-  if (cached && Date.now() - cached.fetchedAt < JWT_CACHE_TTL_MS) {
-    return cached;
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      passwordChangedAt: true,
-      roleChangedAt: true,
-      role: true,
-      isActive: true,
-      school: { select: { isActive: true } },
-    },
-  });
-
-  if (!user) return null;
-
-  const entry: CachedUserStatus = { ...user, fetchedAt: Date.now() };
-  userStatusCache.set(userId, entry);
-
-  // Evict old entries periodically (keep map bounded)
-  if (userStatusCache.size > 1000) {
-    const now = Date.now();
-    for (const [key, val] of userStatusCache) {
-      if (now - val.fetchedAt > JWT_CACHE_TTL_MS) userStatusCache.delete(key);
-    }
-  }
-
-  return entry;
-}
-
-/** Invalidate cache for a specific user (call after password/role change) */
-export function invalidateUserStatusCache(userId: string): void {
-  userStatusCache.delete(userId);
-}
+export { invalidateUserStatusCache };
 
 export const authConfig: NextAuthConfig = {
   // Auth.js (NextAuth v5) bloque par défaut certains hosts en production.
@@ -131,7 +95,9 @@ export const authConfig: NextAuthConfig = {
   trustHost: process.env.AUTH_TRUST_HOST === "true" || process.env.NODE_ENV !== "production",
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 hours
+    // 30 jours au plus ; sans « Rester connecté », 24 h d'inactivité suffisent
+    // à fermer la session (callback jwt, lib/auth/session-lifetime).
+    maxAge: LONG_SESSION_SECONDS,
   },
   pages: {
     signIn: "/login",
@@ -144,6 +110,7 @@ export const authConfig: NextAuthConfig = {
         email: { label: "Email", type: "email" },
         password: { label: "Mot de passe", type: "password" },
         twoFactorCode: { label: "Code 2FA", type: "text" },
+        remember: { label: "Rester connecté", type: "checkbox" },
       },
       // M10 : une panne de base devient `code=service_unavailable`, jamais un
       // faux « identifiants invalides » (voir ./login-failure).
@@ -272,6 +239,8 @@ export const authConfig: NextAuthConfig = {
         // Connexion réussie - réinitialiser compteur
         await resetFailedLoginAttempts(user.id);
 
+        const rememberMe = parseRememberFlag(credentials?.remember) && rememberAllowed(user.role);
+
         // Audit log pour succès
         await prisma.auditLog.create({
           data: {
@@ -279,19 +248,20 @@ export const authConfig: NextAuthConfig = {
             action: 'LOGIN_SUCCESS',
             entity: 'user',
             entityId: user.id,
+            newValues: { rememberMe },
           },
         });
 
-        const effectiveRoles = (user.roles && user.roles.length > 0) ? user.roles : [user.role];
+        const effectiveRoles = assignedRoles(user) as UserRole[];
         const organizationAccess = await getOrganizationAccessForUser(user.id);
-        const accessibleSchoolIds = await getAccessibleSchoolIdsForUser({
+        const schoolAccess = await getSchoolAccessForAssignedRoles({
           userId: user.id,
-          role: user.role,
+          roles: effectiveRoles,
           primarySchoolId: user.schoolId,
         });
         const activeSchoolId = resolveActiveSchoolId({
           primarySchoolId: user.schoolId,
-          accessibleSchoolIds,
+          accessibleSchoolIds: schoolAccess.accessibleSchoolIds,
         });
 
         return {
@@ -307,16 +277,28 @@ export const authConfig: NextAuthConfig = {
           isOrganizationManager: organizationAccess.isOrganizationManager,
           primarySchoolId: user.schoolId,
           schoolId: activeSchoolId,
-          accessibleSchoolIds,
+          accessibleSchoolIds: schoolAccess.accessibleSchoolIds,
+          schoolIdsByRole: schoolAccess.schoolIdsByRole,
           isTwoFactorEnabled: user.isTwoFactorEnabled,
           isTwoFactorAuthenticated,
           mustChangePassword: user.mustChangePassword === true,
+          rememberMe,
           permissions: getRolePermissions(effectiveRoles),
           avatar: user.avatar,
         };
       }),
     }),
   ],
+  events: {
+    // Déconnexion : la session est révoquée côté serveur, pas seulement le
+    // cookie du navigateur (sécurité HTTP, 2026-10-18)
+    async signOut(message) {
+      const token = "token" in message ? message.token : null;
+      if (token && typeof token.sid === "string" && typeof token.id === "string") {
+        await revokeSession(token.sid, token.id);
+      }
+    },
+  },
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {
@@ -331,12 +313,18 @@ export const authConfig: NextAuthConfig = {
         token.primarySchoolId = authUser.primarySchoolId;
         token.schoolId = authUser.schoolId;
         token.accessibleSchoolIds = authUser.accessibleSchoolIds;
+        token.schoolIdsByRole = authUser.schoolIdsByRole;
         token.firstName = authUser.firstName;
         token.lastName = authUser.lastName;
         token.isTwoFactorEnabled = authUser.isTwoFactorEnabled;
         token.isTwoFactorAuthenticated = authUser.isTwoFactorAuthenticated;
         token.mustChangePassword = authUser.mustChangePassword;
         token.avatar = authUser.avatar;
+        token.remember = authUser.rememberMe === true;
+        token.lastSeenAt = Math.floor(Date.now() / 1000);
+        // Identifiant de session stable (le jti d'Auth.js change à chaque
+        // réémission) : la déconnexion le révoque côté serveur.
+        token.sid = globalThis.crypto.randomUUID();
       }
 
       // MFA Verification via Update
@@ -409,26 +397,36 @@ export const authConfig: NextAuthConfig = {
           Object.prototype.hasOwnProperty.call(session, "schoolId");
 
         if (hasSchoolContextUpdate && userId) {
+          // Les droits relus plus bas doivent refléter l'état en base, pas le cache
+          invalidateUserStatusCache(userId);
           if (token.role === "SUPER_ADMIN") {
-            token.schoolId = (session.schoolId as string | null | undefined) ?? null;
+            // S6 : l'école choisie doit exister ; sinon, retour à la vue globale
+            // (sans école active) plutôt qu'un identifiant arbitraire en session.
+            const requestedSchoolId = typeof session.schoolId === "string" && session.schoolId ? session.schoolId : null;
+            const school = requestedSchoolId
+              ? await prisma.school.findUnique({ where: { id: requestedSchoolId }, select: { id: true } })
+              : null;
+            token.schoolId = school?.id ?? null;
           } else {
             const dbUser = await prisma.user.findUnique({
               where: { id: userId },
-              select: { schoolId: true, role: true },
+              select: { schoolId: true, role: true, roles: true },
             });
 
             if (dbUser) {
               const organizationAccess = await getOrganizationAccessForUser(userId);
-              const accessibleSchoolIds = await getAccessibleSchoolIdsForUser({
+              const schoolAccess = await getSchoolAccessForAssignedRoles({
                 userId,
-                role: dbUser.role,
+                roles: assignedRoles(dbUser) as UserRole[],
                 primarySchoolId: dbUser.schoolId,
               });
+              const accessibleSchoolIds = schoolAccess.accessibleSchoolIds;
               token.primaryOrganizationId = organizationAccess.primaryOrganizationId;
               token.organizationIds = organizationAccess.organizationIds;
               token.isOrganizationManager = organizationAccess.isOrganizationManager;
               token.primarySchoolId = dbUser.schoolId;
               token.accessibleSchoolIds = accessibleSchoolIds;
+              token.schoolIdsByRole = schoolAccess.schoolIdsByRole;
 
               const requestedSchoolId =
                 typeof session.schoolId === "string" ? session.schoolId : null;
@@ -447,36 +445,80 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
-      // Vérifier l'invalidation du token après changement de mdp, rôle ou désactivation compte
+      // État du compte relu à chaque requête : désactivation, mot de passe,
+      // rôle et droits d'établissement s'appliquent dès la requête suivante.
       if (token.id && trigger !== "signIn") {
-        const userStatus = await getCachedUserStatus(token.id as string);
+        // Sans « Rester connecté » : 24 h sans activité ferment la session
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        if (isSessionExpiredByInactivity(token, nowSeconds)) {
+          token.invalidated = true;
+          return token;
+        }
 
-        if (userStatus) {
-          // Invalider si compte désactivé
-          if (!userStatus.isActive || isBlockedBySchoolSuspension(userStatus)) {
-            token.invalidated = true;
-            return token;
-          }
+        const userStatus = await getUserStatus(token.id as string);
 
-          const tokenIssuedAt = token.iat ? new Date(Number(token.iat) * 1000) : new Date(0);
+        // Compte supprimé définitivement : aucun droit ne survit dans le jeton
+        if (!userStatus) {
+          token.invalidated = true;
+          return token;
+        }
 
-          // Invalider si mot de passe changé après émission du token
-          if (userStatus.passwordChangedAt && userStatus.passwordChangedAt > tokenIssuedAt) {
-            token.invalidated = true;
-            return token;
-          }
+        // Session fermée par une déconnexion : une copie du cookie n'est plus acceptée
+        if (typeof token.sid === "string" && (await isSessionRevoked(token.sid))) {
+          token.invalidated = true;
+          return token;
+        }
 
-          // Invalider si rôle changé après émission du token
-          if (userStatus.roleChangedAt && userStatus.roleChangedAt > tokenIssuedAt) {
-            token.invalidated = true;
-            return token;
-          }
+        // Invalider si compte désactivé
+        if (!userStatus.isActive || isBlockedBySchoolSuspension(userStatus)) {
+          token.invalidated = true;
+          return token;
+        }
 
-          // Mettre à jour le rôle dans le token s'il a changé
-          if (userStatus.role !== token.role) {
-            token.role = userStatus.role;
+        const tokenIssuedAt = token.iat ? new Date(Number(token.iat) * 1000) : new Date(0);
+
+        // Invalider si mot de passe changé après émission du token
+        if (userStatus.passwordChangedAt && userStatus.passwordChangedAt > tokenIssuedAt) {
+          token.invalidated = true;
+          return token;
+        }
+
+        // Rôle et permissions toujours ceux de la base, jamais ceux figés
+        // dans le jeton ; un changement de rôle ne déconnecte pas.
+        const effectiveRoles = assignedRoles(userStatus) as UserRole[];
+        token.role = userStatus.role;
+        token.roles = effectiveRoles;
+        token.permissions = getRolePermissions(effectiveRoles);
+        // 2FA activée ou désactivée pendant la session : l'écran Sécurité
+        // revenait à « Activée » après une désactivation réussie, jusqu'à la
+        // reconnexion. Sans risque : `isTwoFactorAuthenticated` ne bascule
+        // qu'avec un code vérifié, et une 2FA activée en cours de session ne
+        // coupe pas la session ouverte (vraie depuis la connexion).
+        if (typeof userStatus.isTwoFactorEnabled === "boolean") token.isTwoFactorEnabled = userStatus.isTwoFactorEnabled;
+        // Devenu super-administrateur : la session longue ne le suit pas
+        if (token.remember === true && !rememberAllowed(userStatus.role)) token.remember = false;
+
+        // Droits d'établissement relus en base : un rattachement retiré ne
+        // survit pas dans le jeton, et l'école active retirée est remplacée.
+        // SUPER_ADMIN choisit librement son école (aucune liste à appliquer).
+        if (userStatus.role !== "SUPER_ADMIN") {
+          const { access } = userStatus;
+          token.primarySchoolId = access.primarySchoolId;
+          token.accessibleSchoolIds = access.accessibleSchoolIds;
+          token.schoolIdsByRole = access.schoolIdsByRole;
+          token.organizationIds = access.organizationIds;
+          token.primaryOrganizationId = access.primaryOrganizationId;
+          token.isOrganizationManager = access.isOrganizationManager;
+          if (!token.schoolId || !access.accessibleSchoolIds.includes(token.schoolId as string)) {
+            token.schoolId = resolveActiveSchoolId({
+              primarySchoolId: access.primarySchoolId,
+              accessibleSchoolIds: access.accessibleSchoolIds,
+            });
           }
         }
+
+        // Session toujours valide : l'activité de cette requête est notée
+        token.lastSeenAt = nowSeconds;
       }
 
       return token;
@@ -500,6 +542,7 @@ export const authConfig: NextAuthConfig = {
         session.user.primarySchoolId = token.primarySchoolId as string | null;
         session.user.schoolId = token.schoolId;
         session.user.accessibleSchoolIds = (token.accessibleSchoolIds as string[] | undefined) || [];
+        session.user.schoolIdsByRole = token.schoolIdsByRole as Record<string, string[]> | undefined;
         session.user.firstName = token.firstName;
         session.user.lastName = token.lastName;
         session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function DesignSystemPage() {
     return (
-        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+        <PageGuard roles={["SUPER_ADMIN"]}>
             <PageShell className="max-w-6xl">
                 <PageHeader
                     title="Design system v2 · 2026"

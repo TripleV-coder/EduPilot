@@ -142,7 +142,7 @@ export default function ClubsPage() {
                 />
 
                 {isLoading ? <PageLoading label="Chargement des clubs…" /> : null}
-                {error ? <PageError message="Impossible de charger les clubs." onRetry={() => void mutate()} /> : null}
+                {error ? <PageError error={error} message="Impossible de charger les clubs." onRetry={() => void mutate()} /> : null}
                 {!isLoading && !error && clubs.length === 0 ? (
                     <PageEmpty
                         icon="trophy"

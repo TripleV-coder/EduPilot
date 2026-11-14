@@ -30,7 +30,7 @@ export function SubjectRadarChart({ data }: SubjectRadarChartProps) {
         <RadarChart data={data}>
           <PolarGrid />
           <PolarAngleAxis dataKey="name" tick={{ fontSize: 12 }} />
-          <PolarRadiusAxis domain={[0, 20]} tick={{ fontSize: 10 }} />
+          <PolarRadiusAxis domain={[0, 20]} tick={{ fontSize: 12 }} />
           <Radar
             name="Moyenne"
             dataKey="average"

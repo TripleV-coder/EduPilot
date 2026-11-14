@@ -6,6 +6,7 @@ import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { familyStudents } from "@/lib/events/family";
 
 const participationSchema = z.object({
   studentId: z.string().cuid(),
@@ -147,4 +148,34 @@ export const POST = createApiHandler(async (request, context) => {
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
 
+});
+
+/**
+ * DELETE /api/events/[id]/participate?studentId= — annuler une inscription
+ * avant le début de l'évènement : l'élève pour lui-même, le parent pour son
+ * enfant, l'école pour tout élève de l'établissement.
+ */
+export const DELETE = createApiHandler(async (request, context) => {
+    const { id } = await context.params;
+    const session = context.session;
+    // L'évènement d'une autre école répond 404 avant tout contrôle de saisie.
+    const event = await prisma.schoolEvent.findUnique({ where: { id }, select: { id: true, schoolId: true, startDate: true } });
+    if (!event || (session.user.role !== "SUPER_ADMIN" && event.schoolId !== getActiveSchoolId(session))) {
+      return NextResponse.json({ error: "Événement non trouvé" }, { status: 404 });
+    }
+    const studentId = new URL(request.url).searchParams.get("studentId");
+    if (!studentId) return NextResponse.json({ error: "Indiquez l'élève." }, { status: 400 });
+    if (event.startDate <= new Date()) {
+      return NextResponse.json({ error: "L'évènement a commencé : l'inscription ne peut plus être annulée." }, { status: 409 });
+    }
+    if (session.user.role === "STUDENT" || session.user.role === "PARENT") {
+      const mine = (await familyStudents(session.user)).some((s) => s.id === studentId);
+      if (!mine) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    } else if (!roleSatisfies(session.user.role, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    const { count } = await prisma.eventParticipation.deleteMany({ where: { eventId: id, studentId } });
+    if (count === 0) return NextResponse.json({ error: "Aucune inscription à annuler." }, { status: 404 });
+    return NextResponse.json({ success: true });
 });

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { findScheduleConflict } from "@/lib/schedules/conflicts";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { scheduleSchema } from "@/lib/validations/schedule";
@@ -145,56 +146,25 @@ export const POST = createApiHandler(
       teacherIdForConflict = classSubject.teacherId;
     }
 
-    // Check for conflicts (Class level)
-    const conflictingSchedule = await prisma.schedule.findFirst({
-      where: {
-        classId: validatedData.classId,
-        dayOfWeek: validatedData.dayOfWeek,
-        OR: [
-          {
-            startTime: { lte: validatedData.startTime },
-            endTime: { gt: validatedData.startTime },
-          },
-          {
-            startTime: { lt: validatedData.endTime },
-            endTime: { gte: validatedData.endTime },
-          },
-        ],
-      },
+    // Chevauchements : même classe, puis même enseignant (helper commun à la modification)
+    const conflict = await findScheduleConflict({
+      classId: validatedData.classId,
+      dayOfWeek: validatedData.dayOfWeek,
+      startTime: validatedData.startTime,
+      endTime: validatedData.endTime,
+      teacherId: teacherIdForConflict,
     });
-
-    if (conflictingSchedule) {
+    if (conflict === "CLASS") {
       return NextResponse.json(
         translateError({ error: "Un créneau existe déjà à cette heure pour cette classe", key: "api.issues.already_exists", params: { resource: "Créneau" } }, t),
         { status: 400 }
       );
     }
-
-    // Check for conflicts (Teacher level)
-    if (teacherIdForConflict) {
-      const teacherConflict = await prisma.schedule.findFirst({
-        where: {
-          classSubject: { teacherId: teacherIdForConflict },
-          dayOfWeek: validatedData.dayOfWeek,
-          OR: [
-            {
-              startTime: { lte: validatedData.startTime },
-              endTime: { gt: validatedData.startTime },
-            },
-            {
-              startTime: { lt: validatedData.endTime },
-              endTime: { gte: validatedData.endTime },
-            },
-          ],
-        },
-      });
-
-      if (teacherConflict) {
-        return NextResponse.json(
-          translateError({ error: "L'enseignant est déjà assigné à un autre cours sur cette plage horaire", key: "api.issues.teacher_conflict" }, t),
-          { status: 400 }
-        );
-      }
+    if (conflict === "TEACHER") {
+      return NextResponse.json(
+        translateError({ error: "L'enseignant est déjà assigné à un autre cours sur cette plage horaire", key: "api.issues.teacher_conflict" }, t),
+        { status: 400 }
+      );
     }
 
     const schedule = await prisma.schedule.create({

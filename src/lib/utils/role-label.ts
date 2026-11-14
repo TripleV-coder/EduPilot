@@ -1,7 +1,9 @@
 const ROLE_LABELS: Record<string, string> = {
     SUPER_ADMIN: "Super administrateur",
     SCHOOL_ADMIN: "Administrateur établissement",
+    NETWORK_ADMIN: "Responsable de réseau",
     DIRECTOR: "Direction",
+    STAFF: "Vie scolaire",
     TEACHER: "Enseignant",
     STUDENT: "Élève",
     PARENT: "Parent",

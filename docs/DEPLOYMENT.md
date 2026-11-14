@@ -26,7 +26,6 @@
 ### Logiciels requis
 - **Node.js**: 24.x LTS (22.x accepté ; 20.x n'est plus maintenu)
 - **PostgreSQL**: 15+ minimum (16+ recommandé)
-- **Redis**: 7+ (`REDIS_URL`, obligatoire dès 2 processus — voir [Montée en charge](#montée-en-charge))
 - **Docker**: 24+ (optionnel mais recommandé)
 - **PM2**: dernière version (pour déploiement sans Docker)
 
@@ -71,8 +70,6 @@ nano .env
 Le fichier `docker-compose.yml` inclut :
 - Application Next.js
 - PostgreSQL 16
-- Redis (optionnel)
-- n8n (optionnel pour l'automatisation)
 
 ### 3. Démarrage
 
@@ -292,7 +289,6 @@ railway up
 #### Architecture recommandée:
 - **Compute**: ECS/Fargate ou EC2 avec Auto Scaling
 - **Database**: RDS PostgreSQL Multi-AZ
-- **Cache**: ElastiCache Redis
 - **Storage**: S3 pour les fichiers
 - **CDN**: CloudFront
 - **Load Balancer**: ALB
@@ -322,18 +318,17 @@ plusieurs cœurs, plusieurs processus partagent le port :
 | Variable | Rôle | Valeur conseillée |
 |---|---|---|
 | `WEB_CONCURRENCY` | nombre de processus serveur (`1`, `N`, `max`) | nombre de vCPU alloués à l'application (pas ceux de PostgreSQL) |
-| `REDIS_URL` | limites de débit, compteurs d'échecs de connexion, cache partagés | **obligatoire** dès `WEB_CONCURRENCY` > 1 (le lanceur refuse sinon) |
 | `DATABASE_POOL_SIZE` | connexions PostgreSQL **par processus** (défaut 10) | `WEB_CONCURRENCY × DATABASE_POOL_SIZE × serveurs` < `max_connections` (100 par défaut) ; au-delà, PgBouncer en mode transaction |
 | `UV_THREADPOOL_SIZE` | threads du hachage des mots de passe (bcrypt natif) ; 2 restent toujours libres pour le reste | 4 (défaut) ; 6–8 si beaucoup de connexions simultanées et des cœurs libres |
 
-- **Docker** : `WEB_CONCURRENCY` et `REDIS_URL` dans `.env` (le service `redis` du
-  `docker-compose.yml` convient : `REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379`).
-  Les fichiers téléversés sont dans le volume `uploads_data`.
-- **PM2** : `ecosystem.config.js` passe en mode cluster avec `WEB_CONCURRENCY` quand
-  `REDIS_URL` est défini, sinon il reste à un processus.
-- **Plusieurs serveurs** derrière un répartiteur : même `REDIS_URL` pour tous, et le
-  dossier `uploads/` sur un stockage partagé (NFS, volume réseau) — sans cela, un
-  fichier téléversé sur un serveur est introuvable depuis les autres.
+Limites de débit, compteurs d'échecs de connexion, coupe-circuits et fichiers
+envoyés vivent dans PostgreSQL ([ADR-0013](./adr/0013-etat-partage-postgresql.md)) :
+plusieurs processus ou serveurs les partagent **sans aucun service supplémentaire**.
+
+- **Docker** : `WEB_CONCURRENCY` dans `.env`.
+- **PM2** : `ecosystem.config.js` lance `WEB_CONCURRENCY` processus en mode cluster.
+- **Plusieurs serveurs** derrière un répartiteur : la même `DATABASE_URL` suffit.
+- **Hébergement sans serveur** (Vercel, Netlify) : rien à configurer de plus.
 - **PostgreSQL devient la limite** au-delà de quelques dizaines de processus :
   serveur dédié, PgBouncer, puis réplica en lecture pour l'analytique.
 
@@ -352,16 +347,9 @@ CRON_SECRET="GÉNÉRER_AVEC_openssl_rand_-hex_32"
 # Base de données (REQUIS)
 DATABASE_URL="postgresql://user:pass@host:5432/edupilot?sslmode=require"
 
-# Redis (FORTEMENT RECOMMANDÉ)
-UPSTASH_REDIS_REST_URL="https://xxxxx.upstash.io"
-UPSTASH_REDIS_REST_TOKEN="xxxxx"
-
-# Email (REQUIS pour notifications)
-EMAIL_PROVIDER="resend"
-EMAIL_API_KEY="re_xxxxx"
+# Email (REQUIS pour notifications) : console root › Intégrations › E-mail
 
 # Monitoring (RECOMMANDÉ)
-SENTRY_DSN="https://xxxxx@sentry.io/xxxxx"
 ```
 
 ### Sécurité checklist
@@ -373,7 +361,6 @@ SENTRY_DSN="https://xxxxx@sentry.io/xxxxx"
 - [ ] Configurer le monitoring et les alertes
 - [ ] Définir une politique de rétention des logs
 - [ ] Activer l'authentification à deux facteurs (2FA) pour les admins
-- [ ] Configurer le rate limiting avec Redis
 - [ ] Vérifier la configuration CSP et CORS
 
 ---
@@ -460,7 +447,8 @@ curl https://votre-domaine.com/api/system/health
   "timestamp": "2024-03-20T10:30:00Z",
   "version": "1.0.0",
   "database": "connected",
-  "redis": "connected"
+  "cache": "memory",
+  "sharedState": "connected"
 }
 ```
 
@@ -477,9 +465,11 @@ pm2 show edupilot
 pm2 logs edupilot --err
 ```
 
-### Sentry (Monitoring d'erreurs)
+### Erreurs et alertes
 
-Configuré automatiquement si `SENTRY_DSN` est défini.
+Rien à configurer : journal des erreurs interne (Supervision › Journal des
+erreurs) et alertes aux super-administrateurs (notification + e-mail). Voir
+[MONITORING.md](./MONITORING.md).
 
 ### Alertes
 
@@ -519,9 +509,8 @@ pm2 monit          # PM2
 # Analyser les requêtes lentes (PostgreSQL)
 SELECT * FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;
 
-# Vérifier Redis
-redis-cli ping
-redis-cli INFO stats
+# État partagé (limites) : "sharedState": "connected" attendu
+curl -s http://localhost:3000/api/health
 ```
 
 ### Base de données corrompue

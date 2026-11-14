@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
+import { toast } from "sonner";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
@@ -105,7 +106,15 @@ function WellbeingReportContent() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status }),
             });
-            if (res.ok) await mutate();
+            if (!res.ok) {
+                const body = (await res.json().catch(() => ({}))) as { error?: string };
+                toast.error(body.error || "Le statut du dossier n'a pas été modifié. Réessayez.");
+                return;
+            }
+            toast.success("Statut du dossier mis à jour.");
+            await mutate();
+        } catch {
+            toast.error("Connexion impossible : le statut du dossier n'a pas été modifié.");
         } finally {
             setUpdating(null);
         }
@@ -255,7 +264,7 @@ function WellbeingReportContent() {
                                         <div style={{ fontSize: 12, fontWeight: 600 }}>{a.kind}</div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -322,7 +331,7 @@ function WellbeingReportContent() {
                                             borderRadius: "50%",
                                             display: "grid",
                                             placeItems: "center",
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             fontWeight: 700,
                                             background: isCurrent
                                                 ? "var(--brand-600)"
@@ -354,7 +363,7 @@ function WellbeingReportContent() {
                                         <span
                                             style={{
                                                 display: "block",
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 2,
                                             }}
@@ -373,7 +382,7 @@ function WellbeingReportContent() {
                             padding: 12,
                             borderRadius: 10,
                             background: "var(--eduflow-surface-sunken)",
-                            fontSize: 11,
+                            fontSize: 12,
                             lineHeight: 1.55,
                             color: "var(--eduflow-text-secondary)",
                         }}

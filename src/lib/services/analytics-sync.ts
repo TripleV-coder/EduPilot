@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { generateStudentAnalytics } from "@/lib/services/student-analytics";
 import { forEachWithConcurrency } from "@/lib/utils/concurrency";
+import { invalidateClassAverages } from "@/lib/academic/class-averages";
 
 const analyticsInclude = {
   student: {
@@ -274,6 +275,9 @@ export async function syncFutureAnalyticsForStudents(
   academicYearId: string,
   afterSequence: number
 ): Promise<void> {
+  // Avant toute lecture : les moyennes de classe partagées ne doivent pas
+  // précéder l'écriture qui déclenche ce recalcul.
+  invalidateClassAverages();
   const uniqueStudentIds = uniqueIds(studentIds);
   if (uniqueStudentIds.length === 0) return;
 
@@ -305,6 +309,9 @@ export async function syncAnalyticsForClassPeriod(
   periodId: string,
   academicYearId: string
 ): Promise<void> {
+  // Avant toute lecture : les moyennes de classe partagées ne doivent pas
+  // précéder l'écriture qui déclenche ce recalcul.
+  invalidateClassAverages();
   const enrollments = await prisma.enrollment.findMany({
     where: {
       classId,
@@ -327,6 +334,9 @@ export async function syncAnalyticsAfterGradeChange(
   evaluationId: string,
   changedStudentIds: string[]
 ): Promise<void> {
+  // Avant toute lecture : les moyennes de classe partagées ne doivent pas
+  // précéder l'écriture qui déclenche ce recalcul.
+  invalidateClassAverages();
   const evaluation = await prisma.evaluation.findUnique({
     where: { id: evaluationId },
     select: {
@@ -423,10 +433,50 @@ export async function syncAnalyticsAfterStudentActivityChange(
 /** Élèves recalculés simultanément par la synchronisation d'un établissement. */
 const SCHOOL_SYNC_CONCURRENCY = 4;
 
-export async function syncAllStudentsForSchool(
+type SchoolSyncResult = { processed: number; errors: number };
+
+/**
+ * Recalculs d'établissement en cours (par processus) : plusieurs changements
+ * de règles rapprochés empilaient autant de recalculs complets en parallèle
+ * (audit 2026-10-14 : 3 enregistrements → > 20 min de CPU). Une demande
+ * pendant un recalcul ne lance rien de plus : elle demande UN nouveau passage
+ * à la fin de celui en cours, qui relit alors les derniers réglages.
+ */
+const runningSchoolSyncs = new Map<string, { run: Promise<SchoolSyncResult>; again: boolean }>();
+
+export function syncAllStudentsForSchool(schoolId: string, academicYearId: string): Promise<SchoolSyncResult> {
+  const key = `${schoolId}|${academicYearId}`;
+  const running = runningSchoolSyncs.get(key);
+  if (running) {
+    running.again = true;
+    return running.run;
+  }
+  const entry = { again: false, run: Promise.resolve<SchoolSyncResult>({ processed: 0, errors: 0 }) };
+  entry.run = (async () => {
+    try {
+      let result: SchoolSyncResult;
+      do {
+        entry.again = false;
+        result = await syncAllStudentsForSchoolNow(schoolId, academicYearId);
+      } while (entry.again);
+      return result;
+    } finally {
+      runningSchoolSyncs.delete(key);
+    }
+  })();
+  runningSchoolSyncs.set(key, entry);
+  return entry.run;
+}
+
+async function syncAllStudentsForSchoolNow(
   schoolId: string,
   academicYearId: string
-): Promise<{ processed: number; errors: number }> {
+): Promise<SchoolSyncResult> {
+  // Avant toute lecture : les moyennes de classe partagées ne doivent pas
+  // précéder l'écriture qui déclenche ce recalcul.
+  invalidateClassAverages();
+  // Élèves regroupés par classe : le calcul d'une classe (partagé) sert à
+  // tous ses élèves traités à la suite, au lieu d'être refait pour chacun.
   const enrollments = await prisma.enrollment.findMany({
     where: {
       class: { schoolId },
@@ -434,6 +484,7 @@ export async function syncAllStudentsForSchool(
       status: "ACTIVE",
     },
     select: { studentId: true, classId: true },
+    orderBy: [{ classId: "asc" }, { studentId: "asc" }],
   });
 
   const periods = await prisma.period.findMany({

@@ -43,6 +43,15 @@ type ExamData = {
 };
 
 export default function TakeExamPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["STUDENT"]}>
+            <TakeExamPageContent />
+        </PageGuard>
+    );
+}
+
+function TakeExamPageContent() {
     const params = useParams();
     const { toast } = useToast();
     const id = params.id as string;
@@ -55,13 +64,31 @@ export default function TakeExamPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFinished, setIsFinished] = useState(false);
     const [result, setIsResult] = useState<{ score: number; isPassed: boolean } | null>(null);
+    const [startError, setStartError] = useState<string | null>(null);
+    const startedRef = useRef(false);
 
-    // Initialize timer
+    // Ouverture de la session côté serveur : l'heure de départ et l'échéance
+    // viennent du serveur (TD-023). Le temps restant est calculé sur l'horloge
+    // du serveur (deadline − serverNow) : une horloge locale décalée ne change
+    // rien, et recharger la page reprend le décompte au lieu de le remettre à zéro.
     useEffect(() => {
-        if (exam && timeLeft === null) {
-            setTimeLeft(exam.duration * 60);
-        }
-    }, [exam, timeLeft]);
+        if (!exam || startedRef.current) return;
+        startedRef.current = true;
+        void (async () => {
+            try {
+                const res = await fetch(`/api/exams/${id}/start`, { method: "POST" });
+                const body = (await res.json().catch(() => ({}))) as { deadline?: string; serverNow?: string; error?: string };
+                if (!res.ok || !body.deadline || !body.serverNow) {
+                    setStartError(body.error ?? "Impossible d'ouvrir l'examen.");
+                    return;
+                }
+                const remaining = Math.floor((Date.parse(body.deadline) - Date.parse(body.serverNow)) / 1000);
+                setTimeLeft(Math.max(0, remaining));
+            } catch {
+                setStartError("Impossible d'ouvrir l'examen : vérifiez votre connexion puis rechargez la page.");
+            }
+        })();
+    }, [exam, id]);
 
     // Refs lues par la soumission : à l'expiration, ce sont les réponses de
     // l'instant qui partent (une closure pouvait en perdre une saisie dans la
@@ -90,7 +117,15 @@ export default function TakeExamPage() {
                 body: JSON.stringify({ answers: answersRef.current }),
             });
 
-            if (!res.ok) throw new Error("Erreur lors de la soumission");
+            if (!res.ok) {
+                const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+                // Refus définitif (déjà soumis, temps écoulé) : pas de nouvel essai.
+                if (res.status === 409) {
+                    setStartError(body.error ?? "La soumission n'est plus acceptée.");
+                    return;
+                }
+                throw new Error(body.error ?? "Erreur lors de la soumission");
+            }
 
             const data = await res.json();
             setIsResult(data);
@@ -120,6 +155,18 @@ export default function TakeExamPage() {
 
     if (isLoading) return <div className="flex justify-center items-center py-24"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     if (error || !exam) return <div className="text-center py-24"><AlertCircle className="mx-auto h-12 w-12 text-destructive/50" /><h3 className="text-xl font-bold">Examen non trouvé</h3></div>;
+    if (startError) {
+        return (
+            <div role="alert" className="max-w-xl mx-auto text-center py-24 px-4 space-y-4">
+                <AlertCircle className="mx-auto h-12 w-12 text-destructive/60" />
+                <h3 className="text-xl font-bold">{exam.title}</h3>
+                <p className="text-muted-foreground">{startError}</p>
+                <Button asChild variant="outline">
+                    <Link href="/dashboard/exams">Retour aux examens</Link>
+                </Button>
+            </div>
+        );
+    }
 
     if (isFinished) {
         return (
@@ -176,10 +223,10 @@ export default function TakeExamPage() {
     const progress = ((currentQuestionIndex + 1) / exam.questions.length) * 100;
 
     return (
-        <PageGuard roles={["STUDENT"]}>
+        <>
             <PageShell>
                 {loadError ? (
-                    <PageError message="Impossible de charger l'épreuve." onRetry={() => void reloadPage()} />
+                    <PageError error={loadError} message="Impossible de charger l'épreuve." onRetry={() => void reloadPage()} />
                 ) : null}
 
                 {/* Header with Timer */}
@@ -190,7 +237,7 @@ export default function TakeExamPage() {
                         </Link>
                         <div>
                             <h1 className="text-lg font-bold truncate max-w-[200px] sm:max-w-md">{exam.title}</h1>
-                            <p className="text-[11px] text-muted-foreground font-bold tracking-tighter">Question {currentQuestionIndex + 1} sur {exam.questions.length}</p>
+                            <p className="text-xs text-muted-foreground font-bold tracking-tighter">Question {currentQuestionIndex + 1} sur {exam.questions.length}</p>
                         </div>
                     </div>
                     
@@ -289,6 +336,6 @@ export default function TakeExamPage() {
                     ))}
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

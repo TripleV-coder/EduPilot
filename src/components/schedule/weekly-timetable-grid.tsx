@@ -160,19 +160,19 @@ export function WeeklyTimetableGrid({ schedules, days, showClass = false }: Week
                                                         <span className="text-xs font-bold leading-tight truncate">
                                                             {info.subjectName}
                                                         </span>
-                                                        <span className="text-[11px] leading-tight truncate opacity-80">
+                                                        <span className="text-xs leading-tight truncate opacity-80">
                                                             {[showClass ? schedule.class?.name : null, schedule.room || null]
                                                                 .filter(Boolean)
                                                                 .join(" · ") || "—"}
                                                         </span>
-                                                        <span className="text-[11px] leading-tight truncate opacity-70">
+                                                        <span className="text-xs leading-tight truncate opacity-70">
                                                             {info.teacherName}
                                                         </span>
                                                     </div>
                                                 );
                                             })}
                                             {entries.length > MAX_PER_CELL ? (
-                                                <span className="rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-muted-foreground">
+                                                <span className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-muted-foreground">
                                                     +{entries.length - (MAX_PER_CELL - 1)} autres cours
                                                 </span>
                                             ) : null}

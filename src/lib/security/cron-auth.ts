@@ -1,3 +1,4 @@
+import { resolveSecret } from "@/lib/security/derived-secrets";
 import { createHash, timingSafeEqual } from "node:crypto";
 
 /**
@@ -18,7 +19,8 @@ function digest(value: string): Buffer {
 
 export function verifyCronSecret(
     authorization: string | null,
-    secret: string | undefined = process.env.CRON_SECRET,
+    // CRON_SECRET si défini, sinon dérivé de NEXTAUTH_SECRET (lib/security/derived-secrets.ts)
+    secret: string | undefined = resolveSecret("cron") ?? undefined,
 ): CronAuthResult {
     if (!secret) return "not-configured";
 

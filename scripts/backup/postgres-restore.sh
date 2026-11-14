@@ -108,3 +108,6 @@ process.exit(1);
 ' "$META" "$AFTER" || die "Restauration INCOMPLÈTE : le nombre de lignes ne correspond pas au manifeste."
 
 log "Restauration terminée et vérifiée."
+# Le schéma public a été recréé : le rôle applicatif (edupilot_app) y a perdu
+# son droit d'usage et l'application répondrait 500 (constaté le 2026-10-25).
+log "[ÉTAPE SUIVANTE OBLIGATOIRE] Rétablir les droits du rôle applicatif : node scripts/db/setup-app-role.mjs (docs/EXPLOITATION.md §4.3)."

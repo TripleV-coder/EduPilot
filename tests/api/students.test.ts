@@ -91,7 +91,7 @@ describe("GET /api/students", () => {
   it("should filter by search and classId", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: "ay1" } as never);
-    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ id: "tp1" } as never);
+    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ id: "tp1", schoolId: null, user: { schoolId: null }, schoolAssignments: [] } as never);
     vi.mocked(prisma.classSubject.findMany).mockResolvedValue([{ classId: "cl1" }] as never);
     vi.mocked(prisma.class.findMany).mockResolvedValue([]);
     vi.mocked(prisma.studentProfile.findMany).mockResolvedValue([]);
@@ -108,7 +108,7 @@ describe("GET /api/students", () => {
   it("un enseignant ne voit pas les élèves d'une classe qu'il n'a pas", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
     vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: "ay1" } as never);
-    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ id: "tp1" } as never);
+    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ id: "tp1", schoolId: null, user: { schoolId: null }, schoolAssignments: [] } as never);
     vi.mocked(prisma.classSubject.findMany).mockResolvedValue([{ classId: "autre" }] as never);
     vi.mocked(prisma.class.findMany).mockResolvedValue([]);
 

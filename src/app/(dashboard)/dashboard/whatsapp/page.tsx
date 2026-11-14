@@ -1,6 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useSWR from "swr";
+import { toast } from "sonner";
+import { fetcher } from "@/lib/fetcher";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import Link from "next/link";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -96,9 +107,18 @@ const CHANNEL_GUIDANCE: {
 ];
 
 export default function WhatsAppPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]} >
+            <WhatsAppPageContent />
+        </PageGuard>
+    );
+}
+
+function WhatsAppPageContent() {
     const [status, setStatus] = useState<ChannelStatus | null>(null);
     const [loading, setLoading] = useState(true);
-    const [verifyOpen, setVerifyOpen] = useState(false);
+    const [broadcastOpen, setBroadcastOpen] = useState(false);
 
     useEffect(() => {
         fetch("/api/integrations/whatsapp")
@@ -119,10 +139,7 @@ export default function WhatsAppPage() {
     }, []);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="WhatsApp Business · canal #1 au Bénin"
@@ -153,7 +170,7 @@ export default function WhatsAppPage() {
                                     Paramètres
                                 </Button>
                             </Link>
-                            <Button icon="sparkle" disabled={!status?.connected}>
+                            <Button icon="sparkle" disabled={!status?.connected} onClick={() => setBroadcastOpen(true)}>
                                 Diffuser un message
                             </Button>
                         </>
@@ -212,7 +229,7 @@ export default function WhatsAppPage() {
                                                 marginTop: 4,
                                             }}
                                         >
-                                            Activer la WhatsApp Business API te permet d'envoyer rappels paiements, alertes absences, et bulletins directement sur le canal #1 utilisé par les parents au Bénin (98% taux de lecture, contre 32% sur email). Tu dois passer par un BSP (Twilio, 360dialog, Vonage…) ou directement Meta Cloud API.
+                                            L&apos;envoi passe par l&apos;API Meta Cloud (WhatsApp Business). L&apos;équipe technique d&apos;EduPilot doit renseigner le numéro WhatsApp Business, son jeton d&apos;accès et un modèle de message approuvé par Meta ; le bouton « Diffuser un message » s&apos;active ensuite. Les numéros des familles sont transmis à Meta pour l&apos;envoi.
                                         </div>
                                         <div
                                             style={{
@@ -222,18 +239,15 @@ export default function WhatsAppPage() {
                                                 flexWrap: "wrap",
                                             }}
                                         >
-                                            <Button icon="sparkle" onClick={() => setVerifyOpen(true)}>Démarrer la vérification</Button>
-                                            {verifyOpen ? (
-                                                <div role="dialog" aria-label="Vérification WhatsApp" className="w-full text-sm">
-                                                    WhatsApp Business n&apos;est pas configuré. Aucun fournisseur (Twilio, 360dialog ou Meta) n&apos;est relié à cet établissement.
-                                                    <div className="mt-2">
-                                                        <Button type="button" variant="secondary" onClick={() => setVerifyOpen(false)}>Fermer</Button>
-                                                    </div>
-                                                </div>
-                                            ) : null}
-                                            <Button variant="secondary" icon="info">
-                                                Documentation Meta
-                                            </Button>
+                                            <a
+                                                href="https://developers.facebook.com/docs/whatsapp/cloud-api"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-sm font-semibold"
+                                                style={{ color: "var(--brand-700)" }}
+                                            >
+                                                Documentation Meta (WhatsApp Cloud API) ↗
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -310,7 +324,7 @@ export default function WhatsAppPage() {
                                     </h2>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             margin: "2px 0 0",
                                         }}
@@ -355,7 +369,7 @@ export default function WhatsAppPage() {
                                             </div>
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color:
                                                         "var(--eduflow-text-tertiary)",
                                                 }}
@@ -427,7 +441,7 @@ export default function WhatsAppPage() {
                                             </div>
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     opacity: 0.85,
                                                 }}
                                             >
@@ -463,7 +477,7 @@ export default function WhatsAppPage() {
                                         >
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--brand-700)",
                                                     fontWeight: 700,
                                                     marginBottom: 4,
@@ -487,7 +501,7 @@ export default function WhatsAppPage() {
                                             </span>
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "#666",
                                                     textAlign: "right",
                                                     marginTop: 6,
@@ -512,7 +526,7 @@ export default function WhatsAppPage() {
                                             Payé ! Merci 🙏
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "#666",
                                                     textAlign: "right",
                                                     marginTop: 4,
@@ -536,7 +550,7 @@ export default function WhatsAppPage() {
                                         >
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--brand-700)",
                                                     fontWeight: 700,
                                                     marginBottom: 4,
@@ -547,7 +561,7 @@ export default function WhatsAppPage() {
                                             ✅ Paiement reçu — reçu Flutterwave #FLW-882104. Merci !
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "#666",
                                                     textAlign: "right",
                                                     marginTop: 4,
@@ -560,7 +574,7 @@ export default function WhatsAppPage() {
                                 </Card>
 
                                 <Card>
-                                    <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Canaux disponibles</p>
+                                    <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Canaux disponibles</p>
                                     <div
                                         style={{
                                             display: "flex",
@@ -604,7 +618,7 @@ export default function WhatsAppPage() {
                                     </div>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             marginTop: 12,
                                             lineHeight: 1.5,
@@ -617,6 +631,7 @@ export default function WhatsAppPage() {
                         </div>
                     </>
                 ) : null}
+                <BroadcastDialog open={broadcastOpen} onOpenChange={setBroadcastOpen} />
             </PageShell>
 
             <style jsx global>{`
@@ -629,6 +644,79 @@ export default function WhatsAppPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
+    );
+}
+
+type ClassOption = { id: string; name: string };
+
+/** Message aux familles (POST /api/whatsapp/broadcast). */
+function BroadcastDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+    const { data: classesData } = useSWR<{ data?: ClassOption[] } | ClassOption[]>(open ? "/api/classes?limit=200" : null, fetcher);
+    const classes = Array.isArray(classesData) ? classesData : classesData?.data ?? [];
+    const [message, setMessage] = useState("");
+    const [classId, setClassId] = useState("");
+    const [busy, setBusy] = useState(false);
+    const invalid = message.trim().length < 5 || message.length > 900;
+
+    const send = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (invalid) return;
+        setBusy(true);
+        try {
+            const res = await fetch("/api/whatsapp/broadcast", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: message.trim(), classId: classId || null }),
+            });
+            const body = (await res.json().catch(() => ({}))) as { error?: string; queued?: number; withoutPhone?: number };
+            if (!res.ok) {
+                toast.error(body.error || "Le message n'a pas été envoyé.");
+                return;
+            }
+            toast.success(
+                `${body.queued ?? 0} famille(s) recevront le message${body.withoutPhone ? ` · ${body.withoutPhone} sans numéro valide` : ""}.`,
+            );
+            setMessage("");
+            onOpenChange(false);
+        } catch {
+            toast.error("Connexion impossible : le message n'a pas été envoyé.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-lg">
+                <form onSubmit={send} className="space-y-3">
+                    <DialogHeader>
+                        <DialogTitle>Diffuser un message WhatsApp</DialogTitle>
+                        <DialogDescription>Envoyé à chaque parent ayant un numéro valide, une fois par numéro.</DialogDescription>
+                    </DialogHeader>
+                    <label className="block text-sm">
+                        Destinataires
+                        <select value={classId} onChange={(e) => setClassId(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                            <option value="">Toutes les familles de l&apos;école</option>
+                            {classes.map((c) => <option key={c.id} value={c.id}>Familles de la classe {c.name}</option>)}
+                        </select>
+                    </label>
+                    <label className="block text-sm">
+                        Message ({message.length}/900)
+                        <textarea
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            maxLength={900}
+                            className="mt-1 min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            placeholder="Ex. Réunion des parents samedi 14 à 9 h dans la cour de l'école."
+                        />
+                    </label>
+                    <DialogFooter>
+                        <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={busy}>Annuler</Button>
+                        <Button type="submit" disabled={invalid} loading={busy}>Envoyer</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }

@@ -45,7 +45,7 @@ Le directeur des études (censeur) :
 Gère les frais, les paiements, les plans de paiement, les bourses, les rapports financiers et la comptabilité. Consulte les élèves pour retrouver une famille.
 
 ### Personnel (secrétariat, surveillance, vie scolaire)
-Consulte les élèves et les comptes. Selon les modules activés, il intervient sur :
+Consulte les élèves (liste et fiche : vue 360°, présences, discipline) et le fil d'annonces, **sans les modifier**. Il ne voit ni les notes, ni la santé, ni les finances, et n'a pas l'assistant IA. Il fait l'appel et signale les incidents. Selon les modules activés, il intervient aussi sur :
 - la vie scolaire et la discipline ;
 - les badges et le contrôle d'accès ;
 - le transport ;
@@ -97,7 +97,7 @@ L'administrateur de l'école choisit les **modules** utilisés dans *Paramètres
 | Finance et paiements | Frais, paiements, bourses, comptabilité. |
 | Santé | Dossiers médicaux, allergies, vaccinations, contacts d'urgence. **Données sensibles : à n'activer qu'avec une infirmerie.** |
 | Discipline | Incidents, sanctions, conseils de discipline. |
-| Assistant IA | Assistant de conversation et analyses assistées. **Les données sont envoyées à un service extérieur d'intelligence artificielle.** |
+| Assistant IA | Assistant qui répond aux questions avec les chiffres de l'établissement (élèves à risque, prévisions, appel, emploi du temps, devoirs, paiements) et rédige des propositions d'appréciation. **Tout est calculé dans EduPilot : aucune donnée n'est envoyée à un service extérieur.** |
 | Badges et contrôle d'accès | Cartes scolaires, points de passage, journaux d'entrée et de sortie. |
 | Ressources humaines et paie | Personnel, présence, congés, bulletins de paie. |
 | Cantine | Menus, tickets, facturation. |
@@ -112,7 +112,6 @@ L'administrateur de l'école choisit les **modules** utilisés dans *Paramètres
 | Rendez-vous | Prise de rendez-vous entre familles et équipe. |
 | Documents et attestations | Pièces déposées par les familles, certificats, attestations. |
 | Bien-être et suivi psychologique | Signalements de harcèlement, entretiens. **Données sensibles : à n'activer qu'avec une personne formée.** |
-| Comparaison entre établissements | Position de l'école face aux autres du réseau. Des chiffres agrégés sortent de l'établissement. |
 | Notifications vocales et WhatsApp | Messages vocaux et WhatsApp aux familles. **Les numéros sont transmis à un prestataire.** |
 
 ## Les cycles de l'établissement

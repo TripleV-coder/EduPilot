@@ -26,7 +26,10 @@ function makeCagnotte() {
     deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
     status: "OPEN",
     contributions: [
-      { id: "k1", parentUserId: "u2", amountFcfa: 5000n, paidAt: new Date(), parent: { firstName: "Marie", lastName: "Martin" } },
+      { id: "k1", parentUserId: "u2", amountFcfa: 5000n, status: "CONFIRMED", paymentRef: null, reviewNote: null, paidAt: new Date(), parent: { firstName: "Marie", lastName: "Martin" } },
+      // Déclarée, pas encore vérifiée : hors du total (TD-019)
+      { id: "k2", parentUserId: "u3", amountFcfa: 20000n, status: "PENDING", paymentRef: "MP2611", reviewNote: null, paidAt: new Date(), parent: { firstName: "Koffi", lastName: "Adjovi" } },
+      { id: "k3", parentUserId: "u4", amountFcfa: 9000n, status: "REJECTED", paymentRef: null, reviewNote: "aucune somme reçue", paidAt: new Date(), parent: { firstName: "Ama", lastName: "Sossa" } },
     ],
     journal: [],
   } as never;
@@ -69,6 +72,22 @@ describe("GET /api/cagnottes", () => {
     const body = await res.json();
     expect(body.cagnottes[0].myContributionFcfa).toBe("5000");
     expect(body.cagnottes[0].hasContributed).toBe(true);
+  });
+
+  it("une contribution en attente ne compte pas : seule la famille la voit, l'école la compte à valider", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT", { id: "u3" }));
+    vi.mocked(prisma.cagnotte.findMany).mockResolvedValue([makeCagnotte()]);
+    const parent = (await (await GET(makeRequest("http://localhost/api/cagnottes"))).json()).cagnottes[0];
+    expect(parent.raisedFcfa).toBe("5000");
+    expect(parent.myContributionFcfa).toBe("0");
+    expect(parent.myPendingFcfa).toBe("20000");
+    expect(parent.pendingCount).toBe(0);
+    expect(parent.recentInitials).toEqual(["MM"]);
+
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.cagnotte.findMany).mockResolvedValue([makeCagnotte()]);
+    const accountant = (await (await GET(makeRequest("http://localhost/api/cagnottes"))).json()).cagnottes[0];
+    expect(accountant.pendingCount).toBe(1);
   });
 
   it("should filter by status", async () => {
@@ -184,5 +203,33 @@ describe("GET /api/cagnottes/[cagnotteId]", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.id).toBe("cag1");
+    // Une enseignante voit la contribution confirmée, pas les déclarations des familles
+    expect(body.raisedFcfa).toBe("5000");
+    expect(body.contributions.map((c: { id: string }) => c.id)).toEqual(["k1"]);
+    expect(body.canReview).toBe(false);
+    expect(body.pendingCount).toBe(0);
+  });
+
+  it("la famille voit sa déclaration rejetée et le motif, sans le nom des autres", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT", { id: "u4" }));
+    vi.mocked(prisma.cagnotte.findFirst).mockResolvedValue(makeCagnotte());
+    const body = await (await GET_ONE(makeRequest("http://localhost/api/cagnottes/cag1"), { params: Promise.resolve({ cagnotteId: "cag1" }) })).json();
+    expect(body.contributions.map((c: { id: string }) => c.id)).toEqual(["k1", "k3"]);
+    const mine = body.contributions.find((c: { id: string }) => c.id === "k3");
+    expect(mine).toMatchObject({ status: "REJECTED", reviewNote: "aucune somme reçue", isMine: true, parentName: null });
+  });
+
+  it("le comptable voit la file à valider avec nom et référence", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.cagnotte.findFirst).mockResolvedValue(makeCagnotte());
+    const res = await GET_ONE(makeRequest("http://localhost/api/cagnottes/cag1"), { params: Promise.resolve({ cagnotteId: "cag1" }) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.canReview).toBe(true);
+    expect(body.pendingCount).toBe(1);
+    expect(body.pendingFcfa).toBe("20000");
+    expect(body.raisedFcfa).toBe("5000");
+    const pending = body.contributions.find((c: { id: string }) => c.id === "k2");
+    expect(pending).toMatchObject({ status: "PENDING", parentName: "Koffi Adjovi", paymentRef: "MP2611" });
   });
 });

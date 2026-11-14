@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -76,6 +77,15 @@ async function errorMessage(res: Response, fallback: string): Promise<string> {
 }
 
 export default function EvaluationTypesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.EVALUATION_CREATE]}>
+            <EvaluationTypesPageContent />
+        </PageGuard>
+    );
+}
+
+function EvaluationTypesPageContent() {
     const { data: types, isLoading, error, mutate } = useSWR<EvaluationType[]>("/api/evaluation-types", fetcher);
 
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -187,7 +197,7 @@ export default function EvaluationTypesPage() {
     }
 
     return (
-        <PageGuard permission={[Permission.EVALUATION_CREATE]}>
+        <>
             <PageShell>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
@@ -228,7 +238,8 @@ export default function EvaluationTypesPage() {
                             <Settings2 className="w-5 h-5" />
                             <p className="text-sm">
                                 Ces types d'évaluation seront proposés aux enseignants lors de la création d'une nouvelle note.
-                                Le &quot;Poids (Coefficient)&quot; est utilisé pour le calcul des moyennes pondérées.
+                                Le « Rôle dans la moyenne » indique comment chaque type compte ; la formule de calcul se règle dans{" "}
+                                <Link href="/dashboard/settings/grading" className="underline underline-offset-2">Règles de l&apos;établissement</Link>.
                             </p>
                         </div>
 
@@ -391,6 +402,6 @@ export default function EvaluationTypesPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </PageGuard>
+        </>
     );
 }
