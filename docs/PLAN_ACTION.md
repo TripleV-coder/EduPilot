@@ -2,7 +2,7 @@
 
 _Établi le 29 septembre 2026, branche `feat/refonte-coloree-et-securite` (poussée sur GitHub, pas encore fusionnée dans `main`)._
 
-Sources : recette filmée du 28/09/2026 (`recette-videos/RAPPORT.md` : 111 scénarios, 1 177 actions, **88 échecs**, **47 anomalies distinctes**) et mesure du code du 29/09/2026 (177 pages).
+Sources : recette filmée du 28/09/2026 (`recette-videos/RAPPORT.md`, recette filmée supprimée le 2026-11-13 : 111 scénarios, 1 177 actions, **88 échecs**, **47 anomalies distinctes**) et mesure du code du 29/09/2026 (177 pages).
 
 ---
 
@@ -16,7 +16,7 @@ Ces points dépendent de toi. Tant qu'ils ne sont pas tranchés, ils bloquent un
 | 2 | **Décider : fusionner la branche dans `main`** (via une PR, recommandé) | 20 commits, dont des correctifs de sécurité, ne sont que sur la branche : `main` (et donc ce qui est déployé depuis `main`) ne les a pas | Mise en production des correctifs |
 | 3 | **Trancher le cas « parent avec des enfants dans deux établissements »** | Aujourd'hui la session ne porte qu'un établissement à la fois, et la base filtre les données par établissement (RLS). Il faut choisir : sélecteur d'établissement dans la session, ou compte parent par établissement | Parcours parents du réseau Les Cocotiers |
 | 4 | **Trancher les règles métier en attente** | Je ne peux pas les inventer | Voir liste ci-dessous |
-| 5 | **Relancer la recette complète** une fois les lots ci-dessous faits | Seule preuve que les correctifs tiennent de bout en bout | Clôture du plan |
+| 5 | **Rejouer l'E2E principal et l'installation à vide** (`npm run test:e2e`, `playwright.fresh.config.ts`) une fois les lots ci-dessous faits | Preuve que les correctifs tiennent de bout en bout (la recette filmée a été supprimée le 2026-11-13) | Clôture du plan |
 
 Règles métier à trancher (point 4) :
 - **Devoirs surveillés** : plafond de 2 par période ? Bloquant ou simple avertissement ? (la recette attendait un refus du 3ᵉ)
@@ -170,4 +170,4 @@ Légende du statut :
 4. **Services** : cours/ressources, bibliothèque, clubs, transport, cantine, calendrier, import CSV, orientation, RGPD.
 5. **Erreurs techniques** 3.4 et anglais / maintenance (3.3).
 6. **Design homogène** (section 2) : peut démarrer en parallèle dès ta validation ; les lots réécrivent les mêmes pages, donc les correctifs fonctionnels d'une page sont faits dans le même lot quand c'est possible.
-7. **Recette complète** depuis une base vide (`e2e/recette/README.md`), puis PR vers `main`.
+7. **E2E principal + installation à vide** depuis une base vide (`playwright.fresh.config.ts`), puis PR vers `main`.
