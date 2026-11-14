@@ -213,6 +213,9 @@ describe("jeton d'installation (premier super-administrateur)", () => {
   it("en production sans jeton configuré : verrouillé (503), jamais ouvert par défaut", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("INITIAL_SETUP_TOKEN", "");
+    // Ni secret maître : sinon le jeton est dérivé de NEXTAUTH_SECRET (cas de la CI)
+    vi.stubEnv("NEXTAUTH_SECRET", "");
+    vi.stubEnv("AUTH_SECRET", "");
     vi.mocked(auth).mockResolvedValue(null);
     const res = await post({ ...VALID_BODY, setupToken: "n'importe" });
     expect(res.status).toBe(503);
