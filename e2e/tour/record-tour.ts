@@ -18,6 +18,7 @@ import bcrypt from "bcrypt";
 import fs from "node:fs";
 import path from "node:path";
 import prisma from "../../src/lib/prisma";
+import { assertDisposableDatabase } from "../../scripts/lib/disposable-guard.mjs";
 
 const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:3093";
 const PASSWORD = "E2eTestPass!2026";
@@ -36,6 +37,33 @@ const ROLES: { key: string; label: string; email: string }[] = [
     { key: "parent", label: "Parent", email: "fabrice.agbossou0@gmail.com" },
 ];
 
+/** Une question réelle posée à l'assistant IA, par rôle (montrée dans la vidéo). */
+const AI_QUESTION: Record<string, string> = {
+    "super-admin": "Où en est le recouvrement des frais ?",
+    "school-admin": "Quels élèves sont en difficulté ?",
+    director: "Où en est le recouvrement des frais ?",
+    // Comptabilité : pas d'accès à l'assistant (canUseAiAssistant), bouton masqué
+    teacher: "Qui était absent aujourd'hui ?",
+    student: "Quelle est ma moyenne ?",
+    parent: "Combien je dois encore payer ?",
+};
+
+/**
+ * Page prête : chargée, puis plus d'indicateur de chargement visible (6 s au
+ * plus). Pas de "networkidle" : le flux temps réel des notifications reste
+ * ouvert, il ne serait jamais atteint (8 s perdues par page).
+ */
+async function settle(page: Page) {
+    await page.waitForLoadState("load", { timeout: 10_000 }).catch(() => {});
+    await page
+        .waitForFunction(
+            () => !document.querySelector('[aria-busy="true"], .animate-pulse, .animate-spin, [data-loading="true"]'),
+            undefined,
+            { timeout: 6_000 },
+        )
+        .catch(() => {});
+}
+
 type LogEntry = { role: string; page: string; action: string; ok: boolean; detail?: string };
 const log: LogEntry[] = [];
 
@@ -51,6 +79,8 @@ async function safe(role: string, pageName: string, action: string, fn: () => Pr
 }
 
 async function resetPasswords() {
+    // Réécrit des mots de passe : base jetable marquée seulement (règle 6).
+    await assertDisposableDatabase(prisma, "e2e/tour/record-tour.ts");
     const hashed = await bcrypt.hash(PASSWORD, 12);
     for (const r of ROLES) {
         const user = await prisma.user.findUnique({ where: { email: r.email }, select: { id: true } });
@@ -86,6 +116,15 @@ async function login(page: Page, email: string): Promise<boolean> {
     try {
         await page.waitForURL(/\/dashboard($|\/)/, { timeout: 30_000 });
         await sleep(1500);
+        // Écran de consentement (conditions, données de l'enfant) : y répondre
+        const consent = page.getByRole("heading", { name: /avant de continuer/i });
+        if (await consent.isVisible().catch(() => false)) {
+            for (const box of await page.getByRole("checkbox").all()) await box.check().catch(() => {});
+            await sleep(400);
+            await page.getByRole("button", { name: /continuer/i }).click({ timeout: 5000 }).catch(() => {});
+            await consent.waitFor({ state: "hidden", timeout: 15_000 }).catch(() => {});
+            await sleep(1000);
+        }
         return true;
     } catch {
         return false;
@@ -269,12 +308,28 @@ async function tourRole(context: BrowserContext, role: { key: string; label: str
         const url = `${BASE_URL}${href}`;
         await safe(role.key, href, "navigation", async () => {
             await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20_000 });
-            await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+            await settle(page);
             await sleep(1200);
         });
         // Ne pas exécuter de CRUD sur les pages réseau super-admin sensibles? On les
         // garde mais sans suppression (DESTRUCTIVE filtré). On exerce la page.
         await exercisePage(page, role.key, href);
+    }
+
+    // Assistant IA : une vraie question du rôle, réponse lue à l'écran.
+    const question = AI_QUESTION[role.key];
+    if (question) {
+        await safe(role.key, "/dashboard/ai", "assistant", async () => {
+            await page.goto(`${BASE_URL}/dashboard/ai`, { waitUntil: "domcontentloaded" });
+            await settle(page);
+            const input = page.getByLabel("Votre question");
+            await input.click({ timeout: 5000 });
+            await input.pressSequentially(question, { delay: 45 });
+            await sleep(500);
+            await page.getByRole("button", { name: "Envoyer" }).click({ timeout: 5000 });
+            await page.getByRole("status", { name: /cherche la réponse/i }).waitFor({ state: "detached", timeout: 20_000 }).catch(() => {});
+            await sleep(4000); // temps de lecture de la réponse
+        });
     }
 
     // Retour dashboard pour clôturer proprement la vidéo.
@@ -288,13 +343,24 @@ async function tourRole(context: BrowserContext, role: { key: string; label: str
 
 async function main() {
     fs.mkdirSync(OUT_DIR, { recursive: true });
+    // Vidéos d'un passage précédent retirées : build-videos.sh prend la plus grosse du dossier
+    const onlyRoles = (process.env.TOUR_ROLES ?? "").split(",").map((key) => key.trim()).filter(Boolean);
+    for (const role of ROLES) {
+        if (onlyRoles.length > 0 && !onlyRoles.includes(role.key)) continue;
+        const dir = path.join(OUT_DIR, role.key);
+        if (!fs.existsSync(dir)) continue;
+        for (const file of fs.readdirSync(dir)) if (file.endsWith(".webm")) fs.rmSync(path.join(dir, file));
+    }
     console.log("[tour] reset mots de passe…");
     await resetPasswords();
 
     const execPath = process.env.PW_CHROMIUM_PATH || undefined;
     const browser = await chromium.launch({ headless: true, slowMo: 120, executablePath: execPath });
 
+    // TOUR_ROLES=accountant,parent : ne refilmer que ces rôles
+    const only = (process.env.TOUR_ROLES ?? "").split(",").map((key) => key.trim()).filter(Boolean);
     for (const role of ROLES) {
+        if (only.length > 0 && !only.includes(role.key)) continue;
         const exists = await prisma.user.findUnique({ where: { email: role.email }, select: { id: true } });
         if (!exists) continue;
         const videoDir = path.join(OUT_DIR, role.key);

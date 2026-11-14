@@ -75,3 +75,6 @@ test_reports/
 # Prototypes de design (tokens portés dans src/styles, sources dans l'historique)
 design-handoff/
 design_handoff_edupilot/
+
+# Vidéos et rapports du tournage (e2e/tour) : régénérables, trop lourds pour git
+e2e/tour/output/
