@@ -347,9 +347,7 @@ CRON_SECRET="GÉNÉRER_AVEC_openssl_rand_-hex_32"
 # Base de données (REQUIS)
 DATABASE_URL="postgresql://user:pass@host:5432/edupilot?sslmode=require"
 
-# Email (REQUIS pour notifications)
-EMAIL_PROVIDER="resend"
-EMAIL_API_KEY="re_xxxxx"
+# Email (REQUIS pour notifications) : console root › Intégrations › E-mail
 
 # Monitoring (RECOMMANDÉ)
 ```

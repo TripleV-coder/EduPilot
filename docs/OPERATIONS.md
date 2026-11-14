@@ -24,7 +24,7 @@ Voir `.env.example` pour la liste complète. Les **critiques** :
 | `NEXTAUTH_URL` | URL | URL publique de l'app |
 | `NEXTAUTH_SECRET` | secret | Min 32 caractères — `openssl rand -base64 48` |
 | `TOTP_ENCRYPTION_KEY` | secret hex | 64 caractères hex — `openssl rand -hex 32` |
-| `EMAIL_API_KEY` | secret | Emails transactionnels |
+| — | — | E-mail : réglé dans la console root › Intégrations (plus de variable) |
 | `STAGING_DEPLOY_COMMAND` | commande | Commande de déploiement staging exécutée par `ci-cd.yml` |
 | `PRODUCTION_DEPLOY_COMMAND` | commande | Commande de déploiement production exécutée par `ci-cd.yml` |
 

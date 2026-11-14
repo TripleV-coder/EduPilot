@@ -23,10 +23,8 @@ NODE_ENV="production"
 # Sécurité 2FA
 TOTP_ENCRYPTION_KEY="[GÉNÉRER: openssl rand -hex 64]"
 
-# Email (OBLIGATOIRE pour reset password)
-EMAIL_PROVIDER="resend"  # ou "sendgrid"
-EMAIL_API_KEY="re_prod_xxxxxxxxxxxxxxxx"
-EMAIL_FROM="noreply@votredomaine.com"
+# Email (OBLIGATOIRE pour reset password) : plus de variable — console root
+# › Intégrations › E-mail, puis « Envoyer un e-mail d'essai » avant l'ouverture
 
 # Backup API : désactivée par défaut
 ALLOW_BACKUP_API="false"

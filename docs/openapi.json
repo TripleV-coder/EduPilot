@@ -16752,6 +16752,30 @@
         }
       }
     },
+    "/api/root/integrations/test-email": {
+      "post": {
+        "summary": "POST /api/root/integrations/test-email",
+        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "tags": [
+          "root"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
     "/api/root/logs": {
       "get": {
         "summary": "GET /api/root/logs",

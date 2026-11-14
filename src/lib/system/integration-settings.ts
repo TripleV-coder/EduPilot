@@ -1,7 +1,7 @@
 /**
- * Réglages des services de messagerie de la plateforme (SMS, appels vocaux,
- * WhatsApp) — modifiables dans la console root, plus besoin du fichier .env
- * ni d'un redéploiement (2026-11-08).
+ * Réglages des services de messagerie de la plateforme (e-mail, SMS, appels
+ * vocaux, WhatsApp) — modifiables dans la console root, plus besoin du
+ * fichier .env ni d'un redéploiement (2026-11-08 ; e-mail le 2026-11-12).
  *
  * - Enregistrés dans `system_settings` (clé `integration:<NOM>`), les secrets
  *   chiffrés en AES-256-GCM (clé dérivée du secret maître, lib/auth/crypto).
@@ -16,17 +16,47 @@ import { prismaBase } from "@/lib/prisma";
 import { decryptSecret, encryptSecret } from "@/lib/auth/crypto";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * `kind` : contrôle de forme à l'enregistrement — https (adresse HTTPS),
+ * smtp (smtp:// ou smtps://), email (adresse e-mail, avec ou sans nom
+ * affiché « EduPilot <noreply@…> »), text (libre).
+ */
 export const INTEGRATION_SETTINGS = {
-    SMS_WEBHOOK_URL: { group: "sms", label: "Adresse de la passerelle SMS", secret: false, url: true },
-    SMS_API_KEY: { group: "sms", label: "Clé d'API SMS", secret: true, url: false },
-    VOICE_WEBHOOK_URL: { group: "voice", label: "Adresse de la passerelle vocale", secret: false, url: true },
-    VOICE_API_KEY: { group: "voice", label: "Clé d'API de la passerelle vocale", secret: true, url: false },
-    WHATSAPP_PHONE_ID: { group: "whatsapp", label: "Identifiant du numéro WhatsApp", secret: false, url: false },
-    WHATSAPP_ACCESS_TOKEN: { group: "whatsapp", label: "Jeton d'accès WhatsApp", secret: true, url: false },
-    WHATSAPP_TEMPLATE_NAME: { group: "whatsapp", label: "Modèle de message approuvé", secret: false, url: false },
-    WHATSAPP_TEMPLATE_LANG: { group: "whatsapp", label: "Langue du modèle (fr par défaut)", secret: false, url: false },
-    WHATSAPP_API_VERSION: { group: "whatsapp", label: "Version de l'API Meta (v21.0 par défaut)", secret: false, url: false },
+    EMAIL_API_KEY: { group: "email", label: "Clé d'API e-mail (Resend « re_… » ou SendGrid « SG.… »)", secret: true, kind: "text" },
+    SMTP_URL: { group: "email", label: "Ou serveur SMTP (smtps://utilisateur:mot-de-passe@serveur)", secret: true, kind: "smtp" },
+    EMAIL_FROM: { group: "email", label: "Adresse d'expédition (ex. EduPilot <noreply@ecole.bj>)", secret: false, kind: "email" },
+    SMS_WEBHOOK_URL: { group: "sms", label: "Adresse de la passerelle SMS", secret: false, kind: "https" },
+    SMS_API_KEY: { group: "sms", label: "Clé d'API SMS", secret: true, kind: "text" },
+    VOICE_WEBHOOK_URL: { group: "voice", label: "Adresse de la passerelle vocale", secret: false, kind: "https" },
+    VOICE_API_KEY: { group: "voice", label: "Clé d'API de la passerelle vocale", secret: true, kind: "text" },
+    WHATSAPP_PHONE_ID: { group: "whatsapp", label: "Identifiant du numéro WhatsApp", secret: false, kind: "text" },
+    WHATSAPP_ACCESS_TOKEN: { group: "whatsapp", label: "Jeton d'accès WhatsApp", secret: true, kind: "text" },
+    WHATSAPP_TEMPLATE_NAME: { group: "whatsapp", label: "Modèle de message approuvé", secret: false, kind: "text" },
+    WHATSAPP_TEMPLATE_LANG: { group: "whatsapp", label: "Langue du modèle (fr par défaut)", secret: false, kind: "text" },
+    WHATSAPP_API_VERSION: { group: "whatsapp", label: "Version de l'API Meta (v21.0 par défaut)", secret: false, kind: "text" },
 } as const;
+
+const EMAIL_ADDRESS = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+
+/** Message d'erreur si la valeur n'a pas la forme attendue, sinon null. */
+function checkKind(kind: (typeof INTEGRATION_SETTINGS)[IntegrationSettingName]["kind"], label: string, value: string): string | null {
+    if (kind === "https" || kind === "smtp") {
+        let url: URL;
+        try {
+            url = new URL(value);
+        } catch {
+            return `${label} : adresse invalide.`;
+        }
+        if (kind === "https" && url.protocol !== "https:") return `${label} : l'adresse doit commencer par https://.`;
+        if (kind === "smtp" && url.protocol !== "smtp:" && url.protocol !== "smtps:") return `${label} : l'adresse doit commencer par smtps:// ou smtp://.`;
+        if (kind === "smtp" && !url.hostname) return `${label} : serveur manquant.`;
+    }
+    if (kind === "email") {
+        const address = value.match(/<([^>]+)>\s*$/)?.[1] ?? value;
+        if (!EMAIL_ADDRESS.test(address.trim())) return `${label} : adresse e-mail invalide.`;
+    }
+    return null;
+}
 
 export type IntegrationSettingName = keyof typeof INTEGRATION_SETTINGS;
 export const INTEGRATION_SETTING_NAMES = Object.keys(INTEGRATION_SETTINGS) as IntegrationSettingName[];
@@ -124,15 +154,8 @@ export async function saveIntegrationSettings(changes: Partial<Record<Integratio
         const meta = INTEGRATION_SETTINGS[name];
         const value = raw?.trim() ?? "";
         if (value.length > 2000) throw new IntegrationSettingError(`${meta.label} : valeur trop longue.`);
-        if (value && meta.url) {
-            let url: URL;
-            try {
-                url = new URL(value);
-            } catch {
-                throw new IntegrationSettingError(`${meta.label} : adresse invalide.`);
-            }
-            if (url.protocol !== "https:") throw new IntegrationSettingError(`${meta.label} : l'adresse doit commencer par https://.`);
-        }
+        const invalid = value ? checkKind(meta.kind, meta.label, value) : null;
+        if (invalid) throw new IntegrationSettingError(invalid);
     }
     // Secrets chiffrés AVANT toute écriture : sans clé, rien n'est enregistré
     const encrypted = new Map<IntegrationSettingName, string>();

@@ -1,15 +1,13 @@
 /**
- * Email Service for EduPilot
+ * Envoi d'e-mails : Resend, SendGrid ou SMTP (Nodemailer).
  *
- * This module provides email sending functionality.
- * In production, integrate with a real email provider like:
- * - Resend (recommended)
- * - SendGrid
- * - AWS SES
- * - Nodemailer with SMTP ("smtp")
+ * Réglage (2026-11-12) : console root › Intégrations › E-mail (clé d'API ou
+ * SMTP_URL, et adresse d'expédition), chiffré en base et appliqué sans
+ * redémarrage. Une variable d'environnement du même nom reste prioritaire.
  */
 
 import { logger } from "@/lib/utils/logger";
+import { getIntegrationSetting } from "@/lib/system/integration-settings";
 import nodemailer from "nodemailer";
 import { CIRCUITS, circuitFetch, getCircuitBreaker } from "@/lib/resilience/circuit-breaker";
 import { CircuitOpenError } from "@/lib/resilience/errors";
@@ -30,6 +28,27 @@ export function maskEmail(email: string): string {
 
 /** Un fournisseur qui ne répond pas ne doit pas retenir une requête ni une tâche. */
 const EMAIL_API_TIMEOUT_MS = 15_000;
+
+/**
+ * Configuration e-mail effective : variables d'environnement, complétées par
+ * les réglages de la console root (EMAIL_API_KEY, SMTP_URL, EMAIL_FROM).
+ */
+export function emailEnv(): Record<string, string | undefined> {
+  return {
+    ...process.env,
+    EMAIL_API_KEY: getIntegrationSetting("EMAIL_API_KEY"),
+    SMTP_URL: getIntegrationSetting("SMTP_URL"),
+    EMAIL_FROM: getIntegrationSetting("EMAIL_FROM"),
+  };
+}
+
+/** « EduPilot <noreply@x.bj> » → { name, email } ; adresse seule acceptée. */
+export function parseSender(from: string): { name?: string; email: string } {
+  const match = from.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  if (!match) return { email: from.trim() };
+  const name = match[1].trim();
+  return name ? { name, email: match[2].trim() } : { email: match[2].trim() };
+}
 
 let smtpTransport: { key: string; transporter: ReturnType<typeof nodemailer.createTransport> } | null = null;
 
@@ -53,7 +72,7 @@ export interface SmtpSettings {
  * Les anciennes variables SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER,
  * SMTP_PASS restent acceptées quand SMTP_URL est absente.
  */
-export function smtpSettings(env: Record<string, string | undefined> = process.env): SmtpSettings | null {
+export function smtpSettings(env: Record<string, string | undefined> = emailEnv()): SmtpSettings | null {
   const raw = env.SMTP_URL?.trim();
   if (raw) {
     let url: URL;
@@ -83,8 +102,8 @@ export function smtpSettings(env: Record<string, string | undefined> = process.e
   };
 }
 
-function getSmtpTransport() {
-  const config = smtpSettings() ?? { host: "localhost", port: 587, secure: false };
+function getSmtpTransport(env: Record<string, string | undefined>) {
+  const config = smtpSettings(env) ?? { host: "localhost", port: 587, secure: false };
   const key = JSON.stringify(config);
   if (smtpTransport?.key === key) return smtpTransport.transporter;
 
@@ -127,7 +146,7 @@ export type EmailProvider = "smtp" | "resend" | "sendgrid";
  * configuration présente (une variable de moins à renseigner) :
  * clé « re_… » → Resend, « SG.… » → SendGrid, SMTP_URL (ou SMTP_HOST) → SMTP.
  */
-export function resolveEmailProvider(env: Record<string, string | undefined> = process.env): EmailProvider | null {
+export function resolveEmailProvider(env: Record<string, string | undefined> = emailEnv()): EmailProvider | null {
   const explicit = env.EMAIL_PROVIDER?.trim().toLowerCase();
   if (explicit === "smtp" || explicit === "resend" || explicit === "sendgrid") return explicit;
   const key = env.EMAIL_API_KEY?.trim() ?? "";
@@ -144,12 +163,13 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const isDev = process.env.NODE_ENV === "development";
 
   // Check if email service is configured
-  const emailProvider = resolveEmailProvider();
-  const emailApiKey = process.env.EMAIL_API_KEY;
-  const emailFrom = process.env.EMAIL_FROM || "noreply@edupilot.bj";
+  const env = emailEnv();
+  const emailProvider = resolveEmailProvider(env);
+  const emailApiKey = env.EMAIL_API_KEY;
+  const emailFrom = env.EMAIL_FROM?.trim() || "noreply@edupilot.bj";
 
   // Le port a un défaut : seul le serveur est indispensable
-  const isSmtpIncomplete = emailProvider === "smtp" && !smtpSettings();
+  const isSmtpIncomplete = emailProvider === "smtp" && !smtpSettings(env);
   const isApiIncomplete = (emailProvider === "resend" || emailProvider === "sendgrid") && !emailApiKey;
 
   if (!emailProvider || isSmtpIncomplete || isApiIncomplete) {
@@ -173,7 +193,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     // En production : l'email n'est pas configuré — erreur explicite
     // (validateEnv() en instrumentation.ts devrait avoir bloqué le démarrage avant d'arriver ici)
     logger.error(
-      "Service email non configuré en production. Définir EMAIL_API_KEY (Resend « re_… » ou SendGrid « SG.… ») ou SMTP_URL, et EMAIL_FROM.",
+      "Service e-mail non configuré : console root › Intégrations › E-mail (clé Resend « re_… » ou SendGrid « SG.… », ou serveur SMTP, et adresse d'expédition).",
       undefined,
       { module: "email", to: maskEmail(to), subject }
     );
@@ -219,7 +239,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         },
         body: JSON.stringify({
           personalizations: [{ to: [{ email: to }] }],
-          from: { email: emailFrom },
+          from: parseSender(emailFrom),
           subject,
           content: [
             { type: "text/plain", value: text || html.replace(/<[^>]*>/g, "") },
@@ -240,7 +260,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     // SMTP (Nodemailer) integration
     if (emailProvider === "smtp") {
       await getCircuitBreaker(CIRCUITS.email).execute(
-        () => getSmtpTransport().sendMail({ from: emailFrom, to, subject, html, text }),
+        () => getSmtpTransport(env).sendMail({ from: emailFrom, to, subject, html, text }),
         { isFailureError: isSmtpOutage },
       );
 

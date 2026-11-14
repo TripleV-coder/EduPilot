@@ -12,13 +12,14 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils/error-message";
 
 /**
- * Console root › Intégrations : passerelle SMS, appels vocaux et WhatsApp,
- * réglés ici plutôt que dans le fichier .env (2026-11-08). Les secrets ne sont
+ * Console root › Intégrations : e-mail, passerelle SMS, appels vocaux et
+ * WhatsApp, réglés ici plutôt que dans le fichier .env (2026-11-08 ; e-mail
+ * le 2026-11-12). Les secrets ne sont
  * jamais réaffichés : seuls leurs 4 derniers caractères le sont.
  */
 type Setting = {
     name: string;
-    group: "sms" | "voice" | "whatsapp";
+    group: "email" | "sms" | "voice" | "whatsapp";
     label: string;
     secret: boolean;
     source: "env" | "console" | "unset";
@@ -26,6 +27,12 @@ type Setting = {
 };
 
 const GROUPS: { id: Setting["group"]; title: string; description: string }[] = [
+    {
+        id: "email",
+        title: "E-mail",
+        description:
+            "Réinitialisations de mot de passe, invitations, avis. Une clé Resend ou SendGrid, ou un serveur SMTP, plus l'adresse d'expédition.",
+    },
     { id: "sms", title: "SMS", description: "Passerelle HTTP du fournisseur de SMS (absences, rappels, codes)." },
     { id: "voice", title: "Appels vocaux", description: "Passerelle qui passe les appels des notifications vocales." },
     { id: "whatsapp", title: "WhatsApp", description: "API Meta Cloud : numéro, jeton et modèle de message approuvé." },
@@ -43,6 +50,7 @@ function RootIntegrationsContent() {
     const [settings, setSettings] = useState<Setting[] | null>(null);
     const [draft, setDraft] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
+    const [testing, setTesting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
 
@@ -77,13 +85,27 @@ function RootIntegrationsContent() {
         }
     };
 
+    const sendTestEmail = async () => {
+        setTesting(true);
+        try {
+            const res = await fetch("/api/root/integrations/test-email", { method: "POST" });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || "Envoi impossible.");
+            toast({ title: "E-mail d'essai envoyé", description: `Vérifiez la boîte de réception de ${body.to}.` });
+        } catch (err) {
+            toast({ title: "Échec de l'envoi", description: getErrorMessage(err), variant: "destructive" });
+        } finally {
+            setTesting(false);
+        }
+    };
+
     const changed = Object.fromEntries(Object.entries(draft).filter(([, value]) => value.trim() !== ""));
 
     return (
         <div className="space-y-6">
             <PageHeader
                 title="Intégrations"
-                description="SMS, appels vocaux et WhatsApp de la plateforme. Une variable d'environnement du même nom reste prioritaire."
+                description="E-mail, SMS, appels vocaux et WhatsApp de la plateforme. Une variable d'environnement du même nom reste prioritaire."
             />
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             {!settings && !error ? (
@@ -134,6 +156,24 @@ function RootIntegrationsContent() {
                                           </div>
                                       </div>
                                   ))}
+                              {group.id === "email" ? (
+                                  <div className="flex flex-wrap items-center gap-3">
+                                      <Button
+                                          type="button"
+                                          variant="outline"
+                                          disabled={testing || saving || Object.keys(changed).length > 0}
+                                          onClick={() => void sendTestEmail()}
+                                      >
+                                          {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                          Envoyer un e-mail d&apos;essai
+                                      </Button>
+                                      <p className="text-xs text-muted-foreground">
+                                          {Object.keys(changed).length > 0
+                                              ? "Enregistrez d'abord vos modifications."
+                                              : "Envoyé à votre propre adresse, avec les réglages en vigueur."}
+                                      </p>
+                                  </div>
+                              ) : null}
                           </CardContent>
                       </Card>
                   ))

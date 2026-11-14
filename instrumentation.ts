@@ -48,9 +48,18 @@ export async function register() {
       await logPendingSetup(() => prismaBase.user.count(), (message) => log.warn(message)).catch(() => {});
     }
 
-    // Réglages SMS / voix / WhatsApp saisis dans la console root (relus toutes les 30 s)
+    // Réglages e-mail / SMS / voix / WhatsApp saisis dans la console root (relus toutes les 30 s)
     const { startIntegrationSettingsRefresh } = await import("./src/lib/system/integration-settings");
     await startIntegrationSettingsRefresh();
+    if (process.env.NODE_ENV === "production" && process.env.SKIP_ENV_VALIDATION !== "true") {
+      const { emailEnv, resolveEmailProvider } = await import("./src/lib/email");
+      if (!resolveEmailProvider() || !emailEnv().EMAIL_FROM?.trim()) {
+        log.warn(
+          "E-mail non configuré : les réinitialisations de mot de passe ne partiront pas. " +
+            "Le régler dans la console root › Intégrations › E-mail.",
+        );
+      }
+    }
 
     const { warmCache } = await import("./src/lib/cache/warm");
     warmCache().catch(() => {});

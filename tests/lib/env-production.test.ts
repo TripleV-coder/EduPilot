@@ -37,18 +37,6 @@ describe("validateEnv — production", () => {
         expect(() => validateEnv()).not.toThrow();
     });
 
-    it("exige SMTP_HOST en SMTP", () => {
-        vi.stubEnv("EMAIL_PROVIDER", "smtp");
-        vi.stubEnv("EMAIL_API_KEY", "");
-        vi.stubEnv("SMTP_HOST", "");
-        expect(() => validateEnv()).toThrow(/SMTP_HOST/);
-    });
-
-    it("exige EMAIL_API_KEY pour un fournisseur par API", () => {
-        vi.stubEnv("EMAIL_PROVIDER", "resend");
-        vi.stubEnv("EMAIL_API_KEY", "");
-        expect(() => validateEnv()).toThrow(/EMAIL_API_KEY/);
-    });
 
     /**
      * L3 — fusion des trois modules d'environnement. `lib/config/env-validation.ts`
@@ -91,10 +79,10 @@ describe("validateEnv — production", () => {
         expect(() => validateEnv()).not.toThrow();
     });
 
-    it("exige toujours un moyen d'envoyer les e-mails", () => {
-        vi.stubEnv("EMAIL_PROVIDER", "");
-        vi.stubEnv("EMAIL_API_KEY", "");
-        vi.stubEnv("SMTP_HOST", "");
-        expect(() => validateEnv()).toThrow(/EMAIL_API_KEY/);
+    it("démarre avec les 3 variables seulement : l'e-mail se règle dans la console root (2026-11-12)", () => {
+        for (const name of ["EMAIL_PROVIDER", "EMAIL_API_KEY", "EMAIL_FROM", "SMTP_URL", "SMTP_HOST", "TOTP_ENCRYPTION_KEY", "SIGNATURE_SALT"]) {
+            vi.stubEnv(name, "");
+        }
+        expect(() => validateEnv()).not.toThrow();
     });
 });

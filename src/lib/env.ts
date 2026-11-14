@@ -42,12 +42,8 @@ function checkDatabaseUrl(value: string): string | null {
     return null;
 }
 
-const usesSmtp = () => process.env.EMAIL_PROVIDER === "smtp";
 /** Plateforme sans serveur (variables posées par l'hébergeur, voir lib/system/platform.ts). */
 const onServerless = () => process.env.VERCEL === "1" || Boolean(process.env.NETLIFY) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
-/** E-mail configuré par une clé d'API (Resend/SendGrid, fournisseur déduit) ou par SMTP. */
-const emailConfigured = () =>
-    Boolean(process.env.EMAIL_API_KEY?.trim()) || Boolean(process.env.SMTP_URL?.trim()) || Boolean(process.env.SMTP_HOST?.trim());
 
 const ENV_VARS: EnvVar[] = [
     {
@@ -71,24 +67,9 @@ const ENV_VARS: EnvVar[] = [
     // TOTP_ENCRYPTION_KEY, SIGNATURE_SALT, PAYMENT_SECRETS_KEY et CRON_SECRET ne
     // sont plus exigées : dérivées de NEXTAUTH_SECRET quand elles sont absentes
     // (lib/security/derived-secrets.ts). Une valeur explicite reste prioritaire.
-    {
-        name: "EMAIL_API_KEY",
-        required: "production",
-        description:
-            "E-mail (réinitialisation de mot de passe) : clé Resend « re_… » ou SendGrid « SG.… » (fournisseur déduit), ou SMTP_URL (smtps://utilisateur:mot-de-passe@serveur)",
-        when: () => !emailConfigured(),
-    },
-    {
-        name: "SMTP_URL",
-        required: "production",
-        description: "Serveur SMTP (EMAIL_PROVIDER=smtp) : smtps://utilisateur:mot-de-passe@serveur (ou l'ancien SMTP_HOST)",
-        when: () => usesSmtp() && !process.env.SMTP_HOST?.trim(),
-    },
-    {
-        name: "EMAIL_FROM",
-        required: "production",
-        description: "Adresse email expéditeur (ex: noreply@edupilot.com)",
-    },
+    // E-mail (EMAIL_API_KEY, SMTP_URL, EMAIL_FROM) : réglé dans la console root
+    // › Intégrations depuis le 2026-11-12 (une variable du même nom reste
+    // prioritaire). Absent : avertissement au démarrage (instrumentation.ts).
     {
         name: "EDUPILOT_PEER_TOKEN",
         required: "production",

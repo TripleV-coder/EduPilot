@@ -175,3 +175,13 @@ describe("SMTP_URL : une seule variable pour le serveur SMTP", () => {
     expect(resolveEmailProvider({ SMTP_URL: "smtps://a:b@h" })).toBe("smtp");
   });
 });
+
+describe("parseSender : nom affiché accepté dans l'adresse d'expédition", () => {
+  it("sépare nom et adresse ; adresse seule inchangée", async () => {
+    const { parseSender } = await import("@/lib/email");
+    expect(parseSender("EduPilot <noreply@ecole.bj>")).toEqual({ name: "EduPilot", email: "noreply@ecole.bj" });
+    expect(parseSender('"Lycée Béhanzin" <contact@lycee.bj>')).toEqual({ name: "Lycée Béhanzin", email: "contact@lycee.bj" });
+    expect(parseSender("noreply@ecole.bj")).toEqual({ email: "noreply@ecole.bj" });
+    expect(parseSender("<noreply@ecole.bj>")).toEqual({ email: "noreply@ecole.bj" });
+  });
+});

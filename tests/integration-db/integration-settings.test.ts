@@ -6,6 +6,8 @@ import { GET, PUT } from "@/app/api/root/integrations/route";
 import { getIntegrationSetting, loadIntegrationSettings, resetIntegrationSettingsForTests } from "@/lib/system/integration-settings";
 import { isSmsProviderConfigured } from "@/lib/notifications/sms-service";
 import { whatsAppConfig } from "@/lib/notifications/whatsapp-service";
+import { emailEnv, resolveEmailProvider, smtpSettings } from "@/lib/email";
+import { POST as testEmail } from "@/app/api/root/integrations/test-email/route";
 
 /**
  * Réglages SMS / voix / WhatsApp saisis dans la console root (2026-11-08),
@@ -15,7 +17,7 @@ import { whatsAppConfig } from "@/lib/notifications/whatsapp-service";
 let rootId: string;
 // Liste root lue au chargement des modules : la session root porte une adresse de cette liste
 const ROOT_EMAIL = (process.env.ROOT_USER_EMAILS ?? "").split(",")[0]?.trim() || "root@integration.test";
-const NAMES = ["SMS_WEBHOOK_URL", "SMS_API_KEY", "VOICE_WEBHOOK_URL", "VOICE_API_KEY", "WHATSAPP_PHONE_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_TEMPLATE_NAME"];
+const NAMES = ["EMAIL_PROVIDER", "EMAIL_API_KEY", "SMTP_URL", "SMTP_HOST", "EMAIL_FROM", "SMS_WEBHOOK_URL", "SMS_API_KEY", "VOICE_WEBHOOK_URL", "VOICE_API_KEY", "WHATSAPP_PHONE_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_TEMPLATE_NAME"];
 
 const put = (values: Record<string, string>) =>
     PUT(new NextRequest(new URL("/api/root/integrations", "http://localhost:3000"), { method: "PUT", body: JSON.stringify({ values }), headers: { "content-type": "application/json" } }));
@@ -98,11 +100,35 @@ describe("console root › intégrations", () => {
         vi.stubEnv("NEXTAUTH_SECRET", "secret-maitre-de-test-integration-0123456789");
     });
 
+    it("e-mail réglé dans la console : SMTP_URL chiffrée (mot de passe), utilisée aussitôt, formes contrôlées", async () => {
+        expect(resolveEmailProvider()).toBeNull();
+        // Sans service : l'essai le dit, sans rien envoyer
+        expect((await testEmail()).status).toBe(409);
+
+        expect((await put({ SMTP_URL: "smtps://direction%40ecole.bj:mot%40passe@smtp.ecole.bj", EMAIL_FROM: "EduPilot <noreply@ecole.bj>" })).status).toBe(200);
+        expect(resolveEmailProvider()).toBe("smtp");
+        expect(smtpSettings()).toEqual({ host: "smtp.ecole.bj", port: 465, secure: true, user: "direction@ecole.bj", pass: "mot@passe" });
+        expect(emailEnv().EMAIL_FROM).toBe("EduPilot <noreply@ecole.bj>");
+        const stored = await prisma.systemSetting.findUniqueOrThrow({ where: { key: "integration:SMTP_URL" } });
+        expect(stored.isSecret).toBe(true);
+        expect(stored.value).not.toContain("passe");
+
+        // Clé d'API : fournisseur déduit (re_ → Resend), toujours sans redémarrage
+        expect((await put({ SMTP_URL: "", EMAIL_API_KEY: "re_cle_resend_abcd" })).status).toBe(200);
+        expect(resolveEmailProvider()).toBe("resend");
+
+        expect((await put({ SMTP_URL: "https://smtp.ecole.bj" })).status).toBe(400);
+        expect((await put({ EMAIL_FROM: "pas-une-adresse" })).status).toBe(400);
+        expect(emailEnv().EMAIL_FROM).toBe("EduPilot <noreply@ecole.bj>");
+        await put({ EMAIL_API_KEY: "", EMAIL_FROM: "" });
+    });
+
     it("réservé au root : direction d'école refusée", async () => {
         const director = await prisma.user.create({ data: { email: `${uniqueCode("dir")}@integration.test`, password: "x", firstName: "Dir", lastName: "X", role: "DIRECTOR" } });
         const session = sessionFor("DIRECTOR", null, director.id);
         actAs({ ...session, user: { ...session.user, email: director.email } });
         expect((await GET()).status).toBe(403);
         expect((await put({ SMS_API_KEY: "intrus" })).status).toBe(403);
+        expect((await testEmail()).status).toBe(403);
     });
 });
