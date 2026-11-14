@@ -294,9 +294,6 @@ export async function confirmOnlinePayment(params: {
         },
     });
     if (!payment) return { outcome: "NOT_FOUND" };
-    if (payment.status === "VERIFIED" || payment.status === "RECONCILED") {
-        return { outcome: "ALREADY_PROCESSED", paymentId: payment.id };
-    }
 
     const expected = Math.round(Number(payment.amount));
     const rejectBinding = async (mismatch: string): Promise<ConfirmOutcome> => {
@@ -318,6 +315,12 @@ export async function confirmOnlinePayment(params: {
         // Compte non transmis = ancienne configuration globale (jamais un compte d'école)
         ?? accountBindingMismatch(payment.paymentAccountId, params.paymentAccountId ?? null);
     if (binding) return rejectBinding(binding);
+    // Après le contrôle de correspondance : « déjà traité » ne vaut que pour la
+    // MÊME transaction rejouée. Une autre transaction qui vise un paiement déjà
+    // validé est refusée et signalée ci-dessus, jamais acquittée en silence.
+    if (payment.status === "VERIFIED" || payment.status === "RECONCILED") {
+        return { outcome: "ALREADY_PROCESSED", paymentId: payment.id };
+    }
 
     const reason = confirmationMismatch(expected, params.receivedAmount, params.receivedCurrency);
     if (reason) {
@@ -344,12 +347,15 @@ export async function confirmOnlinePayment(params: {
                 where: { id: payment.id },
                 select: { status: true, notes: true, cancellationSource: true, provider: true, providerTransactionId: true },
             });
-            if (!current || !(["PENDING", "EXPIRED", "CANCELLED"] as PaymentStatus[]).includes(current.status)) {
-                return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id, alert: null };
-            }
-            // Revérifié sous verrou : une relance concurrente a pu changer de fournisseur
+            if (!current) return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id, alert: null };
+            // Revérifié sous verrou, AVANT le statut : une relance concurrente a pu
+            // changer de fournisseur, et une autre transaction arrivée juste après
+            // une validation concurrente doit être refusée, pas dite « déjà traitée »
             const lockedBinding = providerBindingMismatch(current, params.provider, params.providerTransactionId);
             if (lockedBinding) return { outcome: "REJECTED" as const, paymentId: payment.id, reason: lockedBinding, alert: null };
+            if (!(["PENDING", "EXPIRED", "CANCELLED"] as PaymentStatus[]).includes(current.status)) {
+                return { outcome: "ALREADY_PROCESSED" as const, paymentId: payment.id, alert: null };
+            }
             const recordTransactionId = transactionIdToRecord(params.provider, current.providerTransactionId, params.providerTransactionId);
             const balance = await getFeeBalance(tx, payment.studentId, payment.feeId);
             const now = new Date();

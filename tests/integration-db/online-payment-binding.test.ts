@@ -143,6 +143,18 @@ describe("Confirmations concurrentes (PostgreSQL)", () => {
         expect((await balance(p.feeId))!.settled).toBe(20000);
     });
 
+    it("paiement déjà validé : une AUTRE transaction est refusée (jamais « déjà traitée »), la même est acquittée", async () => {
+        // Version déterministe de la course vue en CI : la seconde notification
+        // arrive après la validation de la première
+        const p = await pending({ provider: "FEDAPAY", providerTransactionId: "4242" });
+        expect((await confirm(p.reference, "FEDAPAY", "4242")).outcome).toBe("CONFIRMED");
+        expect((await confirm(p.reference, "FEDAPAY", "5151")).outcome).toBe("REJECTED");
+        expect((await confirm(p.reference, "FEDAPAY", "4242")).outcome).toBe("ALREADY_PROCESSED");
+        const after = await state(p.id);
+        expect([after.status, after.providerTransactionId]).toEqual(["VERIFIED", "4242"]);
+        expect((await balance(p.feeId))!.settled).toBe(20000);
+    });
+
     it("deux notifications valides simultanées : une validation, l'autre déjà traitée, encaissé compté une fois", async () => {
         const p = await pending({ provider: "FEDAPAY", providerTransactionId: "4242" });
         const outcomes = (await Promise.all([confirm(p.reference, "FEDAPAY", "4242"), confirm(p.reference, "FEDAPAY", "4242")])).map((r) => r.outcome);
