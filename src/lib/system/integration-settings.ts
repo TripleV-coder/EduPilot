@@ -31,7 +31,12 @@ export const INTEGRATION_SETTINGS = {
     VOICE_API_KEY: { group: "voice", label: "Clé d'API de la passerelle vocale", secret: true, kind: "text" },
     WHATSAPP_PHONE_ID: { group: "whatsapp", label: "Identifiant du numéro WhatsApp", secret: false, kind: "text" },
     WHATSAPP_ACCESS_TOKEN: { group: "whatsapp", label: "Jeton d'accès WhatsApp", secret: true, kind: "text" },
-    WHATSAPP_TEMPLATE_NAME: { group: "whatsapp", label: "Modèle de message approuvé", secret: false, kind: "text" },
+    WHATSAPP_APP_SECRET: { group: "whatsapp", label: "Clé secrète de l'application Meta (vérifie les statuts reçus)", secret: true, kind: "text" },
+    WHATSAPP_TEMPLATE_NAME: { group: "whatsapp", label: "Modèle par défaut (annonces, messages libres)", secret: false, kind: "text" },
+    WHATSAPP_TEMPLATE_ATTENDANCE: { group: "whatsapp", label: "Modèle « absence / retard » (sinon : modèle par défaut)", secret: false, kind: "text" },
+    WHATSAPP_TEMPLATE_PAYMENT: { group: "whatsapp", label: "Modèle « paiement » (sinon : modèle par défaut)", secret: false, kind: "text" },
+    WHATSAPP_TEMPLATE_GRADES: { group: "whatsapp", label: "Modèle « notes et bulletins » (sinon : modèle par défaut)", secret: false, kind: "text" },
+    WHATSAPP_TEMPLATE_REMINDER: { group: "whatsapp", label: "Modèle « rappel / relance » (sinon : modèle par défaut)", secret: false, kind: "text" },
     WHATSAPP_TEMPLATE_LANG: { group: "whatsapp", label: "Langue du modèle (fr par défaut)", secret: false, kind: "text" },
     WHATSAPP_API_VERSION: { group: "whatsapp", label: "Version de l'API Meta (v21.0 par défaut)", secret: false, kind: "text" },
 } as const;

@@ -6,10 +6,27 @@ import { requireRoot } from "@/lib/security/require-root";
 import {
     IntegrationEncryptionUnavailableError,
     IntegrationSettingError,
+    getIntegrationSetting,
     integrationSettingsView,
     saveIntegrationSettings,
     type IntegrationSettingName,
 } from "@/lib/system/integration-settings";
+import { publicBaseUrl } from "@/lib/system/platform";
+import { resolveSecret } from "@/lib/security/derived-secrets";
+
+/**
+ * Adresse et jeton à déclarer dans Meta (WhatsApp › Configuration › Webhook)
+ * pour recevoir les statuts des messages (livré, lu, échoué → SMS de secours).
+ * Le jeton est dérivé du secret maître : rien à saisir.
+ */
+function whatsappWebhookInfo() {
+    const base = publicBaseUrl();
+    return {
+        url: base ? `${base}/api/whatsapp/webhook` : null,
+        verifyToken: resolveSecret("whatsapp-verify"),
+        appSecretConfigured: Boolean(getIntegrationSetting("WHATSAPP_APP_SECRET")),
+    };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +43,7 @@ export async function GET() {
     const session = await auth();
     const guard = requireRoot(session, session?.user?.email, session?.user?.id);
     if (guard) return guard;
-    return NextResponse.json({ settings: integrationSettingsView() });
+    return NextResponse.json({ settings: integrationSettingsView(), whatsappWebhook: whatsappWebhookInfo() });
 }
 
 // Clés libres ici (zod 4 : un record à clés énumérées les exige toutes) ;
@@ -60,5 +77,5 @@ export async function PUT(request: NextRequest) {
             newValues: { changed: Object.keys(parsed.data.values) },
         },
     });
-    return NextResponse.json({ settings: integrationSettingsView() });
+    return NextResponse.json({ settings: integrationSettingsView(), whatsappWebhook: whatsappWebhookInfo() });
 }

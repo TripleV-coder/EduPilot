@@ -1,6 +1,7 @@
 import { sendEmail } from "@/lib/email";
 import { queueSMS } from "@/lib/notifications/sms-service";
 import { sendWhatsAppText } from "@/lib/notifications/whatsapp-service";
+import { markFailedAndFallback } from "@/lib/notifications/family-channel";
 import { sendVoiceCall } from "@/lib/notifications/voice-service";
 import { deliverPushItems } from "@/lib/push/deliver";
 import prisma from "@/lib/prisma";
@@ -31,16 +32,24 @@ export const JOB_HANDLERS: JobHandlers = {
         throw result.permanent ? new PermanentJobError(reason) : new Error(reason);
     },
     "whatsapp.send": async (payload) => {
-        const result = await sendWhatsAppText(payload.to, payload.text);
-        await prisma.communicationLog.update({
-            where: { id: payload.logId },
-            data: result.success
-                ? { status: "SENT", error: null, metadata: { messageId: result.messageId ?? null } }
-                : { status: result.permanent ? "FAILED" : "RETRYING", error: result.error ?? null },
-        });
-        if (result.success) return;
+        const result = await sendWhatsAppText(payload.to, payload.text, payload.kind);
+        if (result.success) {
+            // Accepté par Meta ; livraison, lecture ou échec arrivent ensuite
+            // par /api/whatsapp/webhook, rattachés grâce à externalId.
+            await prisma.communicationLog.update({
+                where: { id: payload.logId },
+                data: { status: "SENT", error: null, externalId: result.messageId ?? null },
+            });
+            return;
+        }
         const reason = result.error ?? "WhatsApp non envoyé";
-        throw result.permanent ? new PermanentJobError(reason) : new Error(reason);
+        if (result.permanent) {
+            // Refus définitif (numéro, modèle, configuration) : SMS de secours s'il est permis
+            await markFailedAndFallback(payload.logId, reason);
+            return;
+        }
+        await prisma.communicationLog.update({ where: { id: payload.logId }, data: { status: "RETRYING", error: reason } });
+        throw new Error(reason);
     },
     "voice.send": async (payload) => {
         const result = await sendVoiceCall({

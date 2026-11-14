@@ -24,6 +24,7 @@ Chaque décision architecturale majeure d'EduPilot est consignée ici. Format in
 | [0010](./0010-mobile-money-providers.md) | Flutterwave + Paystack pour le mobile money | Accepté | 2025-04-01 |
 | [0012](./0012-ia-locale.md) | IA 100 % locale, aucun modèle de langage externe | Accepté | 2026-11-07 |
 | [0013](./0013-etat-partage-postgresql.md) | État partagé (limites, coupe-circuits) dans PostgreSQL, plus de Redis | Accepté | 2026-11-07 |
+| [0014](./0014-whatsapp-canal-principal.md) | WhatsApp canal principal des messages aux familles, SMS en secours | Accepté | 2026-11-14 |
 
 ## Conventions
 

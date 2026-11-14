@@ -20,7 +20,7 @@ import { hkdfSync } from "node:crypto";
 
 type Env = Record<string, string | undefined>;
 
-export type SecretPurpose = "totp-encryption" | "signature-salt" | "payment-secrets" | "cron" | "metrics" | "setup";
+export type SecretPurpose = "totp-encryption" | "signature-salt" | "payment-secrets" | "cron" | "metrics" | "setup" | "whatsapp-verify";
 
 /** Variable explicite qui, si elle est définie, remplace la clé dérivée. */
 export const SECRET_OVERRIDES: Record<SecretPurpose, string> = {
@@ -30,6 +30,8 @@ export const SECRET_OVERRIDES: Record<SecretPurpose, string> = {
     cron: "CRON_SECRET",
     metrics: "METRICS_TOKEN",
     setup: "INITIAL_SETUP_TOKEN",
+    // Jeton à recopier dans Meta pour valider l'adresse des statuts WhatsApp
+    "whatsapp-verify": "WHATSAPP_VERIFY_TOKEN",
 };
 
 const MIN_MASTER_LENGTH = 32;

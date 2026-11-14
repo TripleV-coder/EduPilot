@@ -36,11 +36,13 @@ Les e-mails de sécurité (mot de passe oublié, lien d'activation) partent touj
 
 ## 11.5 Notifications vocales et WhatsApp ✅ (module à activer)
 Messages vocaux en plusieurs langues et messages WhatsApp aux familles. **Les numéros de téléphone sont transmis à un prestataire** pour l'envoi.
-- **WhatsApp** (*Diffuser un message*) : à toute l'école ou à une classe ; une trace par famille dans l'historique. Passe par un **modèle de message approuvé par Meta** (WhatsApp Business).
+
+✅ **WhatsApp est le canal principal des messages aux familles** : absences, rappels de paiement, envois groupés et annonces partent d'abord par WhatsApp. Le **SMS ne sert que de secours** : quand WhatsApp n'est pas configuré, quand la famille n'a pas WhatsApp, ou quand WhatsApp signale que le message n'a pas pu être remis. Un message ne bascule en SMS qu'**une seule fois**.
+- **WhatsApp** (*Diffuser un message*) : à toute l'école ou à une classe ; une trace par famille dans l'historique. Passe par un **modèle de message approuvé par Meta** (WhatsApp Business) ; les familles que WhatsApp n'atteint pas reçoivent un SMS si l'envoi de SMS est configuré.
 - **Messages vocaux** (*Nouvelle campagne*) : français, fon, yoruba, bariba ou dendi, avec la version française gardée par l'école ; une passerelle d'appels passe les appels.
 - Les familles retenues sont les parents dont un enfant est **inscrit** dans l'école (ou la classe) et qui ont un numéro valide ; le nombre de familles sans numéro est affiché.
-- 🔧 Il faut que la plateforme ait configuré WhatsApp Business et la passerelle vocale : sinon, l'envoi est refusé avec une explication.
-- 🔧 « Envoyé » signifie accepté par le prestataire : la remise et la lecture ne sont pas encore suivies.
+- 🔧 Il faut que la plateforme ait configuré WhatsApp Business (ou au moins les SMS) et la passerelle vocale : sinon, l'envoi est refusé avec une explication.
+- ✅ Chaque message WhatsApp a un **statut suivi** : envoyé, **remis**, **lu**, ou **échoué** (avec la raison).
 
 ## 11.6 Cahier de liaison
 Voir le chapitre 8.
@@ -48,7 +50,8 @@ Voir le chapitre 8.
 ## 11.7 Ce qui est envoyé automatiquement
 | Événement | Qui est prévenu |
 |---|---|
-| Absence ou retard à l'appel | les parents (application, e-mail, ou SMS sans compte) |
+| Absence ou retard à l'appel | les parents : application, e-mail et **WhatsApp** ; SMS de secours pour un responsable sans compte |
+| Relance de paiement (bouton *Relancer*) | les parents : application, e-mail et **WhatsApp**, SMS de secours |
 | Échéance de paiement (7 jours avant, le jour même, en retard, retard critique) | les parents |
 | Bourse attribuée | l'élève et ses parents |
 | Plan de paiement créé | l'élève et ses parents |

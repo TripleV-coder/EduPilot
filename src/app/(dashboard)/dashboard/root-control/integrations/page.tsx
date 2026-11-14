@@ -33,10 +33,17 @@ const GROUPS: { id: Setting["group"]; title: string; description: string }[] = [
         description:
             "Réinitialisations de mot de passe, invitations, avis. Une clé Resend ou SendGrid, ou un serveur SMTP, plus l'adresse d'expédition.",
     },
-    { id: "sms", title: "SMS", description: "Passerelle HTTP du fournisseur de SMS (absences, rappels, codes)." },
+    {
+        id: "whatsapp",
+        title: "WhatsApp (canal principal)",
+        description:
+            "Canal prioritaire des messages aux familles : absences, paiements, notes, annonces. API Meta Cloud : numéro, jeton, modèles approuvés (un par type, sinon le modèle par défaut), clé secrète de l'application pour recevoir les statuts.",
+    },
+    { id: "sms", title: "SMS (secours)", description: "Passerelle HTTP du fournisseur de SMS. Utilisée seulement quand WhatsApp n'est pas configuré ou n'atteint pas la famille (numéro sans WhatsApp, échec de remise)." },
     { id: "voice", title: "Appels vocaux", description: "Passerelle qui passe les appels des notifications vocales." },
-    { id: "whatsapp", title: "WhatsApp", description: "API Meta Cloud : numéro, jeton et modèle de message approuvé." },
 ];
+
+type WebhookInfo = { url: string | null; verifyToken: string | null; appSecretConfigured: boolean };
 
 export default function RootIntegrationsPage() {
     return (
@@ -51,6 +58,9 @@ function RootIntegrationsContent() {
     const [draft, setDraft] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
+    const [webhook, setWebhook] = useState<WebhookInfo | null>(null);
+    const [waTo, setWaTo] = useState("");
+    const [waTesting, setWaTesting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
 
@@ -60,6 +70,7 @@ function RootIntegrationsContent() {
                 const body = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(body.error || "Réglages indisponibles.");
                 setSettings(body.settings);
+                setWebhook(body.whatsappWebhook ?? null);
             })
             .catch((err) => setError(getErrorMessage(err)));
     }, []);
@@ -76,6 +87,7 @@ function RootIntegrationsContent() {
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(body.error || "Enregistrement impossible.");
             setSettings(body.settings);
+            setWebhook(body.whatsappWebhook ?? null);
             setDraft({});
             toast({ title: "Réglages enregistrés", description: "Ils s'appliquent tout de suite, sans redémarrage." });
         } catch (err) {
@@ -99,13 +111,31 @@ function RootIntegrationsContent() {
         }
     };
 
+    const sendTestWhatsApp = async () => {
+        setWaTesting(true);
+        try {
+            const res = await fetch("/api/root/integrations/test-whatsapp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ to: waTo }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || "Envoi impossible.");
+            toast({ title: "Accepté par WhatsApp", description: "Vérifiez le téléphone : la remise est confirmée ensuite par le webhook." });
+        } catch (err) {
+            toast({ title: "Échec de l'envoi WhatsApp", description: getErrorMessage(err), variant: "destructive" });
+        } finally {
+            setWaTesting(false);
+        }
+    };
+
     const changed = Object.fromEntries(Object.entries(draft).filter(([, value]) => value.trim() !== ""));
 
     return (
         <div className="space-y-6">
             <PageHeader
                 title="Intégrations"
-                description="E-mail, SMS, appels vocaux et WhatsApp de la plateforme. Une variable d'environnement du même nom reste prioritaire."
+                description="E-mail, WhatsApp (canal principal des familles), SMS (secours) et appels vocaux de la plateforme. Une variable d'environnement du même nom reste prioritaire."
             />
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             {!settings && !error ? (
@@ -172,6 +202,45 @@ function RootIntegrationsContent() {
                                               ? "Enregistrez d'abord vos modifications."
                                               : "Envoyé à votre propre adresse, avec les réglages en vigueur."}
                                       </p>
+                                  </div>
+                              ) : null}
+                              {group.id === "whatsapp" ? (
+                                  <div className="grid gap-3 rounded-md border border-border p-3">
+                                      <p className="text-sm font-medium">Statuts des messages (livré, lu, échoué)</p>
+                                      <p className="text-xs text-muted-foreground">
+                                          À déclarer dans Meta › WhatsApp › Configuration › Webhook (champ « messages »). Sans cela, les échecs ne
+                                          sont pas connus et le SMS de secours ne part qu&apos;en cas de refus immédiat.
+                                      </p>
+                                      <dl className="grid gap-1 text-xs">
+                                          <dt className="text-muted-foreground">Adresse de rappel</dt>
+                                          <dd className="break-all font-mono">{webhook?.url ?? "Adresse publique inconnue (NEXTAUTH_URL)"}</dd>
+                                          <dt className="text-muted-foreground">Jeton de vérification</dt>
+                                          <dd className="break-all font-mono">{webhook?.verifyToken ?? "Indisponible : secret maître absent"}</dd>
+                                          <dt className="text-muted-foreground">Clé secrète de l&apos;application</dt>
+                                          <dd>{webhook?.appSecretConfigured ? "Renseignée : les statuts signés sont acceptés" : "À renseigner ci-dessus : sans elle, les statuts sont refusés"}</dd>
+                                      </dl>
+                                      <div className="flex flex-wrap items-end gap-2">
+                                          <div className="grid gap-1.5">
+                                              <Label htmlFor="wa-test-to">Numéro pour un WhatsApp d&apos;essai</Label>
+                                              <Input
+                                                  id="wa-test-to"
+                                                  inputMode="tel"
+                                                  placeholder="0197000000"
+                                                  value={waTo}
+                                                  disabled={waTesting}
+                                                  onChange={(e) => setWaTo(e.target.value)}
+                                              />
+                                          </div>
+                                          <Button
+                                              type="button"
+                                              variant="outline"
+                                              disabled={waTesting || saving || waTo.trim().length < 8 || Object.keys(changed).length > 0}
+                                              onClick={() => void sendTestWhatsApp()}
+                                          >
+                                              {waTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                              Envoyer un WhatsApp d&apos;essai
+                                          </Button>
+                                      </div>
                                   </div>
                               ) : null}
                           </CardContent>

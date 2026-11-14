@@ -2578,6 +2578,9 @@ model CommunicationLog {
   status    String   @default("PENDING")
   error     String?
   metadata  Json?    @default("{}")
+  /// Identifiant du message chez le fournisseur (WhatsApp : wamid) — relie
+  /// les statuts reçus (livré, lu, échoué) au message envoyé.
+  externalId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -2587,6 +2590,7 @@ model CommunicationLog {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  @@index([externalId])
   @@map("communication_logs")
 }
 

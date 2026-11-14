@@ -18,8 +18,8 @@
 
 ### Les familles sont prévenues ✅
 Quand un élève **devient** absent ou en retard à l'enregistrement de l'appel :
-- un parent qui a un compte reçoit une **notification** dans l'application et un **e-mail** ;
-- un responsable sans compte reçoit un **SMS**, si l'école a configuré l'envoi de SMS.
+- un parent qui a un compte reçoit une **notification** dans l'application, un **e-mail** et un **message WhatsApp** ;
+- un responsable sans compte reçoit un **message WhatsApp** ; s'il n'a pas WhatsApp (ou si le message n'arrive pas), il reçoit un **SMS**, si l'envoi de SMS est configuré.
 
 La famille n'est prévenue qu'**une fois** : réenregistrer le même appel ne renvoie pas d'alerte. Un échec d'envoi n'annule jamais l'appel.
 

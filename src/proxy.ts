@@ -173,6 +173,8 @@ const PUBLIC_API_ROUTES = new Set([
   "/api/analytics/web-vitals",
   "/api/system/automation",
   "/api/system/retention",
+  // Statuts WhatsApp de Meta : signature X-Hub-Signature-256 vérifiée par la route
+  "/api/whatsapp/webhook",
 ]);
 
 function isPublicPath(pathname: string): boolean {
