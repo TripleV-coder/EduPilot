@@ -15,6 +15,8 @@ node_modules/
 
 # Database dumps
 *.sql
+# Scripts SQL de déploiement (pas des dumps) : versionnés
+!deploy/**/*.sql
 db_dump_*.sql
 # Exception : les migrations Prisma sont l'historique du schéma et doivent être
 # versionnées (C1). L'exclusion générale ci-dessus continue de protéger les dumps.
