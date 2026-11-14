@@ -1,0 +1,5 @@
+# Faux positifs vérifiés : constantes de TEST (« integration-s3-fedapay-secret »,
+# « integration-s3-momo-secret »), présentes seulement dans un ancien commit
+# d'un test d'intégration. Aucune vraie clé. Une ligne = une empreinte Gitleaks.
+0df4b0e85f0f43d4462968db60776926027a261d:tests/integration-db/online-payment-binding.test.ts:generic-api-key:19
+0df4b0e85f0f43d4462968db60776926027a261d:tests/integration-db/online-payment-binding.test.ts:generic-api-key:20
