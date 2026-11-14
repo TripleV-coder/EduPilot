@@ -174,9 +174,9 @@ export async function seedFoundation(ctx: SeedContext): Promise<void> {
         data: { schoolId: ctx.school1.id, periodType: "TRIMESTER", periodsCount: 3, maxGrade: 20, passingGrade: 10 },
     });
     ctx.periods = await Promise.all([
-        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "1er Trimestre", type: "TRIMESTER", startDate: new Date("2024-09-16"), endDate: new Date("2024-12-20"), sequence: 1 } }),
-        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "2ème Trimestre", type: "TRIMESTER", startDate: new Date("2025-01-06"), endDate: new Date("2025-03-28"), sequence: 2 } }),
-        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "3ème Trimestre", type: "TRIMESTER", startDate: new Date("2025-04-14"), endDate: new Date("2025-07-15"), sequence: 3 } }),
+        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "Trimestre 1", type: "TRIMESTER", startDate: new Date("2024-09-16"), endDate: new Date("2024-12-20"), sequence: 1 } }),
+        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "Trimestre 2", type: "TRIMESTER", startDate: new Date("2025-01-06"), endDate: new Date("2025-03-28"), sequence: 2 } }),
+        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "Trimestre 3", type: "TRIMESTER", startDate: new Date("2025-04-14"), endDate: new Date("2025-07-15"), sequence: 3 } }),
     ]);
     // School 2 & 3 config
     await prisma.academicYear.create({ data: { schoolId: ctx.school2.id, name: "2024-2025", startDate: new Date("2024-09-16"), endDate: new Date("2025-07-15"), isCurrent: true } });

@@ -28,7 +28,10 @@ const PARENT = { email: mail("parent"), password: "Parent!2026ab" };
 const YEAR = "2026-2027";
 const NEXT_YEAR = "2027-2028";
 const CURRENT_PERIOD = "Trimestre 1";
-const NEXT_PERIOD = "T1 2027-2028";
+/** Trimestres générés à la création de l'année suivante (api/academic-years). */
+const NEXT_YEAR_PERIODS = ["Trimestre 1", "Trimestre 2", "Trimestre 3"];
+/** Période de trop : une année en trimestres n'en a que 3. */
+const EXTRA_PERIOD = "T4 2027-2028";
 const LEVEL = "Sixième";
 const CLASS_NAME = "6ème A";
 const SUBJECT = "Mathématiques";
@@ -153,18 +156,23 @@ test("installation complète depuis une base vide, jusqu'à la consultation par 
         await expectNoErrorBanner(admin);
     });
 
-    await test.step("5. périodes : trimestres de l'année courante, création d'une période", async () => {
+    await test.step("5. périodes : trimestres générés avec l'année, 4e période refusée avec un message", async () => {
         await admin.goto("/dashboard/settings/periods");
         await admin.getByRole("combobox").first().click();
         await admin.getByRole("option", { name: NEXT_YEAR }).click();
+        // La création de l'année a généré ses 3 trimestres (api/academic-years)
+        for (const name of NEXT_YEAR_PERIODS) {
+            await expect(admin.getByRole("heading", { name })).toBeVisible();
+        }
         await admin.getByRole("button", { name: /nouvelle période/i }).click();
         // Contenu de la carte du formulaire : titre et champs (libellés non associés aux champs).
         const card = admin.locator("div.space-y-4").filter({ has: admin.getByRole("heading", { name: /nouvelle période/i }) }).first();
-        await card.locator("input").first().fill(NEXT_PERIOD);
+        await card.locator("input").first().fill(EXTRA_PERIOD);
         await card.locator('input[type="date"]').nth(0).fill("2027-09-01");
         await card.locator('input[type="date"]').nth(1).fill("2027-12-20");
         await admin.getByRole("button", { name: /^créer$/i }).click();
-        await expect(admin.getByRole("heading", { name: NEXT_PERIOD })).toBeVisible();
+        await expect(admin.getByText(/n'a que 3 périodes/i).first()).toBeVisible();
+        await expect(admin.getByRole("heading", { name: EXTRA_PERIOD })).toHaveCount(0);
 
         await admin.getByRole("combobox").first().click();
         await admin.getByRole("option", { name: YEAR }).click();
@@ -243,6 +251,10 @@ test("installation complète depuis une base vide, jusqu'à la consultation par 
         await admin.getByLabel("Téléphone *", { exact: true }).fill("+229 90 00 00 01");
         await admin.getByLabel("Email *", { exact: true }).fill(STUDENT.email);
         await admin.getByRole("button", { name: /continuer/i }).click();
+        // Un responsable légal est obligatoire (communications école-famille)
+        await admin.getByLabel("Nom du responsable *", { exact: true }).fill("Hounsou");
+        await admin.getByLabel("Prénom du responsable *", { exact: true }).fill("Fabrice");
+        await admin.getByLabel("Téléphone du responsable *", { exact: true }).fill("+229 90 00 00 02");
         await admin.getByRole("button", { name: /continuer/i }).click();
         await admin.getByLabel("Classe demandée *").selectOption({ label: CLASS_NAME });
         await admin.getByRole("button", { name: /^finaliser$/i }).click();
@@ -306,6 +318,8 @@ test("installation complète depuis une base vide, jusqu'à la consultation par 
         await parent.getByLabel("Matricule élève").fill(MATRICULE);
         await parent.getByLabel(/code de liaison/i).fill(linkCode);
         await parent.getByRole("button", { name: /lier cet enfant/i }).click();
+        // Attendre la confirmation : naviguer avant interrompait la requête
+        await expect(parent.getByText(/lien confirmé/i)).toBeVisible({ timeout: 30_000 });
         await expectNoErrorBanner(parent);
         // Lot 6 : l'enfant vient d'être rattaché — le parent répond pour lui
         // avant de pouvoir consulter ses données.
