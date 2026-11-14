@@ -6,7 +6,7 @@ vi.hoisted(() => {
     delete process.env.PAYMENTS_LIVE_ENABLED;
 });
 
-import { Webhook } from "fedapay";
+import { fedapaySignatureHeader } from "@/lib/payments/fedapay-account-client";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import prisma from "./owner-db";
@@ -115,7 +115,7 @@ async function initiateFor(k: "A" | "B" | "C", provider = "MTN", amount = ++amou
 
 function signed(payload: object, secret: string) {
     const raw = JSON.stringify(payload);
-    return { raw, header: Webhook.generateTestHeaderString({ payload: raw, secret }) };
+    return { raw, header: fedapaySignatureHeader({ payload: raw, secret }) };
 }
 async function sendWebhook(accountId: string, payload: object, secret: string) {
     const { raw, header } = signed(payload, secret);

@@ -33,7 +33,7 @@ import { ProviderInitError } from "@/lib/finance/providers/init-error";
 import { CircuitOpenError } from "@/lib/resilience/errors";
 import { failOnlinePayment } from "@/lib/finance/online-payments";
 import { POST as accountWebhook } from "@/app/api/payments/fedapay/webhook/[accountId]/route";
-import { Webhook } from "fedapay";
+import { fedapaySignatureHeader } from "@/lib/payments/fedapay-account-client";
 import { activeSchoolAccount } from "./fixtures/payment-account";
 
 const WEBHOOK_SECRET = "integration-online-payments-secret";
@@ -87,7 +87,7 @@ async function deliverMomo(event: Record<string, unknown>) {
             path: `/api/payments/fedapay/webhook/${account.id}`,
             params: { accountId: account.id },
             rawBody: raw,
-            headers: { "x-fedapay-signature": Webhook.generateTestHeaderString({ payload: raw, secret: account.webhookSecret }) },
+            headers: { "x-fedapay-signature": fedapaySignatureHeader({ payload: raw, secret: account.webhookSecret }) },
         });
     } finally {
         actAs(sessionFor("ACCOUNTANT", schoolId));

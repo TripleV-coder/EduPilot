@@ -8,7 +8,7 @@ import { actAs, callRoute, createSchool, sessionFor, uniqueCode } from "./helper
  * forgée, et refus d'une configuration d'argent réel non autorisée (règle 11).
  *
  * Seul l'appel HTTP au fournisseur est simulé : la **signature du webhook est
- * vérifiée par le vrai code du SDK** (`Webhook.constructEvent`), les routes,
+ * vérifiée par le vrai code de production** (`verifyAccountWebhook`, reprise native du SDK), les routes,
  * Prisma et l'état des paiements sont réels. Aucune clé de production n'est
  * nécessaire, et aucune ne peut être utilisée par mégarde.
  */
@@ -27,7 +27,7 @@ const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit
 });
 vi.stubGlobal("fetch", fetchMock);
 
-const { Webhook } = await import("fedapay");
+const { fedapaySignatureHeader } = await import("@/lib/payments/fedapay-account-client");
 const { POST: initiate } = await import("@/app/api/payments/fedapay/initiate/route");
 const { POST: accountWebhook } = await import("@/app/api/payments/fedapay/webhook/[accountId]/route");
 const { activeSchoolAccount } = await import("./fixtures/payment-account");
@@ -67,7 +67,7 @@ async function initiateFedaPay(paymentId: string): Promise<string> {
  */
 async function deliverWebhook(event: Record<string, unknown>, secret = account.webhookSecret) {
   const raw = JSON.stringify(event);
-  const header = Webhook.generateTestHeaderString({ payload: raw, secret });
+  const header = fedapaySignatureHeader({ payload: raw, secret });
   actAs(null);
   try {
     // Adresse de webhook du compte de l'école (S7)

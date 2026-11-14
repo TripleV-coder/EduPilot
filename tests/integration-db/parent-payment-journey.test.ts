@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { Webhook } from "fedapay";
+import { fedapaySignatureHeader } from "@/lib/payments/fedapay-account-client";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import prisma from "./owner-db";
@@ -85,7 +85,7 @@ async function webhook(accountId: string, secret: string, payload: object) {
     try {
         return await callRoute(accountWebhook, {
             method: "POST", path: `/api/payments/fedapay/webhook/${accountId}`, params: { accountId },
-            rawBody: raw, headers: { "x-fedapay-signature": Webhook.generateTestHeaderString({ payload: raw, secret }) },
+            rawBody: raw, headers: { "x-fedapay-signature": fedapaySignatureHeader({ payload: raw, secret }) },
         });
     } finally {
         asP();

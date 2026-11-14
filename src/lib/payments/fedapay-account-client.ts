@@ -1,4 +1,4 @@
-import { Webhook } from "fedapay";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { CIRCUITS, getCircuitBreaker, isProviderFailureStatus } from "@/lib/resilience/circuit-breaker";
 import { ProviderInitError, outcomeForHttpStatus, outcomeForSendError } from "@/lib/finance/providers/init-error";
 import { mapFedaPayStatus, type FedaPayCustomer, type PaymentStatus } from "@/lib/payments/fedapay";
@@ -186,10 +186,65 @@ export interface FedaPayAccountEvent {
  * erreur si la signature est absente, invalide ou trop ancienne.
  */
 export function verifyAccountWebhook(rawBody: string, signature: string | null, webhookSecret: string): FedaPayAccountEvent {
-    const event = Webhook.constructEvent(rawBody, signature, webhookSecret) as unknown as {
+    verifyFedaPaySignature(rawBody, signature, webhookSecret);
+    const event = JSON.parse(rawBody) as {
         name?: string;
         entity?: Record<string, unknown>;
         object?: Record<string, unknown>;
     };
     return { name: event.name ?? "", entity: event.entity ?? event.object ?? null };
+}
+
+/** Tolérance d'âge d'une signature (valeur du SDK officiel : 5 minutes). */
+export const FEDAPAY_WEBHOOK_TOLERANCE_S = 300;
+
+/** Signature hexadécimale HMAC-SHA256 de "<timestamp>.<corps>". */
+export function computeFedaPaySignature(timestamp: number, rawBody: string, secret: string): string {
+    return createHmac("sha256", secret).update(`${timestamp}.${rawBody}`, "utf8").digest("hex");
+}
+
+function sameHex(a: string, b: string): boolean {
+    const left = Buffer.from(a, "utf8");
+    const right = Buffer.from(b, "utf8");
+    return left.length === right.length && timingSafeEqual(left, right);
+}
+
+/**
+ * Reprise native (node:crypto) de `WebhookSignature.verifyHeader` du SDK
+ * fedapay-node 1.2.5 — le paquet n'est plus une dépendance (2026-11-12).
+ * Même analyse de l'en-tête « t=…,s=… » (plusieurs « s » acceptés), même
+ * tolérance vers le passé. Lève une erreur sinon.
+ */
+export function verifyFedaPaySignature(
+    rawBody: string,
+    header: string | null,
+    secret: string,
+    toleranceSeconds = FEDAPAY_WEBHOOK_TOLERANCE_S,
+    nowMs = Date.now(),
+): void {
+    if (typeof header !== "string") throw new Error("Signature FedaPay absente");
+    let timestamp = -1;
+    const signatures: string[] = [];
+    for (const item of header.split(",")) {
+        const [key, value] = item.split("=");
+        if (key === "t") timestamp = parseInt(value, 10);
+        if (key === "s") signatures.push(value);
+    }
+    if (timestamp === -1) throw new Error("Signature FedaPay sans horodatage");
+    if (signatures.length === 0) throw new Error("Signature FedaPay sans valeur « s »");
+    const expected = computeFedaPaySignature(timestamp, rawBody, secret);
+    if (!signatures.some((candidate) => typeof candidate === "string" && sameHex(candidate, expected))) {
+        throw new Error("Signature FedaPay invalide");
+    }
+    const age = Math.floor(nowMs / 1000) - timestamp;
+    if (toleranceSeconds > 0 && age > toleranceSeconds) throw new Error("Signature FedaPay trop ancienne");
+}
+
+/**
+ * En-tête « t=…,s=… » tel que FedaPay l'envoie (même forme que
+ * `Webhook.generateTestHeaderString` du SDK) : tests et essais locaux.
+ */
+export function fedapaySignatureHeader(opts: { payload: string; secret: string; timestamp?: number }): string {
+    const timestamp = Math.floor(opts.timestamp ?? Date.now() / 1000);
+    return `t=${timestamp},s=${computeFedaPaySignature(timestamp, opts.payload, opts.secret)}`;
 }

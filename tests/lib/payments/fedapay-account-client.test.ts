@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { Webhook } from "fedapay";
 import {
     createAccountCheckout,
+    fedapaySignatureHeader,
     retrieveAccountTransaction,
     verifyAccountCredentials,
     verifyAccountWebhook,
@@ -93,7 +93,7 @@ describe("retrieveAccountTransaction et verifyAccountCredentials", () => {
 
 describe("verifyAccountWebhook (algorithme du SDK officiel, secret du compte)", () => {
     const payload = JSON.stringify({ name: "transaction.approved", entity: { id: 9, merchant_reference: "PAY-1", amount: 5000 } });
-    const header = (secret: string, timestamp?: number) => Webhook.generateTestHeaderString({ payload, secret, timestamp });
+    const header = (secret: string, timestamp?: number) => fedapaySignatureHeader({ payload, secret, timestamp });
 
     it("signature du bon secret : événement lu", () => {
         expect(verifyAccountWebhook(payload, header("whsec_ecole_A"), "whsec_ecole_A")).toMatchObject({ name: "transaction.approved", entity: { merchant_reference: "PAY-1" } });
