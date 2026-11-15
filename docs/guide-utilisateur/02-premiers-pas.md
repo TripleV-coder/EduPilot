@@ -19,7 +19,7 @@ Tant que le code n'est pas saisi, **aucun écran n'est accessible** : le mot de 
 ### Mot de passe oublié
 Le lien « mot de passe oublié » envoie un e-mail de réinitialisation. Pour protéger les comptes, les tentatives répétées de connexion sur un même compte sont freinées.
 
-✅ **Pour le super-administrateur de la plateforme** : l'envoi des e-mails se règle dans *Console root → Intégrations → E-mail* (clé du fournisseur ou serveur d'envoi, et adresse d'expédition). Le bouton **« Envoyer un e-mail d'essai »** envoie un message à votre propre adresse : s'il arrive, les réinitialisations de mot de passe partiront aussi. Tant que ce réglage n'est pas fait, aucun e-mail ne part.
+✅ **Pour le super-administrateur de la plateforme** : l'envoi des e-mails se règle dans *Console root → Intégrations → E-mail* (clé du fournisseur ou serveur d'envoi, et adresse d'expédition). Le plus simple et gratuit : l'**assistant Gmail** (adresse Gmail dédiée et « mot de passe d'application » Google de 16 lettres). Le bouton **« Envoyer un e-mail d'essai »** envoie un message à votre propre adresse : s'il arrive, les réinitialisations de mot de passe partiront aussi. Tant que ce réglage n'est pas fait, aucun e-mail ne part.
 
 ---
 

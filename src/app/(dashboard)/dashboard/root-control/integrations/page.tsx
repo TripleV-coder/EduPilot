@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils/error-message";
+import { gmailSmtpSettings } from "@/lib/notifications/gmail-smtp";
 
 /**
  * Console root › Intégrations : e-mail, passerelle SMS, appels vocaux et
@@ -61,6 +62,8 @@ function RootIntegrationsContent() {
     const [webhook, setWebhook] = useState<WebhookInfo | null>(null);
     const [waTo, setWaTo] = useState("");
     const [waTesting, setWaTesting] = useState(false);
+    const [gmailAddress, setGmailAddress] = useState("");
+    const [gmailPassword, setGmailPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
 
@@ -109,6 +112,17 @@ function RootIntegrationsContent() {
         } finally {
             setTesting(false);
         }
+    };
+
+    // Assistant Gmail : compose et enregistre SMTP_URL et EMAIL_FROM (clé d'API vidée)
+    const applyGmail = async () => {
+        const result = gmailSmtpSettings(gmailAddress, gmailPassword);
+        if (!result.ok) {
+            toast({ title: "Gmail", description: result.error, variant: "destructive" });
+            return;
+        }
+        await save(result.values);
+        setGmailPassword("");
     };
 
     const sendTestWhatsApp = async () => {
@@ -186,6 +200,52 @@ function RootIntegrationsContent() {
                                           </div>
                                       </div>
                                   ))}
+                              {group.id === "email" ? (
+                                  <div className="grid gap-3 rounded-md border border-border p-3">
+                                      <p className="text-sm font-medium">Assistant Gmail (gratuit, ≈ 500 e-mails par jour)</p>
+                                      <p className="text-xs text-muted-foreground">
+                                          Compte Gmail dédié, validation en deux étapes activée, puis Compte Google › Sécurité › Mots de passe des
+                                          applications : créer « EduPilot » et coller ici les 16 lettres. L&apos;assistant remplit le serveur SMTP et
+                                          l&apos;adresse d&apos;expédition, et retire une éventuelle clé d&apos;API.
+                                      </p>
+                                      <div className="grid gap-2 sm:grid-cols-2">
+                                          <div className="grid gap-1.5">
+                                              <Label htmlFor="gmail-address">Adresse Gmail</Label>
+                                              <Input
+                                                  id="gmail-address"
+                                                  type="email"
+                                                  autoComplete="off"
+                                                  placeholder="edupilot.notifications@gmail.com"
+                                                  value={gmailAddress}
+                                                  disabled={saving}
+                                                  onChange={(e) => setGmailAddress(e.target.value)}
+                                              />
+                                          </div>
+                                          <div className="grid gap-1.5">
+                                              <Label htmlFor="gmail-password">Mot de passe d&apos;application (16 lettres)</Label>
+                                              <Input
+                                                  id="gmail-password"
+                                                  type="password"
+                                                  autoComplete="new-password"
+                                                  placeholder="abcd efgh ijkl mnop"
+                                                  value={gmailPassword}
+                                                  disabled={saving}
+                                                  onChange={(e) => setGmailPassword(e.target.value)}
+                                              />
+                                          </div>
+                                      </div>
+                                      <div>
+                                          <Button
+                                              type="button"
+                                              variant="outline"
+                                              disabled={saving || !gmailAddress.trim() || !gmailPassword.trim()}
+                                              onClick={() => void applyGmail()}
+                                          >
+                                              Utiliser ce compte Gmail
+                                          </Button>
+                                      </div>
+                                  </div>
+                              ) : null}
                               {group.id === "email" ? (
                                   <div className="flex flex-wrap items-center gap-3">
                                       <Button

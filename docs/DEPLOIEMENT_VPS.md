@@ -87,9 +87,20 @@ super-administrateur.
 
 ## 6. Régler les intégrations (console root › Intégrations)
 
-1. **E-mail** : Brevo (gratuit, 300/jour) en SMTP :
-   `smtp://IDENTIFIANT:CLÉ@smtp-relay.brevo.com:587`, adresse d'expédition
-   vérifiée chez Brevo → bouton **« Envoyer un e-mail d'essai »**.
+1. **E-mail — Gmail (gratuit, ≈ 500 e-mails par jour)** :
+   - créer un compte Gmail **dédié** (ex. `edupilot.notifications@gmail.com`) ;
+   - y activer la **validation en deux étapes** (Compte Google › Sécurité) ;
+   - créer un **mot de passe d'application** « EduPilot » (Compte Google ›
+     Sécurité › Mots de passe des applications) et noter les 16 lettres ;
+   - console › E-mail › **Assistant Gmail** : adresse + 16 lettres →
+     « Utiliser ce compte Gmail » (serveur SMTP et expéditeur remplis) ;
+   - bouton **« Envoyer un e-mail d'essai »**.
+
+   Erreur `535 … Username and Password not accepted` : mot de passe
+   d'application faux ou révoqué (il l'est si le mot de passe du compte
+   change) — en recréer un. Au-delà de ≈ 500 envois par jour, Gmail suspend
+   l'envoi jusqu'à 24 h (la file réessaie) ; autre option gratuite : Brevo
+   (300/jour) en SMTP `smtp://IDENTIFIANT:CLÉ@smtp-relay.brevo.com:587`.
 2. **WhatsApp (canal principal)** : suivre `docs/EXPLOITATION.md` §7 bis
    (application Meta, modèles, webhook) → **« Envoyer un WhatsApp d'essai »**.
 3. **SMS (secours)** : passerelle de votre fournisseur.
@@ -143,6 +154,6 @@ root (Supervision).
 |---|---|
 | VPS 4 vCPU / 8 Go | ≈ 60 € (≈ 40 000 FCFA) |
 | Domaine | ≈ 10 € |
-| HTTPS, DNS, e-mail (Brevo), sauvegarde distante | 0 |
+| HTTPS, DNS, e-mail (Gmail), sauvegarde distante | 0 |
 | WhatsApp (≈ 2,4 FCFA par message utilitaire) | selon l'usage |
 | SMS de secours | selon l'usage et la passerelle |
