@@ -45,6 +45,9 @@ jobs:
   size-check:
     name: PR size guardrail
     runs-on: ubuntu-24.04
+    # Un seul passage : sous pull_request_target, GitHub exécute la version du
+    # workflow de la branche de base (sans l'exception par label de la PR).
+    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
         with:

@@ -103,7 +103,7 @@ describe("console root › intégrations", () => {
     it("e-mail réglé dans la console : SMTP_URL chiffrée (mot de passe), utilisée aussitôt, formes contrôlées", async () => {
         expect(resolveEmailProvider()).toBeNull();
         // Sans service : l'essai le dit, sans rien envoyer
-        expect((await testEmail()).status).toBe(409);
+        expect((await testEmail(new NextRequest(new URL("/api/root/integrations/test-email", "http://localhost:3000"), { method: "POST" }))).status).toBe(409);
 
         expect((await put({ SMTP_URL: "smtps://direction%40ecole.bj:mot%40passe@smtp.ecole.bj", EMAIL_FROM: "EduPilot <noreply@ecole.bj>" })).status).toBe(200);
         expect(resolveEmailProvider()).toBe("smtp");
@@ -127,8 +127,8 @@ describe("console root › intégrations", () => {
         const director = await prisma.user.create({ data: { email: `${uniqueCode("dir")}@integration.test`, password: "x", firstName: "Dir", lastName: "X", role: "DIRECTOR" } });
         const session = sessionFor("DIRECTOR", null, director.id);
         actAs({ ...session, user: { ...session.user, email: director.email } });
-        expect((await GET()).status).toBe(403);
+        expect((await GET(new NextRequest(new URL("/api/root/integrations", "http://localhost:3000")))).status).toBe(403);
         expect((await put({ SMS_API_KEY: "intrus" })).status).toBe(403);
-        expect((await testEmail()).status).toBe(403);
+        expect((await testEmail(new NextRequest(new URL("/api/root/integrations/test-email", "http://localhost:3000"), { method: "POST" }))).status).toBe(403);
     });
 });
