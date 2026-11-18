@@ -91,10 +91,11 @@ describe("grammaire du moteur", () => {
         expect(validateFormula("20", "SUBJECT")).toMatchObject({ ok: false }); // aucune note utilisée
     });
 
-    it("ambiguïté de la virgule : « max(12,5) » est lu comme max(12.5), un seul argument", () => {
-        // Comportement documenté (« virgule collée entre deux chiffres ») mais piégeux
-        // pour une liste de constantes : le point-virgule est le seul séparateur sûr.
+    it("ambiguïté de la virgule : « max(12,5) » refusé à l'enregistrement (DEF-009), lecture conservée au calcul", () => {
+        // Formule déjà enregistrée : lecture inchangée (pas de bascule en NC)
         expect(evalNum("max(12,5)")).toBe("25/2");
+        // Nouvelle formule : refusée, avec les deux écritures possibles proposées
+        expect(validateFormula("max(MI ; 12,5)", "SUBJECT")).toEqual({ ok: false, error: expect.stringContaining("12.5") });
         expect(evalNum("max(12 ; 5)")).toBe("12/1");
         expect(evalNum("max(12, 5)")).toBe("12/1"); // espace : la virgule redevient séparateur
     });
@@ -202,10 +203,10 @@ describe("validation avant enregistrement (cas types)", () => {
         expect(validateFormula("(P1 + P2 + 2*P3) / 4", "ANNUAL").ok).toBe(true);
     });
 
-    it("LIMITE : une formule qui passe les cas types peut sortir de 0 à 20 ailleurs (matière)", () => {
-        // Polynôme nul sur toutes les valeurs de MI des cas types (0 ; 20 ; 10 ; 40/3 ; 10,375)
+    it("DEF-008 : une formule taillée pour éviter les anciens cas types est refusée (grille + tirages)", () => {
+        // Polynôme nul sur toutes les valeurs de MI des anciens cas types (0 ; 20 ; 10 ; 40/3 ; 10,375)
         const crafted = "MI + MI*(20-MI)*(MI-10)*(3*MI-40)*(8*MI-83)/(-10000)";
-        expect(validateFormula(crafted, "SUBJECT").ok).toBe(true);
+        expect(validateFormula(crafted, "SUBJECT")).toEqual({ ok: false, error: expect.stringContaining("hors de 0 à 20") });
         const five = Rational.from(5);
         const raw = evaluateFormula(crafted, { MI: five, INTERROS: [five], DEVOIRS: [], COMPOS: [] })!;
         expect(raw.cmp(Rational.from(20))).toBe(1); // > 20 : l'enregistrement ne l'a pas vu
@@ -213,7 +214,9 @@ describe("validation avant enregistrement (cas types)", () => {
 
     it("moyenne annuelle : un résultat hors de 0 à 20 n'est jamais publié (garde-fou)", () => {
         const crafted = "P1 + P1*(20-P1)*(P1-8)/10";
-        expect(validateFormula(crafted, "ANNUAL", 1).ok).toBe(true);
+        // DEF-008 : refusée à l'enregistrement ; le garde-fou du calcul reste testé
+        // pour une formule ancienne ou insérée hors de l'interface.
+        expect(validateFormula(crafted, "ANNUAL", 1).ok).toBe(false);
         // Une période, un élève à 10 de moyenne : la formule donne 10 + 10×10×2/10 = 30
         const grades = [
             { classSubjectId: "m", periodId: "p1", evaluationId: "e1", value: 10, isAbsent: false, isExcused: false, maxGrade: 20, type: { code: "DS" } },

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { getLoginErrorMessage } from "@/lib/auth/login-errors";
+import { safeCallbackPath } from "@/lib/security/safe-redirect";
 
 const loginSchema = z.object({
   email: z.string().email("Email invalide"),
@@ -44,7 +45,7 @@ function LoginForm() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/dashboard");
+      router.replace(safeCallbackPath(searchParams.get("callbackUrl")));
     }
   }, [status, router]);
 
@@ -96,7 +97,8 @@ function LoginForm() {
       if (result?.error) {
         setError(getLoginErrorMessage(result.error, result.code));
       } else {
-        router.push("/dashboard");
+        // DEF-019 : retour à la page demandée (chemin interne seulement)
+        router.push(safeCallbackPath(searchParams.get("callbackUrl")));
         router.refresh();
       }
     } catch {

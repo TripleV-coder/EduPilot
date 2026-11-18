@@ -43,15 +43,15 @@ afterEach(() => {
 });
 
 describe("GET /api/system/automation", () => {
-  it("should return 500 when CRON_SECRET is not configured", async () => {
+  it("répond 401 (comme retention) quand CRON_SECRET n'est pas configuré (DEF-010)", async () => {
     // Ni CRON_SECRET ni secret maître (sinon le secret est dérivé de NEXTAUTH_SECRET)
     vi.stubEnv("CRON_SECRET", "");
     vi.stubEnv("NEXTAUTH_SECRET", "");
     vi.stubEnv("AUTH_SECRET", "");
     const res = await GET(makeRequest("http://localhost/api/system/automation"));
     vi.unstubAllEnvs();
-    expect(res.status).toBe(500);
-    expect((await res.json()).error).toBe("Configuration Error");
+    expect(res.status).toBe(401);
+    expect((await res.json()).error).toBe("Non autorisé");
     expect(automationService.runDailyMaintenance).not.toHaveBeenCalled();
   });
 

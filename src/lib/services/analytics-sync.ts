@@ -457,7 +457,10 @@ export function syncAllStudentsForSchool(schoolId: string, academicYearId: strin
       let result: SchoolSyncResult;
       do {
         entry.again = false;
-        result = await syncAllStudentsForSchoolNow(schoolId, academicYearId);
+        // Nouvelle demande pendant le calcul : le tour en cours s'arrête au
+        // prochain élève (ses résultats seraient de toute façon remplacés)
+        // et le suivant repart avec les règles à jour.
+        result = await syncAllStudentsForSchoolNow(schoolId, academicYearId, () => entry.again);
       } while (entry.again);
       return result;
     } finally {
@@ -470,7 +473,8 @@ export function syncAllStudentsForSchool(schoolId: string, academicYearId: strin
 
 async function syncAllStudentsForSchoolNow(
   schoolId: string,
-  academicYearId: string
+  academicYearId: string,
+  superseded: () => boolean = () => false,
 ): Promise<SchoolSyncResult> {
   // Avant toute lecture : les moyennes de classe partagées ne doivent pas
   // précéder l'écriture qui déclenche ce recalcul.
@@ -503,6 +507,7 @@ async function syncAllStudentsForSchoolNow(
   // deux fois n'est plus recalculé deux fois (même instantané).
   const studentIds = [...new Set(enrollments.map((enrollment) => enrollment.studentId))];
   await forEachWithConcurrency(studentIds, SCHOOL_SYNC_CONCURRENCY, async (studentId) => {
+    if (superseded()) return;
     for (const period of periods) {
       try {
         await persistStudentAnalyticsSnapshot(studentId, period.id, academicYearId);

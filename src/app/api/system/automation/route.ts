@@ -34,8 +34,10 @@ async function handleMaintenance(req: NextRequest) {
     const cronAuth = verifyCronSecret(req.headers.get("Authorization"));
 
     if (cronAuth === "not-configured") {
+        // DEF-010 : même réponse que /api/system/retention (401) ; la cause
+        // reste visible de l'exploitant dans les journaux.
         logger.error("CRON_SECRET is not defined in environment variables");
-        return NextResponse.json({ error: "Configuration Error" }, { status: 500 });
+        return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
     if (cronAuth !== "ok") {
