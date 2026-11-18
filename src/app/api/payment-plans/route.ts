@@ -193,6 +193,21 @@ export const POST = createApiHandler(
       // somme retombe EXACTEMENT sur le total (avant : 3 × 33 333,33 = 99 999,99 et
       // le plan restait « actif » pour 0,01 FCFA).
       const total = roundFcfa(totalAmount.toNumber());
+      // Rien à échelonner : frais entièrement couverts par les bourses, ou total
+      // trop petit pour que chaque échéance vaille au moins 1 FCFA (avant : un
+      // plan « 0 + 0 + 0 F » était créé, aussitôt soldé).
+      if (total <= 0) {
+        return NextResponse.json(
+          { error: "Ces frais sont entièrement couverts par les bourses de l'élève : il n'y a rien à échelonner." },
+          { status: 400 }
+        );
+      }
+      if (total < validatedData.installments) {
+        return NextResponse.json(
+          { error: "Le montant restant est trop faible pour ce nombre d'échéances." },
+          { status: 400 }
+        );
+      }
       const installmentAmounts = splitInstallments(total, validatedData.installments);
 
       // Échéances mensuelles, bornées à la fin du mois (31/01 → 28/02, pas 03/03)

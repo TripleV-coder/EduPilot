@@ -24,7 +24,7 @@ vi.mock("@/lib/prisma", () => ({
     teacherProfile: { findUnique: vi.fn() },
     classSubject: { findMany: vi.fn() },
     user: { findUnique: vi.fn(), update: vi.fn() },
-    enrollment: { findFirst: vi.fn(), update: vi.fn() },
+    enrollment: { findFirst: vi.fn(), update: vi.fn(), count: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
@@ -285,8 +285,27 @@ describe("GET /api/students/[id]", () => {
       id: "s1",
       user: { schoolId: FIXTURES.schoolA },
     } as never);
+    // L'élève est inscrit dans une classe de cet enseignant
+    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ id: "tp1", schoolId: FIXTURES.schoolA, user: { schoolId: FIXTURES.schoolA }, schoolAssignments: [] } as never);
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([{ classId: "cl1" }] as never);
+    vi.mocked(prisma.class.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.enrollment.count).mockResolvedValue(1);
     const res = await GET_ONE(makeRequest("http://localhost/api/students/s1"), { params: Promise.resolve({ id: "s1" }) });
     expect(res.status).toBe(200);
+  });
+
+  it("refuse (403) à un enseignant la fiche d'un élève hors de ses classes", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
+      id: "s1",
+      user: { schoolId: FIXTURES.schoolA },
+    } as never);
+    vi.mocked(prisma.teacherProfile.findUnique).mockResolvedValue({ id: "tp1", schoolId: FIXTURES.schoolA, user: { schoolId: FIXTURES.schoolA }, schoolAssignments: [] } as never);
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([{ classId: "cl1" }] as never);
+    vi.mocked(prisma.class.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.enrollment.count).mockResolvedValue(0);
+    const res = await GET_ONE(makeRequest("http://localhost/api/students/s1"), { params: Promise.resolve({ id: "s1" }) });
+    expect(res.status).toBe(403);
   });
 });
 

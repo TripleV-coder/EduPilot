@@ -19,6 +19,7 @@ let foreign: string;
 let parentUser: string;
 let childUser: string;
 let classmateUser: string;
+let classTeacherUser: string;
 const SECRET_EMAIL = `${uniqueCode("parent-camarade")}@integration.test`;
 const SECRET_ALLERGEN = `Allergene-${uniqueCode("A")}`;
 
@@ -56,6 +57,17 @@ beforeAll(async () => {
     await prisma.medicalRecord.create({
         data: { studentId: classmate, allergies: { create: [{ allergen: SECRET_ALLERGEN, severity: "HIGH" }] } },
     });
+
+    // Classe du camarade, avec son professeur principal
+    const year = await prisma.academicYear.create({
+        data: { schoolId: schoolA, name: uniqueCode("2026"), startDate: new Date("2025-09-01"), endDate: new Date("2026-07-31"), isCurrent: true },
+    });
+    const level = await prisma.classLevel.create({ data: { schoolId: schoolA, name: "6e", code: uniqueCode("6E"), level: "SECONDARY_COLLEGE", sequence: 1 } });
+    const teacher = await user("TEACHER", schoolA, "Professeur");
+    classTeacherUser = teacher.id;
+    const teacherProfile = await prisma.teacherProfile.create({ data: { userId: teacher.id, schoolId: schoolA } });
+    const klass = await prisma.class.create({ data: { schoolId: schoolA, classLevelId: level.id, name: "6e A", mainTeacherId: teacherProfile.id } });
+    await prisma.enrollment.create({ data: { studentId: classmate, classId: klass.id, academicYearId: year.id } });
 });
 
 /**
@@ -102,13 +114,30 @@ describe("profile-360 : parents et élèves limités à leurs propres fiches", (
         expectRefusedWithoutData(await get(child));
     });
 
-    it("les personnels de l'école conservent l'accès (direction, comptabilité, enseignant)", async () => {
-        for (const role of ["SCHOOL_ADMIN", "ACCOUNTANT", "TEACHER"] as const) {
+    it("la direction et la comptabilité de l'école conservent l'accès", async () => {
+        for (const role of ["SCHOOL_ADMIN", "ACCOUNTANT"] as const) {
             await as(role, schoolA);
             const res = await get(classmate);
             expect(res.status, role).toBe(200);
             expect(JSON.stringify(res.body), role).toContain(SECRET_ALLERGEN);
         }
+    });
+
+    // Campagne de tests du 2026-11-16 : un enseignant sans lien avec l'élève
+    // lisait ses allergies et les contacts de ses parents (règle MS-02 appliquée
+    // aux listes et aux bulletins, oubliée ici).
+    it("un enseignant accède à la fiche d'un élève de ses classes", async () => {
+        await as("TEACHER", schoolA, classTeacherUser);
+        const res = await get(classmate);
+        expect(res.status).toBe(200);
+        expect(JSON.stringify(res.body)).toContain(SECRET_ALLERGEN);
+    });
+
+    it("un enseignant de la même école ne lit pas la fiche d'un élève hors de ses classes", async () => {
+        await as("TEACHER", schoolA, classTeacherUser);
+        expectRefusedWithoutData(await get(child));
+        await as("TEACHER", schoolA);
+        expectRefusedWithoutData(await get(classmate));
     });
 
     it("un personnel d'une autre école reste refusé", async () => {

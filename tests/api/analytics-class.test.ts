@@ -3,9 +3,11 @@ import { GET as GET_CLASS } from "@/app/api/analytics/class/[classId]/route";
 import { GET as GET_SUBJECT } from "@/app/api/analytics/class/[classId]/subject/[subjectId]/route";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { taughtClassIds } from "@/lib/teachers/taught-classes";
 import { makeRequest, makeSession, FIXTURES, cuid } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/teachers/taught-classes", () => ({ taughtClassIds: vi.fn() }));
 // Paramètres de l'établissement : valeurs par défaut (pas de table de réglages dans le mock Prisma)
 vi.mock("@/lib/schools/school-parameters-store", async () => {
     const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
@@ -120,8 +122,18 @@ describe("GET /api/analytics/class/[classId]", () => {
     expect((await res.json()).error).toBe("Année académique requise");
   });
 
+  it("refuse (403) à un enseignant les statistiques d'une classe qui n'est pas la sienne", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    vi.mocked(taughtClassIds).mockResolvedValue(["autre-classe"]);
+    vi.mocked(prisma.class.findUnique).mockResolvedValue({ id: CLASS_ID, schoolId: FIXTURES.schoolA, name: "6e A", classLevel: { name: "6e" } } as never);
+    const res = await GET_CLASS(makeRequest("http://localhost/api/analytics/class/x"), { params: Promise.resolve({ classId: CLASS_ID }), session: makeSession("TEACHER") } as never);
+    expect(res.status).toBe(403);
+    expect(prisma.enrollment.findMany).not.toHaveBeenCalled();
+  });
+
   it("should compute class analytics for a TEACHER", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    vi.mocked(taughtClassIds).mockResolvedValue([CLASS_ID]);
     vi.mocked(prisma.class.findUnique).mockResolvedValue({
       id: CLASS_ID,
       name: "6A",

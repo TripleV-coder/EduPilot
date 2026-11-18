@@ -106,4 +106,8 @@ export const GET = createApiHandler(async (request, context) => {
       { status: 500 }
     );
   }
+}, {
+  // Export de tous les paiements de l'école : direction et comptabilité seulement
+  // (sans cette liste, tout compte connecté de l'école pouvait le télécharger).
+  allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"],
 });

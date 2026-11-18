@@ -14,7 +14,7 @@ import {
   getParentStudentIds,
   requireHealthRole,
 } from "@/lib/health/access";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, clientInputError } from "@/lib/api/api-helpers";
 import { buildCursorPage, getCursorParams, keysetOrderBy, keysetWhere } from "@/lib/api/pagination";
 
 const emergencyContactSchema = z.object({
@@ -288,6 +288,9 @@ export const PUT = createApiHandler(
         );
       }
 
+      // Entrée invalide du client (mauvais type, format) : 400, pas une panne
+      const badInput = clientInputError(error);
+      if (badInput) return badInput;
       logger.error("Error updating emergency contact", error as Error);
       return NextResponse.json(
         { error: "Erreur lors de la mise à jour du contact d'urgence" },
@@ -404,6 +407,9 @@ export const PATCH = createApiHandler(
 
       return NextResponse.json({ success: true });
     } catch (error) {
+      // Entrée invalide du client (mauvais type, format) : 400, pas une panne
+      const badInput = clientInputError(error);
+      if (badInput) return badInput;
       logger.error("Error setting primary emergency contact", error as Error);
       return NextResponse.json(
         { error: "Erreur lors de la mise à jour du contact principal" },

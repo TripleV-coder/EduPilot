@@ -538,7 +538,7 @@ function FinanceDashboardPageContent() {
                                                                 color: "var(--eduflow-text-tertiary)",
                                                             }}
                                                         >
-                                                            {h}
+                                                            {h || <span className="sr-only">Actions</span>}
                                                         </th>
                                                     )
                                                 )}

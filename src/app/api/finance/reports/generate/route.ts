@@ -102,6 +102,11 @@ export const GET = createApiHandler(async (request, context) => {
       { status: 500 }
     );
   }
+}, {
+  // Rapports financiers de TOUTE l'école (chaque paiement, chaque famille) :
+  // direction et comptabilité seulement. Sans cette liste, un parent, un élève
+  // ou un enseignant les téléchargeait (campagne de tests du 2026-11-16).
+  allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"],
 });
 
 export const POST = createApiHandler(async (request, context) => {
@@ -182,6 +187,11 @@ export const POST = createApiHandler(async (request, context) => {
       { status: 500 }
     );
   }
+}, {
+  // Rapports financiers de TOUTE l'école (chaque paiement, chaque famille) :
+  // direction et comptabilité seulement. Sans cette liste, un parent, un élève
+  // ou un enseignant les téléchargeait (campagne de tests du 2026-11-16).
+  allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"],
 });
 
 // Report generation helper functions

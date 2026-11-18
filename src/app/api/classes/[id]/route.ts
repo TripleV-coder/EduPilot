@@ -7,6 +7,7 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { classSchema } from "@/lib/validations/school";
 import { assertModelAccess } from "@/lib/security/tenant";
 import { isTeacherAssignedToSchool } from "@/lib/teachers/school-assignments";
+import { taughtClassIds } from "@/lib/teachers/taught-classes";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { createAuditLog } from "@/lib/security/audit-log";
 import { dependencyConflict } from "@/lib/api/dependency-guard";
@@ -19,6 +20,12 @@ export const GET = createApiHandler(
         }
 
         const schoolId = getActiveSchoolId(session);
+
+        // Enseignant (MS-02) : seulement ses classes (matière affectée ou
+        // professeur principal) — la réponse porte la liste nominative des élèves.
+        if (session.user.role === "TEACHER" && !(await taughtClassIds(session.user.id)).includes(classId as string)) {
+            return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
+        }
 
         // Classe d'un autre établissement → 404 : ses élèves sont de toute façon
         // masqués par la RLS (audit M2), le chargement des inscriptions échouerait.

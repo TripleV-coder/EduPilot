@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, clientInputError } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
@@ -382,6 +382,9 @@ const body = await request.json();
       data: pdfData,
     });
   } catch (error) {
+    // Entrée invalide du client (mauvais type, format) : 400, pas une panne
+    const badInput = clientInputError(error);
+    if (badInput) return badInput;
     logger.error("Error generating PDF report card", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la génération du PDF" },

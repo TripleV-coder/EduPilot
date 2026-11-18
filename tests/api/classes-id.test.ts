@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/teachers/taught-classes", () => ({ taughtClassIds: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
     class: { findFirst: vi.fn() },
@@ -11,6 +12,7 @@ vi.mock("@/lib/prisma", () => ({
 
 import prisma from "@/lib/prisma";
 import { GET } from "@/app/api/classes/[id]/route";
+import { taughtClassIds } from "@/lib/teachers/taught-classes";
 
 const classId = cuid("class6a");
 
@@ -30,9 +32,21 @@ function classDetail(schoolId = FIXTURES.schoolA) {
 
 const params = { params: Promise.resolve({ id: classId }) };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Par défaut, l'enseignant du test a cette classe
+  vi.mocked(taughtClassIds).mockResolvedValue([classId]);
+});
 
 describe("GET /api/classes/[id]", () => {
+  it("refuse (403) à un enseignant une classe qui n'est pas la sienne, sans la lire", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    vi.mocked(taughtClassIds).mockResolvedValue([cuid("autreclasse")]);
+    const res = await GET(makeRequest(`http://localhost:3000/api/classes/${classId}`), params);
+    expect(res.status).toBe(403);
+    expect(prisma.class.findFirst).not.toHaveBeenCalled();
+  });
+
   it("retourne 401 sans session", async () => {
     vi.mocked(auth).mockResolvedValue(null);
     const res = await GET(makeRequest(`http://localhost:3000/api/classes/${classId}`), params);

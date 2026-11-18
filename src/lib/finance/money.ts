@@ -10,9 +10,14 @@ export const fcfaAmountSchema = z.coerce
     .positive("Le montant doit être supérieur à 0")
     .int("Le montant est en FCFA entiers (pas de centimes)");
 
-/** Arrondi au franc le plus proche (demi vers le haut), sans dérive flottante. */
+/**
+ * Arrondi au franc le plus proche (demi vers le haut), sans dérive flottante.
+ * Le bruit flottant (100 000,49999999999 pour 100 000,5) est absorbé à la 6e
+ * décimale, puis UN seul arrondi : arrondir d'abord au centime faisait monter
+ * 1 000,495 à 1 001 au lieu de 1 000.
+ */
 export function roundFcfa(amount: number): number {
-    return Math.round(Math.round(amount * 100) / 100);
+    return Math.round(Number(amount.toFixed(6)));
 }
 
 /**

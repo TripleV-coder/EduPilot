@@ -160,6 +160,38 @@ export function handlePrismaError(error: unknown): { status: number; body: { err
     return { status: 500, body: { error: "Erreur inattendue." } };
 }
 
+/**
+ * Réponse 4xx quand l'erreur vient de l'entrée du client, sinon `null`.
+ * À appeler en tête du `catch` d'une route qui gère elle-même ses erreurs :
+ * sans cela, un identifiant de mauvais type ou un champ hors format finissait
+ * en 500 « erreur serveur » (campagne de tests du 2026-11-16), ce qui masque
+ * la vraie cause à l'utilisateur et pollue le journal des pannes.
+ */
+export function clientInputError(error: unknown): NextResponse | null {
+    if (isZodError(error)) {
+        return NextResponse.json(
+            {
+                error: "Données invalides",
+                code: "VALIDATION_ERROR",
+                details: error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
+            },
+            { status: 400 },
+        );
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError || error instanceof Prisma.PrismaClientValidationError) {
+        const { status, body } = handlePrismaError(error);
+        return status < 500 ? NextResponse.json(body, { status }) : null;
+    }
+    // request.formData() sur un corps qui n'est pas un formulaire
+    if (error instanceof TypeError && /Content-Type was not one of/i.test(error.message)) {
+        return NextResponse.json(
+            { error: "Un envoi de fichier (formulaire multipart) est attendu.", code: "INVALID_BODY" },
+            { status: 400 },
+        );
+    }
+    return null;
+}
+
 // Rate limiting is now handled via the unified checkRateLimitKey from @/lib/rate-limit
 
 // ============================================
@@ -318,7 +350,7 @@ export function isCrossSiteBrowserMutation(request: Pick<Request, "method" | "ur
 
 const BODY_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-type BodyInspection = "ok" | "too-large" | "invalid-json";
+type BodyInspection = "ok" | "too-large" | "invalid-json" | "unusable-json";
 
 function isJsonContentType(request: Request): boolean {
     return (request.headers.get("content-type") ?? "").toLowerCase().includes("application/json");
@@ -377,12 +409,52 @@ async function inspectRequestBody(request: Request, limit: number): Promise<Body
     if (!json) return "ok";
     const text = new TextDecoder().decode(Buffer.concat(chunks));
     if (text.trim() === "") return "ok"; // corps vide : le handler décide
+    let parsed: unknown;
     try {
-        JSON.parse(text);
-        return "ok";
+        parsed = JSON.parse(text);
     } catch {
         return "invalid-json";
     }
+    return isUsableJsonBody(parsed) ? "ok" : "unusable-json";
+}
+
+/** Demi-paire de substitution isolée : texte Unicode mal formé, refusé par le moteur de requêtes. */
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+/** Imbrication maximale d'un corps JSON (un formulaire réel en a moins de dix). */
+const MAX_JSON_DEPTH = 100;
+
+/**
+ * Un corps JSON valide mais inexploitable, refusé avant le handler (campagne
+ * de tests du 2026-11-16 : 29 routes répondaient 500 à ces entrées) :
+ *  - `null`, un nombre, une chaîne ou un booléen seul : aucune route n'attend
+ *    cela, et lire un champ dessus levait une TypeError (500) ;
+ *  - le caractère nul ou un texte Unicode mal formé dans une clé ou une
+ *    valeur : PostgreSQL et le moteur de requêtes les refusent (500) ;
+ *  - une imbrication démesurée : débordement de pile à la validation.
+ * Parcours itératif : il ne peut pas lui-même déborder.
+ */
+function isUsableJsonBody(root: unknown): boolean {
+    if (root === null || typeof root !== "object") return false;
+    const stack: Array<{ value: unknown; depth: number }> = [{ value: root, depth: 1 }];
+    while (stack.length > 0) {
+        const { value, depth } = stack.pop()!;
+        if (typeof value === "string") {
+            if (value.includes("\u0000") || LONE_SURROGATE.test(value)) return false;
+            continue;
+        }
+        if (value === null || typeof value !== "object") continue;
+        if (depth > MAX_JSON_DEPTH) return false;
+        if (Array.isArray(value)) {
+            for (const item of value) stack.push({ value: item, depth: depth + 1 });
+        } else {
+            for (const [key, item] of Object.entries(value)) {
+                if (key.includes("\u0000") || LONE_SURROGATE.test(key)) return false;
+                stack.push({ value: item, depth: depth + 1 });
+            }
+        }
+    }
+    return true;
 }
 
 function payloadTooLarge(limit: number): NextResponse {
@@ -390,6 +462,13 @@ function payloadTooLarge(limit: number): NextResponse {
     return NextResponse.json(
         { error: `Requête trop volumineuse (limite : ${megabytes} Mo).`, code: "PAYLOAD_TOO_LARGE" },
         { status: 413 },
+    );
+}
+
+function unusableJson(): NextResponse {
+    return NextResponse.json(
+        { error: "Le corps de la requête est invalide : un objet JSON est attendu, sans caractère nul ni imbrication excessive.", code: "INVALID_BODY" },
+        { status: 400 },
     );
 }
 
@@ -549,6 +628,7 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             const body = await inspectRequestBody(request, bodyLimit);
             if (body === "too-large") return payloadTooLarge(bodyLimit);
             if (body === "invalid-json") return invalidJson();
+            if (body === "unusable-json") return unusableJson();
 
             // Contexte d'établissement transmis à PostgreSQL pour toute la
             // requête (audit M2) ; sans session, aucun : les tables sensibles

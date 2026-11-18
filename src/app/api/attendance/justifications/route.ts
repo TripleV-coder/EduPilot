@@ -1,3 +1,4 @@
+import { taughtClassIds } from "@/lib/teachers/taught-classes";
 import { guardAttendanceDateWritable } from "@/lib/academic/year-lock";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -60,6 +61,15 @@ export const GET = createApiHandler(
       const activeSchoolId = getActiveSchoolId(session);
       if (session.user.role !== "SUPER_ADMIN" && activeSchoolId) {
         where.student = { schoolId: activeSchoolId };
+      }
+      // Enseignant (MS-02) : absences et justificatifs de ses classes seulement
+      // (le motif d'une absence est souvent médical ou familial).
+      if (session.user.role === "TEACHER") {
+        const taught = await taughtClassIds(session.user.id);
+        if (classId && !taught.includes(classId)) {
+          return NextResponse.json({ error: "Accès refusé : cette classe n'est pas l'une des vôtres" }, { status: 403 });
+        }
+        if (!classId) where.classId = { in: taught };
       }
     }
 

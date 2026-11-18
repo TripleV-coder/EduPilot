@@ -227,7 +227,8 @@ function AuditLogsPageContent() {
                             description="Ajustez les filtres ou la recherche pour afficher des entrées."
                         />
                     ) : (
-                        <div className="overflow-x-auto">
+                        // Zone défilante atteignable au clavier (tableau large sur petit écran)
+                        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Journal des événements">
                             <table className="w-full border-collapse text-[12px]">
                                 <thead>
                                     <tr style={{ background: "var(--eduflow-surface-sunken)" }}>

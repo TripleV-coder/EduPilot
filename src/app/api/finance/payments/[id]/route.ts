@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { providerBoundEditRefusal } from "@/lib/finance/helpers";
 import prisma from "@/lib/prisma";
 import { PaymentMethod, PaymentStatus } from "@prisma/client";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, clientInputError } from "@/lib/api/api-helpers";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import {
     assertReferenceFree,
@@ -124,6 +124,9 @@ export const PUT = createApiHandler(
 
             return NextResponse.json(payment);
         } catch (error) {
+            // Entrée invalide du client (mauvais type, format) : 400, pas une panne
+            const badInput = clientInputError(error);
+            if (badInput) return badInput;
             logger.error("Error updating payment", error instanceof Error ? error : new Error(String(error)), { module: "api/finance/payments" });
             return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
         }

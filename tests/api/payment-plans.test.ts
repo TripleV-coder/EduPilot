@@ -243,6 +243,23 @@ describe("POST /api/payment-plans", () => {
     expect(prisma.notification.createMany).toHaveBeenCalled();
   });
 
+  it("refuse un échéancier quand une bourse de 100 % couvre tous les frais (400, aucun plan à 0 F)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    mockStudentAndFee(120000);
+    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.scholarship.findMany).mockResolvedValue([
+      { percentage: 100, amount: null },
+    ] as unknown as Scholarship[]);
+
+    const response = await POST(
+      makeRequest("http://localhost:3000/api/payment-plans", { method: "POST", body: validBody })
+    );
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain("rien à échelonner");
+    expect(prisma.paymentPlan.create).not.toHaveBeenCalled();
+  });
+
   it("répartit 100 000 FCFA en 3 échéances entières qui tombent juste, sans déborder du 31 janvier", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockStudentAndFee(100000);

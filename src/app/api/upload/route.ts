@@ -5,7 +5,7 @@ import { randomId } from "@/lib/utils/random-id";
 import { listUploadsBy, saveUploadedFile, UPLOAD_TYPES, type UploadType } from "@/lib/storage/stored-files";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, clientInputError } from "@/lib/api/api-helpers";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
@@ -145,6 +145,9 @@ export const POST = createApiHandler(async (request, context) => {
     );
   
     } catch (error) {
+    // Entrée invalide du client (mauvais type, format) : 400, pas une panne
+    const badInput = clientInputError(error);
+    if (badInput) return badInput;
     logger.error(" uploading file:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors du téléchargement du fichier" },

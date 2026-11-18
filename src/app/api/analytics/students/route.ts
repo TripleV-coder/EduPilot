@@ -8,7 +8,7 @@ import { logger } from "@/lib/utils/logger";
 import { CACHE_TTL_SHORT, generateCacheKey, withCache, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { roleSatisfies } from "@/lib/rbac/permissions";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, clientInputError } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/analytics/students
@@ -335,6 +335,9 @@ export const POST = createApiHandler(async (request, context) => {
     return NextResponse.json(fullAnalytics, { status: 201 });
   
     } catch (error) {
+    // Entrée invalide du client (mauvais type, format) : 400, pas une panne
+    const badInput = clientInputError(error);
+    if (badInput) return badInput;
     logger.error(" generating analytics:", error as Error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }

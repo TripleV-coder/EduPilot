@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 import { roundTo } from "@/lib/analytics/helpers";
 import { Permission } from "@/lib/rbac/permissions";
 
@@ -84,6 +85,10 @@ export const GET = createApiHandler(
         }
         if (session.user.role === "STUDENT" && student.userId !== session.user.id) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+        // Enseignant (MS-02) : seulement les élèves de ses classes
+        if (session.user.role === "TEACHER" && !(await teacherTeachesStudent(session.user.id, student.id))) {
+            return NextResponse.json({ error: "Accès refusé : cet élève n'est pas dans vos classes" }, { status: 403 });
         }
 
         const currentEnrollment = student.enrollments[0];

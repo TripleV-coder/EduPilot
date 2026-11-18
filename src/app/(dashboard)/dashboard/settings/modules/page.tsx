@@ -114,13 +114,23 @@ function SchoolModulesContent() {
                         {data.data.map((m) => {
                             const on = m.required || current.has(m.id);
                             return (
-                                <Card
-                                    key={m.id}
-                                    interactive={!m.required}
-                                    onClick={m.required ? undefined : () => toggle(m)}
-                                    padding={18}
-                                >
+                                // La carte n'est plus elle-même un bouton : elle contenait un lien
+                                // (« Ouvrir »), soit deux commandes imbriquées, illisibles au clavier
+                                // et au lecteur d'écran. Le bouton d'activation et le lien sont voisins.
+                                <Card key={m.id} padding={18}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                                      <button
+                                        type="button"
+                                        aria-pressed={on}
+                                        disabled={m.required}
+                                        onClick={() => toggle(m)}
+                                        style={{
+                                            display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0,
+                                            background: "none", border: 0, padding: 0, textAlign: "left",
+                                            font: "inherit", color: "inherit",
+                                            cursor: m.required ? "default" : "pointer",
+                                        }}
+                                      >
                                         <div
                                             aria-hidden
                                             style={{
@@ -140,11 +150,11 @@ function SchoolModulesContent() {
                                                 {m.description}
                                             </div>
                                         </div>
+                                      </button>
                                         {m.enabled && moduleHome(m.id) ? (
                                             // Un module activé n'apparaissait nulle part : lien direct vers sa page
                                             <Link
                                                 href={moduleHome(m.id)!}
-                                                onClick={(e) => e.stopPropagation()}
                                                 className="text-xs font-semibold"
                                                 style={{ color: "var(--brand-700)" }}
                                             >

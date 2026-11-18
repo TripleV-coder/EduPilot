@@ -20,6 +20,17 @@ describe("montants FCFA", () => {
     expect(roundFcfa(1.005 * 1000)).toBe(1005);
   });
 
+  it("n'arrondit qu'une fois : 0,495 F ne devient pas 1 F", () => {
+    // Avant : arrondi au centime PUIS au franc → x,495 montait au franc supérieur
+    expect(roundFcfa(1_000.495)).toBe(1_000);
+    expect(roundFcfa(464_557.4994)).toBe(464_557);
+    expect(roundFcfa(4_059_859.495)).toBe(4_059_859);
+    expect(roundFcfa(0.4999)).toBe(0);
+    // Le bruit flottant autour du demi-franc reste absorbé
+    expect(roundFcfa(100_000.49999999999)).toBe(100_001);
+    expect(roundFcfa(0.1 + 0.2 + 0.2)).toBe(1);
+  });
+
   it("refuse centimes, zéro, négatif et NaN", () => {
     expect(fcfaAmountSchema.safeParse(15_000).success).toBe(true);
     expect(fcfaAmountSchema.safeParse("15000").success).toBe(true);

@@ -4,7 +4,7 @@ import { generateCacheKey, withCache, CACHE_TTL_MEDIUM, cacheScope } from "@/lib
 import { withHttpCache } from "@/lib/api/cache-http";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, clientInputError } from "@/lib/api/api-helpers";
 
 export const GET = createApiHandler(async (request, context) => {
         const session = context.session;
@@ -54,6 +54,9 @@ export const POST = createApiHandler(async (request, context) => {
 
         return NextResponse.json(menu);
     } catch (error) {
+        // Entrée invalide du client (mauvais type, format) : 400, pas une panne
+        const badInput = clientInputError(error);
+        if (badInput) return badInput;
         logger.error("Menu upsert failed", error instanceof Error ? error : new Error(String(error)), {
             module: "api/canteen/menu",
             schoolId: getActiveSchoolId(session),

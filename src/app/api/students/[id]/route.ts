@@ -9,6 +9,7 @@ import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import type { Session } from "next-auth";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 import { denyTargetOtherSchool, resolveSchoolScope, type SchoolScope } from "@/lib/api/school-scope";
 
 /**
@@ -127,6 +128,12 @@ export const GET = createApiHandler(
       if (!ownStudentProfile || ownStudentProfile.id !== id) {
         return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
       }
+    }
+
+    // Enseignant (MS-02) : seulement les élèves de ses classes — la fiche porte
+    // les contacts des parents et des tuteurs.
+    if (session.user.role === "TEACHER" && !(await teacherTeachesStudent(session.user.id, id))) {
+      return NextResponse.json(translateError(API_ERRORS.FORBIDDEN, t), { status: 403 });
     }
 
     return NextResponse.json(student);

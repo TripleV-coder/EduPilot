@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { libraryService } from "@/lib/library/service";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, clientInputError } from "@/lib/api/api-helpers";
 import { logger } from "@/lib/utils/logger";
 import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 
@@ -15,6 +15,9 @@ const LIBRARY_ERRORS: Record<string, string> = {
 
 function libraryError(error: unknown, fallback: string, status: number) {
     const known = error instanceof Error ? LIBRARY_ERRORS[error.message] : undefined;
+    // Entrée invalide du client (identifiant manquant ou de mauvais type) : 400, pas une panne
+    const badInput = known ? null : clientInputError(error);
+    if (badInput) return badInput;
     if (!known) logger.error(`[library] ${fallback}`, error as Error);
     return NextResponse.json({ error: known ?? fallback }, { status: known ? 400 : status });
 }

@@ -188,11 +188,11 @@ export async function seedFoundation(ctx: SeedContext): Promise<void> {
     // 6. Evaluation types
     console.log("📋 Création des types d'évaluations...\n");
     ctx.evalTypes = await Promise.all([
-        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Devoir surveillé", code: "DS", weight: 1, maxCount: 5 } }),
-        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Composition", code: "COMP", weight: 3, maxCount: 1 } }),
-        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Interrogation écrite", code: "IE", weight: 0.5, maxCount: 8 } }),
-        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Participation orale", code: "ORAL", weight: 0.5, maxCount: 4 } }),
-        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Travaux pratiques", code: "TP", weight: 1, maxCount: 3 } }),
+        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Devoir surveillé", code: "DS", category: "DEVOIR", weight: 1, maxCount: 5 } }),
+        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Composition", code: "COMP", category: "COMPOSITION", weight: 3, maxCount: 1 } }),
+        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Interrogation écrite", code: "IE", category: "INTERROGATION", weight: 0.5, maxCount: 8 } }),
+        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Participation orale", code: "ORAL", category: "INTERROGATION", weight: 0.5, maxCount: 4 } }),
+        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Travaux pratiques", code: "TP", category: "INTERROGATION", weight: 1, maxCount: 3 } }),
     ]);
     console.log("   ✅ Types d'évaluations créés\n");
 
