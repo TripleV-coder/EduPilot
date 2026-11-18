@@ -2,6 +2,15 @@
 
 Priorités : P0 critique · P1 élevée · P2 moyenne · P3 faible · P4 informatif.
 Preuve : **[E]** exécution · **[S]** inspection · **[C]** indice à investiguer.
+
+> **Mise à jour du 2026-11-18** (branche `feat/enseignant-multi-ecoles`) :
+> DEF-003 corrigé (calcul de classe partagé, commit `e9191c3`) ; DEF-008 corrigé (grille 0–20 au
+> demi-point + 400 tirages reproductibles) ; DEF-009 corrigé (`fn(12,5)` refusé à l'enregistrement) ;
+> DEF-010 corrigé (401) ; DEF-012 corrigé (recalculs regroupés, passage dépassé interrompu) ;
+> DEF-016 corrigé (`INITIAL_SETUP_TOKEN`) ; DEF-017 corrigé (contraintes `CHECK`) ; DEF-019 corrigé
+> (`callbackUrl` limité aux chemins internes). Restent ouverts : DEF-013 (base locale à migrer,
+> action de l'exploitant), DEF-014, DEF-015, DEF-018, DEF-020. Audit boîte noire du jour :
+> `audit-reports/webapp-2026-11-18/`.
 Tous les défauts ci-dessous étaient présents sur le commit de départ `75b2377` (aucun n'a été introduit par
 les corrections : la régression complète après corrections est verte).
 

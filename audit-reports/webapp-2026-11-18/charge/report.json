@@ -1,0 +1,439 @@
+{
+  "tool": "webapp-audit 1.0.0",
+  "url": "http://localhost:3100/",
+  "date": "2026-11-18T14:54:44.862Z",
+  "durationSec": 118,
+  "modules": [
+    "connectivity",
+    "security",
+    "exposure",
+    "perf",
+    "assets",
+    "seo",
+    "crawl",
+    "load"
+  ],
+  "budgets": {
+    "ttfbP50Ms": 500,
+    "ttfbP95Ms": 1000,
+    "pageWeightKB": 1500,
+    "jsKB": 350,
+    "cssKB": 100,
+    "requests": 60,
+    "lcpMs": 2500,
+    "cls": 0.1,
+    "tbtMs": 200,
+    "fcpMs": 1800,
+    "loadP95Ms": 1200,
+    "loadMaxErrorRate": 0.01
+  },
+  "scores": {
+    "tls": 100,
+    "security": 100,
+    "perf": 98,
+    "assets": 77,
+    "seo": 94,
+    "crawl": 100,
+    "load": 88,
+    "global": 94
+  },
+  "metrics": {
+    "dnsMs": 12.73,
+    "ipAddresses": "127.0.0.1",
+    "redirectHops": 0,
+    "homeStatus": 200,
+    "htmlKB": 78.51,
+    "exposedFiles": 0,
+    "notFoundStatus": 404,
+    "ttfbFirstMs": 34.86,
+    "ttfbP50Ms": 23.48,
+    "ttfbP95Ms": 38.6,
+    "ttfbMaxMs": 38.6,
+    "htmlDownloadP50Ms": 34.62,
+    "htmlEncoding": "gzip",
+    "htmlCacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "renderBlockingScripts": 1,
+    "inlineJsKB": 13.71,
+    "imagesInHtml": 0,
+    "jsKB": 788.9,
+    "cssKB": 123.81,
+    "imgKB": 0,
+    "fontKB": 0,
+    "pageWeightKB": 991.22,
+    "initialRequests": 19,
+    "thirdPartyDomains": 0,
+    "h1Count": 1,
+    "pagesCrawled": 40,
+    "brokenLinks": 0,
+    "crawlTtfbP95Ms": 245,
+    "loadMaxHealthyConcurrency": 10,
+    "loadPeakRps": 38.87
+  },
+  "findings": [
+    {
+      "cat": "assets",
+      "sev": "high",
+      "title": "JavaScript initial : 789 Ko (décompressé)",
+      "detail": "Budget : 350 Ko",
+      "fix": "Code splitting par route, lazy-loading des composants lourds, tree-shaking, retirer les dépendances inutiles (analyser avec un bundle analyzer)."
+    },
+    {
+      "cat": "assets",
+      "sev": "medium",
+      "title": "CSS initial : 124 Ko",
+      "detail": "Budget : 100 Ko",
+      "fix": "Purger le CSS inutilisé, CSS critique inline, reste différé."
+    },
+    {
+      "cat": "load",
+      "sev": "medium",
+      "title": "Capacité saine jusqu’à 10 requêtes simultanées",
+      "detail": "1 conc. → 26.5 req/s, p95 69 ms, 0.0 % err, codes {\"200\":530}\n10 conc. → 30.5 req/s, p95 557 ms, 0.0 % err, codes {\"200\":613}\n25 conc. → 32.1 req/s, p95 1365 ms, 0.0 % err, codes {\"200\":649}\n50 conc. → 34.4 req/s, p95 2343 ms, 0.0 % err, codes {\"200\":700}\n100 conc. → 38.9 req/s, p95 4039 ms, 0.0 % err, codes {\"200\":815}",
+      "fix": "Comparer au pic attendu (×3 de marge). Leviers : cache, index DB, pool de connexions, scaling horizontal, file d’attente pour les tâches lourdes, CDN."
+    },
+    {
+      "cat": "load",
+      "sev": "medium",
+      "title": "Latence p95 ×58.6 entre 1 et 100 utilisateurs",
+      "detail": "",
+      "fix": "Contention : verrous DB, pool trop petit, CPU saturé, traitement synchrone."
+    },
+    {
+      "cat": "assets",
+      "sev": "low",
+      "title": "1 script(s) bloquant(s) le rendu dans <head>",
+      "detail": "",
+      "fix": "Ajouter defer (ou type=\"module\"), ou déplacer en fin de <body>."
+    },
+    {
+      "cat": "perf",
+      "sev": "low",
+      "title": "Pas de validateur de cache (ETag / Last-Modified)",
+      "detail": "",
+      "fix": "Activer ETag pour permettre les réponses 304."
+    },
+    {
+      "cat": "seo",
+      "sev": "low",
+      "title": "Longueur du titre : 8 caractères",
+      "detail": "EduPilot",
+      "fix": "Viser 30–60 caractères."
+    },
+    {
+      "cat": "seo",
+      "sev": "low",
+      "title": "Lien canonical absent",
+      "detail": "",
+      "fix": "<link rel=\"canonical\" href=\"…\"> pour éviter le contenu dupliqué."
+    },
+    {
+      "cat": "seo",
+      "sev": "low",
+      "title": "1 titre(s) dupliqué(s) entre pages",
+      "detail": "« EduPilot » × 37",
+      "fix": "Un titre unique par page."
+    },
+    {
+      "cat": "assets",
+      "sev": "info",
+      "title": "Analyse statique du HTML initial",
+      "detail": "Les ressources injectées par JavaScript (SPA) ne sont visibles qu’avec --browser.",
+      "fix": ""
+    },
+    {
+      "cat": "load",
+      "sev": "info",
+      "title": "Limites de ce test de charge",
+      "detail": "",
+      "fix": "Un seul client Node, même réseau : pour >500 utilisateurs virtuels, scénarios réalistes (login → parcours) et tests d’endurance, utiliser k6, Gatling ou Artillery."
+    },
+    {
+      "cat": "perf",
+      "sev": "info",
+      "title": "Compression gzip (Brotli serait ~15–20 % plus efficace)",
+      "detail": "",
+      "fix": ""
+    },
+    {
+      "cat": "security",
+      "sev": "info",
+      "title": "Cross-Origin-Opener-Policy absente",
+      "detail": "",
+      "fix": "Envisager COOP: same-origin (isolation contre les attaques cross-window)."
+    },
+    {
+      "cat": "seo",
+      "sev": "info",
+      "title": "Pas de données structurées JSON-LD",
+      "detail": "",
+      "fix": "schema.org (Organization, Product, BreadcrumbList…) pour les résultats enrichis."
+    }
+  ],
+  "load": [
+    {
+      "concurrency": 1,
+      "requests": 530,
+      "rps": 26.483590505135474,
+      "p50": 34.262048000000505,
+      "p95": 68.87333600000056,
+      "p99": 84.03023200000098,
+      "errorRate": 0,
+      "codes": {
+        "200": 530
+      }
+    },
+    {
+      "concurrency": 10,
+      "requests": 613,
+      "rps": 30.478771240018197,
+      "p50": 306.5996589999995,
+      "p95": 556.9709829999993,
+      "p99": 972.6424630000038,
+      "errorRate": 0,
+      "codes": {
+        "200": 613
+      }
+    },
+    {
+      "concurrency": 25,
+      "requests": 649,
+      "rps": 32.05679189550421,
+      "p50": 752.7913910000061,
+      "p95": 1365.0343800000046,
+      "p99": 1638.1538220000002,
+      "errorRate": 0,
+      "codes": {
+        "200": 649
+      }
+    },
+    {
+      "concurrency": 50,
+      "requests": 700,
+      "rps": 34.361712419995094,
+      "p50": 1338.0448460000043,
+      "p95": 2342.7933740000008,
+      "p99": 2782.1167080000014,
+      "errorRate": 0,
+      "codes": {
+        "200": 700
+      }
+    },
+    {
+      "concurrency": 100,
+      "requests": 815,
+      "rps": 38.87335109942559,
+      "p50": 2196.928805000003,
+      "p95": 4038.715823000006,
+      "p99": 7633.451592000012,
+      "errorRate": 0,
+      "codes": {
+        "200": 815
+      }
+    }
+  ],
+  "pages": [
+    {
+      "url": "http://localhost:3100/",
+      "status": 200,
+      "ttfb": 16
+    },
+    {
+      "url": "http://localhost:3100/explorer",
+      "status": 200,
+      "ttfb": 23
+    },
+    {
+      "url": "http://localhost:3100/dashboard/students",
+      "status": 200,
+      "ttfb": 133
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/school",
+      "status": 200,
+      "ttfb": 136
+    },
+    {
+      "url": "http://localhost:3100/login",
+      "status": 200,
+      "ttfb": 142
+    },
+    {
+      "url": "http://localhost:3100/privacy",
+      "status": 200,
+      "ttfb": 60
+    },
+    {
+      "url": "http://localhost:3100/terms",
+      "status": 200,
+      "ttfb": 61
+    },
+    {
+      "url": "http://localhost:3100/dashboard",
+      "status": 200,
+      "ttfb": 177
+    },
+    {
+      "url": "http://localhost:3100/setup",
+      "status": 200,
+      "ttfb": 186
+    },
+    {
+      "url": "http://localhost:3100/dashboard/incidents",
+      "status": 200,
+      "ttfb": 184
+    },
+    {
+      "url": "http://localhost:3100/dashboard/attendance",
+      "status": 200,
+      "ttfb": 193
+    },
+    {
+      "url": "http://localhost:3100/dashboard/calendar",
+      "status": 200,
+      "ttfb": 198
+    },
+    {
+      "url": "http://localhost:3100/dashboard/announcements",
+      "status": 200,
+      "ttfb": 200
+    },
+    {
+      "url": "http://localhost:3100/dashboard/services",
+      "status": 200,
+      "ttfb": 181
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings",
+      "status": 200,
+      "ttfb": 186
+    },
+    {
+      "url": "http://localhost:3100/dashboard/notifications",
+      "status": 200,
+      "ttfb": 193
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/profile",
+      "status": 200,
+      "ttfb": 191
+    },
+    {
+      "url": "http://localhost:3100/dashboard/analytics",
+      "status": 200,
+      "ttfb": 217
+    },
+    {
+      "url": "http://localhost:3100/dashboard/grades/entry",
+      "status": 200,
+      "ttfb": 220
+    },
+    {
+      "url": "http://localhost:3100/dashboard/risks/failure",
+      "status": 200,
+      "ttfb": 221
+    },
+    {
+      "url": "http://localhost:3100/dashboard/finance",
+      "status": 200,
+      "ttfb": 222
+    },
+    {
+      "url": "http://localhost:3100/dashboard/students/inscription",
+      "status": 200,
+      "ttfb": 128
+    },
+    {
+      "url": "http://localhost:3100/dashboard/grades/bulletins",
+      "status": 200,
+      "ttfb": 124
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes",
+      "status": 200,
+      "ttfb": 135
+    },
+    {
+      "url": "http://localhost:3100/dashboard/finance/payments/new",
+      "status": 200,
+      "ttfb": 139
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70co4002e44fk8by5ymxs",
+      "status": 200,
+      "ttfb": 240
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cnb002844fktclbs22r",
+      "status": 200,
+      "ttfb": 251
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70ctt003s44fkpr20i46q",
+      "status": 200,
+      "ttfb": 245
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cp2002m44fk0ai06m88",
+      "status": 200,
+      "ttfb": 253
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cs6003e44fkei70x5j7",
+      "status": 200,
+      "ttfb": 201
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70ct8003m44fkeple5olb",
+      "status": 200,
+      "ttfb": 210
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cuj004044fkjivu66x9",
+      "status": 200,
+      "ttfb": 207
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cpw002u44fkcl8y59tc",
+      "status": 200,
+      "ttfb": 207
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/security",
+      "status": 200,
+      "ttfb": 113
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/notifications",
+      "status": 200,
+      "ttfb": 116
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cqu003244fk2ofiy1c6",
+      "status": 200,
+      "ttfb": 120
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cqd002y44fkg657jic0",
+      "status": 200,
+      "ttfb": 128
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/locale",
+      "status": 200,
+      "ttfb": 144
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/appearance",
+      "status": 200,
+      "ttfb": 146
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/my-data",
+      "status": 200,
+      "ttfb": 150
+    }
+  ],
+  "screenshots": [],
+  "errors": [],
+  "baseline": null
+}
