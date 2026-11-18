@@ -20,6 +20,7 @@ vi.mock("@/lib/services/analytics-sync", () => ({
 }));
 vi.mock("@/lib/services/notification.service", () => ({ createNotification: vi.fn().mockResolvedValue({}) }));
 vi.mock("@/lib/auth/family-scope", () => ({ getOwnStudentIds: vi.fn().mockResolvedValue(null) }));
+vi.mock("@/lib/teachers/taught-classes", () => ({ taughtClassIds: vi.fn().mockResolvedValue(["c1"]) }));
 vi.mock("@/lib/security/tenant", () => ({
   assertModelAccess: vi.fn().mockResolvedValue(null),
 }));
@@ -131,6 +132,21 @@ describe("GET /api/attendance/justifications", () => {
     const call = vi.mocked(prisma.attendance.findMany).mock.calls[0][0] as { where: Record<string, unknown> };
     expect(call.where.studentId).toEqual({ in: ["s-moi"] });
     expect(call.where.classId).toBeUndefined();
+  });
+
+  it("un enseignant ne lit pas les absences d'une classe qui n'est pas la sienne (MS-02)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    const res = await GET(makeRequest("http://localhost/api/attendance/justifications?classId=c-autre"));
+    expect(res.status).toBe(403);
+    expect(prisma.attendance.findMany).not.toHaveBeenCalled();
+  });
+
+  it("sans ?classId=, un enseignant ne voit que ses classes (MS-02)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    vi.mocked(prisma.attendance.findMany).mockResolvedValue([]);
+    await GET(makeRequest("http://localhost/api/attendance/justifications"));
+    const call = vi.mocked(prisma.attendance.findMany).mock.calls[0][0] as { where: Record<string, unknown> };
+    expect(call.where.classId).toEqual({ in: ["c1"] });
   });
 
   it("un parent ne peut pas demander les absences d'un autre élève", async () => {

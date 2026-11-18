@@ -9848,7 +9848,7 @@
     "/api/finance/export": {
       "get": {
         "summary": "GET /api/finance/export",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
         "tags": [
           "finance"
         ],
@@ -9866,6 +9866,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -10305,7 +10308,7 @@
     "/api/finance/reports/generate": {
       "get": {
         "summary": "GET /api/finance/reports/generate",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
         "tags": [
           "finance"
         ],
@@ -10323,6 +10326,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -10334,7 +10340,7 @@
       },
       "post": {
         "summary": "POST /api/finance/reports/generate",
-        "description": "Session requise.",
+        "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
         "tags": [
           "finance"
         ],
@@ -10352,6 +10358,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
