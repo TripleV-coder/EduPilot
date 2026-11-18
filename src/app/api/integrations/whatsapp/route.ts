@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { whatsAppConfig } from "@/lib/notifications/whatsapp-service";
 
 /**
  * GET /api/integrations/whatsapp — statut de l'intégration WhatsApp Business.
@@ -13,15 +14,17 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
  */
 export const GET = createApiHandler(
     async (_request, { session }) => {
-        const phoneId = process.env.WHATSAPP_PHONE_ID;
-        const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
-        const connected = Boolean(phoneId && accessToken);
+        // Envoi réel : numéro, jeton ET modèle de message approuvé par Meta
+        const cfg = whatsAppConfig();
+        const phoneId = cfg.phoneId;
+        const connected = cfg.configured;
 
         const schoolId = getActiveSchoolId(session);
 
         let phoneNumber: string | null = null;
         let verifiedAt: string | null = null;
         let subscribers: number | null = null;
+        let weeklyMessages: number | null = null;
 
         if (schoolId && connected) {
             // Read per-school overrides stored in ConfigOption (category="whatsapp")
@@ -37,6 +40,10 @@ export const GET = createApiHandler(
             subscribers = await prisma.user.count({
                 where: { schoolId, role: "PARENT", isActive: true },
             });
+            // Messages réellement partis cette semaine (journal des envois)
+            weeklyMessages = await prisma.communicationLog.count({
+                where: { schoolId, channel: "WHATSAPP", status: "SENT", createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+            });
         }
 
         return NextResponse.json({
@@ -44,12 +51,14 @@ export const GET = createApiHandler(
             phoneNumber: connected ? (phoneNumber ?? phoneId ?? null) : null,
             verifiedAt,
             subscribers: connected ? subscribers : null,
-            // Métriques d'usage : null tant que l'envoi réel (webhook Meta) n'est
-            // pas branché — aucune valeur inventée (cf. règle zéro fake).
-            weeklyMessages: null,
+            // Taux de lecture et coût : aucune source (pas de webhook de statut
+            // Meta branché) — null assumé, aucune valeur inventée.
+            weeklyMessages,
             readRate: null,
             costPerMessage: null,
         });
     },
-    { requireAuth: true }
+    // Configuration et nombre d'abonnés : direction seulement (la route était
+    // ouverte à tout compte connecté, parents et élèves compris).
+    { requireAuth: true, allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] }
 );

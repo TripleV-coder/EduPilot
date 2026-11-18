@@ -31,7 +31,7 @@ Index de la documentation. Organisée par audience cible.
 
 ## Opérations
 - [OPERATIONS.md](./OPERATIONS.md) — déploiement, monitoring, mise à l'échelle, coûts
-- [MONITORING.md](./MONITORING.md) — Sentry, alertes, KPIs, dashboards
+- [MONITORING.md](./MONITORING.md) — journal des erreurs, alertes, KPIs, dashboards
 - [RUNBOOK.md](./RUNBOOK.md) — procédures pour 8 types d'incidents
 - [DEPLOYMENT.md](./DEPLOYMENT.md) — détails du déploiement
 - [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) — checklist avant mise en prod

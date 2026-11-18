@@ -80,7 +80,7 @@ export function FamilyAttendance({ role }: { role: "PARENT" | "STUDENT" }) {
             />
 
             {isLoading ? <PageLoading label="Chargement des absences…" /> : null}
-            {error ? <PageError message="Impossible de charger les absences." onRetry={() => void mutate()} /> : null}
+            {error ? <PageError error={error} message="Impossible de charger les absences." onRetry={() => void mutate()} /> : null}
             {!isLoading && !error && rows.length === 0 ? (
                 <PageEmpty icon="check" title="Aucune absence ni aucun retard" description="Rien à justifier pour le moment." />
             ) : null}

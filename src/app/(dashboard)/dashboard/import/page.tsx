@@ -283,7 +283,7 @@ function ImportWizardPage() {
             />
 
             {loadError ? (
-                <PageError message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
+                <PageError error={loadError} message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
             ) : null}
 
             {/* Mini stepper */}
@@ -296,7 +296,7 @@ function ImportWizardPage() {
                             <span
                                 className="grid place-items-center rounded-full font-bold"
                                 style={{
-                                    width: 24, height: 24, fontSize: 11,
+                                    width: 24, height: 24, fontSize: 12,
                                     background: active ? "var(--eduflow-brand-700)" : "var(--eduflow-surface-sunken)",
                                     color: active ? "#fff" : "var(--eduflow-text-tertiary)",
                                 }}
@@ -306,7 +306,7 @@ function ImportWizardPage() {
                             <span
                                 className="hidden sm:inline"
                                 style={{
-                                    fontSize: 11, fontWeight: 700,                                   
+                                    fontSize: 12, fontWeight: 700,                                   
                                     color: active ? "var(--eduflow-text-primary)" : "var(--eduflow-text-tertiary)",
                                 }}
                             >
@@ -345,7 +345,7 @@ function ImportWizardPage() {
                                     <FileSpreadsheet className="w-4 h-4" style={{ color: "var(--eduflow-brand-700)" }} />
                                     {fileName || "Fichier importé"}
                                 </h3>
-                                <p className="m-0" style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
+                                <p className="m-0" style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
                                     {fmtInt(fileData.length)} lignes détectées · {headers.length} colonnes
                                 </p>
                             </div>
@@ -371,7 +371,7 @@ function ImportWizardPage() {
                                                 className="text-left font-bold"
                                                 style={{
                                                     padding: "10px 14px",
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                 }}
                                             >
@@ -421,7 +421,7 @@ function ImportWizardPage() {
                                                 <td
                                                     style={{
                                                         padding: "11px 14px",
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color: "var(--eduflow-text-secondary)",
                                                         maxWidth: 280,
                                                         overflow: "hidden",
@@ -459,7 +459,7 @@ function ImportWizardPage() {
                             <SubLabel>Validations automatiques</SubLabel>
                             <div className="mt-2.5">
                                 {validations.length === 0 ? (
-                                    <p style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                                    <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                         Aucune ligne à valider pour le moment.
                                     </p>
                                 ) : validations.map((v, i) => (
@@ -556,7 +556,7 @@ function ImportWizardPage() {
                             type="button"
                             onClick={resetFlow}
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: 700,
                                 color: "var(--eduflow-text-tertiary)",
                                 background: "transparent",
@@ -639,7 +639,7 @@ function SelectAndUpload({
                                 </div>
                                 <div className="flex-1">
                                     <h2 className="m-0" style={{ fontSize: 14, fontWeight: 700 }}>{type.label}</h2>
-                                    <p className="m-0" style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
+                                    <p className="m-0" style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", marginTop: 2 }}>
                                         {type.description}
                                     </p>
                                 </div>
@@ -681,7 +681,7 @@ function SelectAndUpload({
                         <p
                             className="mt-2"
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: 700,
                                 color: "var(--eduflow-text-secondary)",
                             }}
@@ -692,7 +692,7 @@ function SelectAndUpload({
                         </p>
                         <p
                             className="mt-1"
-                            style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                            style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                         >
                             .xlsx / .xls / .csv · max 10 Mo
                         </p>
@@ -751,7 +751,7 @@ function SuccessCard({
                 <div
                     role={rejected ? "alert" : undefined}
                     className="mt-4 mx-auto max-w-xl rounded-lg p-3 text-left max-h-80 overflow-y-auto"
-                    style={{ background: "rgba(255,255,255,0.15)", fontSize: 11 }}
+                    style={{ background: "rgba(255,255,255,0.15)", fontSize: 12 }}
                 >
                     <p className="font-bold">Lignes en erreur · {importErrors.length}</p>
                     {importErrors.map((err, idx) => (
@@ -767,7 +767,7 @@ function SuccessCard({
                 <div
                     role="status"
                     className="mt-4 mx-auto max-w-xl rounded-lg p-3 text-left"
-                    style={{ background: "rgba(255,255,255,0.15)", fontSize: 11 }}
+                    style={{ background: "rgba(255,255,255,0.15)", fontSize: 12 }}
                 >
                     <p className="font-bold">À savoir</p>
                     {notices.map((notice) => (
@@ -781,7 +781,7 @@ function SuccessCard({
             {credentials.length > 0 && (
                 <div
                     className="mt-4 mx-auto max-w-xl rounded-lg p-3 text-left"
-                    style={{ background: "rgba(255,255,255,0.15)", fontSize: 11 }}
+                    style={{ background: "rgba(255,255,255,0.15)", fontSize: 12 }}
                 >
                     <p className="font-bold">Mots de passe provisoires · {credentials.length}</p>
                     <p className="mt-1">
@@ -830,7 +830,7 @@ function SubLabel({ children, style }: { children: React.ReactNode; style?: Reac
     return (
         <div
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--eduflow-text-tertiary)",
                 ...style,
@@ -854,7 +854,7 @@ function CountBadge({
         <span
             className="inline-flex items-center gap-1 rounded-md font-bold"
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 padding: "3px 8px",
                 background: severity === "success" ? "var(--eduflow-success-50)" : "var(--eduflow-warning-50)",
                 color: severity === "success" ? "var(--eduflow-success-800)" : "var(--eduflow-warning-800)",
@@ -891,7 +891,7 @@ function StatusBadge({
         <span
             className="inline-flex items-center gap-1 rounded-md font-bold"
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 padding: "3px 7px",
                 background: bg,
                 color: fg,

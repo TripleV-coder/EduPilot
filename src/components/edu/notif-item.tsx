@@ -116,12 +116,12 @@ export function NotifItem({
                     }}
                 >
                     {time ? (
-                        <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <span style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             {time}
                         </span>
                     ) : null}
                     {sender ? (
-                        <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <span style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             • {sender}
                         </span>
                     ) : null}
@@ -134,7 +134,7 @@ export function NotifItem({
                                 key={`${label}-${i}`}
                                 onClick={onClick}
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 600,
                                     color: t.color,
                                     background: "transparent",

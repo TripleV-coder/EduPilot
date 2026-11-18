@@ -8,6 +8,7 @@ const {
   readFileMock,
   execAsyncMock,
   authMock,
+  prerequisitesMock,
 } = vi.hoisted(() => ({
   accessMock: vi.fn(),
   readdirMock: vi.fn(),
@@ -15,7 +16,12 @@ const {
   readFileMock: vi.fn(),
   execAsyncMock: vi.fn(),
   authMock: vi.fn(),
+  prerequisitesMock: vi.fn(),
 }));
+
+// Prérequis (outils, phrase secrète, connexion propriétaire) : testés par
+// tests/lib/system/backup-prerequisites.test.ts ; ici, seul leur effet sur la route.
+vi.mock("@/lib/system/backup-prerequisites", () => ({ checkBackupPrerequisites: prerequisitesMock }));
 
 vi.mock("@/lib/auth", () => ({ auth: authMock }));
 vi.mock("util", () => ({
@@ -47,22 +53,36 @@ describe("GET/POST /api/system/backup", () => {
     vi.clearAllMocks();
   });
 
-  it("retourne 404 si le script de sauvegarde est absent", async () => {
+  it("prérequis absents (conteneur web : pas de script, d'outils ni de connexion propriétaire) : 503, rien n'est lancé", async () => {
     authMock.mockResolvedValue(makeSession("SUPER_ADMIN"));
-    accessMock.mockRejectedValue(new Error("missing"));
+    prerequisitesMock.mockResolvedValue(["script de sauvegarde exécutable", "outil pg_dump", "rôle PostgreSQL soumis à la RLS (connexion propriétaire requise)"]);
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/system/backup", { method: "POST" }),
     );
     const body = await response.json();
 
-    expect(response.status).toBe(404);
-    expect(body.error).toContain("Script de sauvegarde");
+    expect(response.status).toBe(503);
+    expect(body.code).toBe("BACKUP_UNAVAILABLE");
+    expect(body.error).toContain("tâche planifiée");
+    expect(execAsyncMock).not.toHaveBeenCalled();
+    // Le détail (liste des prérequis) reste dans le journal
+    expect(JSON.stringify(body)).not.toContain("pg_dump");
+  });
+
+  it("refusé à tout autre rôle que SUPER_ADMIN, sans même vérifier les prérequis ni lancer le script", async () => {
+    for (const role of ["SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "TEACHER"]) {
+      authMock.mockResolvedValue(makeSession(role));
+      const response = await POST(makeRequest("http://localhost:3000/api/system/backup", { method: "POST" }));
+      expect(response.status, role).toBe(403);
+    }
+    expect(prerequisitesMock).not.toHaveBeenCalled();
+    expect(execAsyncMock).not.toHaveBeenCalled();
   });
 
   it("déclenche la sauvegarde et parse la taille et le checksum", async () => {
     authMock.mockResolvedValue(makeSession("SUPER_ADMIN"));
-    accessMock.mockResolvedValue(undefined);
+    prerequisitesMock.mockResolvedValue([]);
     execAsyncMock.mockResolvedValue({
       stdout: "Taille de la sauvegarde: 14 MB\nChecksum SHA256: abc123\n",
     });
@@ -121,12 +141,12 @@ describe("GET/POST /api/system/backup", () => {
   it("n'expose ni chemin du serveur ni sortie de commande", async () => {
     authMock.mockResolvedValue(makeSession("SUPER_ADMIN"));
 
-    accessMock.mockRejectedValue(new Error("missing"));
+    prerequisitesMock.mockResolvedValue(["phrase secrète illisible"]);
     const missing = await (await POST(makeRequest("http://localhost:3000/api/system/backup", { method: "POST" }))).json();
     expect(JSON.stringify(missing)).not.toMatch(/\/(var|home|app|usr)\//);
     expect(missing).not.toHaveProperty("path");
 
-    accessMock.mockResolvedValue(undefined);
+    prerequisitesMock.mockResolvedValue([]);
     execAsyncMock.mockResolvedValue({
       stdout: "pg_dump: connexion postgresql://edupilot:motdepasse@db/edupilot\nTaille de la sauvegarde: 14 MB\nChecksum SHA256: abc123\n",
     });

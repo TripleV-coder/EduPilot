@@ -1,81 +1,69 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+/**
+ * Mesures de performance : toujours actives (plus de variable
+ * NEXT_PUBLIC_ANALYTICS_ENABLED ni de Sentry), regroupées en UN envoi par
+ * page quand elle est masquée ou quittée.
+ */
+type Callback = (metric: { id: string; name: string; value: number; rating?: string }) => void;
+const callbacks: Record<string, Callback> = {};
+
+beforeEach(() => {
+    vi.resetModules();
+    for (const name of ["onCLS", "onFCP", "onLCP", "onTTFB", "onINP"]) delete callbacks[name];
+    vi.doMock("web-vitals", () =>
+        Object.fromEntries(["onCLS", "onFCP", "onLCP", "onTTFB", "onINP"].map((name) => [name, (cb: Callback) => (callbacks[name] = cb)])),
+    );
+});
+afterEach(() => {
+    vi.unstubAllGlobals();
+    Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+});
+
+async function start() {
+    const { reportWebVitals } = await import("@/lib/performance/web-vitals");
+    reportWebVitals();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function hide() {
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+}
 
 describe("reportWebVitals", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    vi.unstubAllGlobals();
-    vi.clearAllMocks();
-    process.env.NODE_ENV = "development";
-    process.env.NEXT_PUBLIC_ANALYTICS_ENABLED = "false";
-  });
+    it("un seul envoi groupé à la sortie de page, avec la dernière valeur de chaque mesure", async () => {
+        const beacon = vi.fn().mockReturnValue(true);
+        vi.stubGlobal("navigator", { ...navigator, sendBeacon: beacon });
+        await start();
+        callbacks.onLCP({ id: "l", name: "LCP", value: 900, rating: "good" });
+        callbacks.onCLS({ id: "c", name: "CLS", value: 0.01, rating: "good" });
+        callbacks.onCLS({ id: "c", name: "CLS", value: 0.05, rating: "good" });
+        expect(beacon).not.toHaveBeenCalled();
 
-  it("ne fait rien côté serveur", async () => {
-    const { reportWebVitals } = await import("@/lib/performance/web-vitals");
+        hide();
+        expect(beacon).toHaveBeenCalledOnce();
+        const [url, blob] = beacon.mock.calls[0] as [string, Blob];
+        expect(url).toBe("/api/analytics/web-vitals");
+        const body = JSON.parse(await blob.text());
+        expect(body.path).toBe(window.location.pathname);
+        expect(body.metrics).toEqual([
+            { id: "l", name: "LCP", value: 900, rating: "good" },
+            { id: "c", name: "CLS", value: 0.05, rating: "good" },
+        ]);
 
-    expect(() => reportWebVitals()).not.toThrow();
-  });
+        hide(); // rien de nouveau : aucun envoi vide
+        expect(beacon).toHaveBeenCalledOnce();
+    });
 
-  it("branche les callbacks web-vitals et loggue en développement", async () => {
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const onCLS = vi.fn((cb) => cb({ id: "1", name: "CLS", value: 0.02, rating: "good" }));
-    const onFCP = vi.fn();
-    const onLCP = vi.fn();
-    const onTTFB = vi.fn();
-    const onINP = vi.fn();
-
-    vi.stubGlobal("window", { Sentry: undefined });
-    vi.doMock("web-vitals", () => ({ onCLS, onFCP, onLCP, onTTFB, onINP }));
-
-    const { reportWebVitals } = await import("@/lib/performance/web-vitals");
-    reportWebVitals();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(onCLS).toHaveBeenCalledOnce();
-    expect(onFCP).toHaveBeenCalledOnce();
-    expect(onLCP).toHaveBeenCalledOnce();
-    expect(onTTFB).toHaveBeenCalledOnce();
-    expect(onINP).toHaveBeenCalledOnce();
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "[Web Vitals] CLS:",
-      expect.objectContaining({ value: 0.02, rating: "good", id: "1" }),
-    );
-  });
-
-  it("envoie aussi les métriques à Sentry et à l'endpoint analytics si activé", async () => {
-    const distribution = vi.fn();
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    const onCLS = vi.fn((cb) => cb({ id: "2", name: "CLS", value: 0.03, rating: "good" }));
-    const onFCP = vi.fn();
-    const onLCP = vi.fn();
-    const onTTFB = vi.fn();
-    const onINP = vi.fn();
-
-    process.env.NEXT_PUBLIC_ANALYTICS_ENABLED = "true";
-    vi.stubGlobal("window", { Sentry: { metrics: { distribution } } });
-    vi.stubGlobal("fetch", fetchMock);
-    vi.doMock("web-vitals", () => ({ onCLS, onFCP, onLCP, onTTFB, onINP }));
-
-    const { reportWebVitals } = await import("@/lib/performance/web-vitals");
-    reportWebVitals();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(distribution).toHaveBeenCalledWith(
-      "web_vitals",
-      0.03,
-      expect.objectContaining({
-        tags: expect.objectContaining({
-          metric_id: "2",
-          metric_name: "CLS",
-          metric_rating: "good",
-        }),
-      }),
-    );
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/analytics/web-vitals",
-      expect.objectContaining({
-        method: "POST",
-        keepalive: true,
-      }),
-    );
-  });
+    it("sans sendBeacon : repli sur fetch keepalive", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+        vi.stubGlobal("navigator", { ...navigator, sendBeacon: undefined });
+        vi.stubGlobal("fetch", fetchMock);
+        await start();
+        callbacks.onTTFB({ id: "t", name: "TTFB", value: 120 });
+        window.dispatchEvent(new Event("pagehide"));
+        expect(fetchMock).toHaveBeenCalledWith("/api/analytics/web-vitals", expect.objectContaining({ method: "POST", keepalive: true }));
+    });
 });

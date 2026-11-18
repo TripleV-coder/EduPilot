@@ -6,7 +6,7 @@ import { rateLimitSettings } from "@/lib/resilience/config";
 import { retryAfterSeconds } from "@/lib/resilience/errors";
 import { recordApiRequest, recordRejection } from "@/lib/resilience/metrics";
 import { consumeTokens, perMinute } from "@/lib/resilience/token-bucket";
-import { readEdgeMaintenanceState, edgeMaintenanceBlocksRole } from "@/lib/system/maintenance-edge";
+import { getMaintenanceState, maintenanceBlocksRole } from "@/lib/system/maintenance";
 import { getClientIp } from "@/lib/security/client-ip";
 
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -45,11 +45,12 @@ function buildCsp(nonce: string): string {
     //    viennent du code, jamais d'une saisie.
     "style-src-elem 'self' 'unsafe-inline'",
     "style-src-attr 'unsafe-inline'",
-    "img-src 'self' blob: data: https://res.cloudinary.com https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://*.amazonaws.com",
+    // Images servies par EduPilot seulement (téléversements, data:, blob:)
+    "img-src 'self' blob: data:",
     "font-src 'self' data:",
     IS_PROD
-      ? "connect-src 'self' https://*.upstash.io https://*.ingest.sentry.io https://generativelanguage.googleapis.com https://api.openai.com https://api.anthropic.com https://api.fedapay.com https://sandbox-api.fedapay.com"
-      : "connect-src 'self' http://localhost:* https://*.upstash.io https://*.ingest.sentry.io https://generativelanguage.googleapis.com https://api.openai.com https://api.anthropic.com https://api.fedapay.com https://sandbox-api.fedapay.com",
+      ? "connect-src 'self' https://api.fedapay.com https://sandbox-api.fedapay.com"
+      : "connect-src 'self' http://localhost:* https://api.fedapay.com https://sandbox-api.fedapay.com",
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -125,9 +126,8 @@ const PUBLIC_PREFIXES = [
   "/api/setup",
   "/api/explorer",
   "/api/docs",
-  "/api/payments/webhook",
-  "/api/payments/fedapay/webhook",
-  "/api/payments/momo/webhook",
+  // Webhooks FedaPay par compte d'école (/api/payments/fedapay/webhook/<compte>)
+  "/api/payments/fedapay/webhook/",
   // Vitrine publique (annuaire + fiche établissement) — lecture seule, sans auth.
   "/api/public",
   "/ecoles",
@@ -166,8 +166,15 @@ const PUBLIC_API_ROUTES = new Set([
   "/api/health",
   // Prometheus n'a pas de session : la route exige METRICS_TOKEN elle-même.
   "/api/metrics",
+  // Erreurs affichées dans le navigateur, y compris avant la connexion
+  // (limite par IP dans la route ; remplace Sentry côté client).
+  "/api/monitoring/client-error",
+  // Mesures de performance du navigateur, y compris sur /login (limite par IP dans la route)
+  "/api/analytics/web-vitals",
   "/api/system/automation",
   "/api/system/retention",
+  // Statuts WhatsApp de Meta : signature X-Hub-Signature-256 vérifiée par la route
+  "/api/whatsapp/webhook",
 ]);
 
 function isPublicPath(pathname: string): boolean {
@@ -175,7 +182,7 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-/** Marqueur interne : le rate-limit Edge a déjà été appliqué (évite le double hit Redis dans createApiHandler). */
+/** Marqueur interne : le proxy a déjà appliqué les limites (createApiHandler ne les recompte pas). */
 const EDGE_RL_HEADER = "x-edupilot-edge-rl";
 
 function apiPassthrough(request: NextRequest, remaining?: number): NextResponse {
@@ -213,7 +220,7 @@ export default async function proxy(request: NextRequest) {
     if (!isPublic) apiSession = await auth();
     const userId = apiSession?.user?.id;
 
-    // 1) Débit général, seaux à jetons partagés par Redis. Compte connecté :
+    // 1) Débit général, seaux à jetons partagés (PostgreSQL). Compte connecté :
     //    son propre seau (RATE_LIMIT_USER_PER_MIN) seulement — une IP
     //    d'établissement ou le NAT d'un opérateur mobile porte des centaines de
     //    personnes, qu'un seau par IP refuserait ensemble (analyse de capacité
@@ -332,11 +339,12 @@ export default async function proxy(request: NextRequest) {
   }
 
   // ── MODE MAINTENANCE ──
-  // Filet Edge pour les rares routes hors `createApiHandler` + pages.
-  // Miroir Redis (Edge-safe) ; état inconnu ⇒ on laisse passer (mesure d'exploitation).
-  if (edgeMaintenanceBlocksRole(session.user.role)) {
-    const maintenance = await readEdgeMaintenanceState();
-    if (maintenance?.enabled) {
+  // Filet pour les rares routes hors `createApiHandler` + pages. Le proxy
+  // tourne sur Node (Next 16) : il lit la base, avec le cache de 15 s du
+  // module ; base en erreur ⇒ on laisse passer (mesure d'exploitation).
+  if (maintenanceBlocksRole(session.user.role)) {
+    const maintenance = await getMaintenanceState();
+    if (maintenance.enabled) {
       if (isApi) {
         return NextResponse.json(
           { error: maintenance.message, code: "MAINTENANCE" },

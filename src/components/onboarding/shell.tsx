@@ -92,7 +92,7 @@ export function RoleOnboardShell({
                             padding: "4px 10px",
                             borderRadius: 999,
                             background: "rgba(255,255,255,0.18)",
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 700,
                         }}
                     >
@@ -101,7 +101,7 @@ export function RoleOnboardShell({
                 </div>
                 <div
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 700,
                         opacity: 0.75,
                         marginBottom: 14,
@@ -135,7 +135,7 @@ export function RoleOnboardShell({
                 <div style={{ marginTop: "auto" }}>
                     <div
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 700,
                             opacity: 0.7,
                             marginBottom: 12,
@@ -173,7 +173,7 @@ export function RoleOnboardShell({
                                                 : "#fff",
                                         display: "grid",
                                         placeItems: "center",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         flexShrink: 0,
                                     }}
@@ -282,7 +282,7 @@ export function StatTile({
         <Card padding={14}>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--eduflow-text-tertiary)",
                 }}
             >
@@ -301,7 +301,7 @@ export function StatTile({
             </div>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--eduflow-text-tertiary)",
                 }}
             >
@@ -388,7 +388,7 @@ export function LabelledInput({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

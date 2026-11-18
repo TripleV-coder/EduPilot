@@ -53,6 +53,16 @@ describe("POST /api/signatures", () => {
     vi.mocked(prisma.documentSignature.create).mockResolvedValue({ id: "sig-1", signedAt: new Date() } as never);
   });
 
+  it("refuse les types sans document réel : autorisation parentale, contrat (TD-021, 400)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT", { schoolId: FIXTURES.schoolA }));
+    const parent = await post(body({ docType: "PARENT_AUTHORIZATION", docId: "n-importe-quoi" }));
+    expect(parent.status).toBe(400);
+    expect((await parent.json()).error).toContain("ne se signe pas encore");
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR", { schoolId: FIXTURES.schoolA }));
+    expect((await post(body({ docType: "STAFF_CONTRACT", docId: "x" }))).status).toBe(400);
+    expect(prisma.documentSignature.create).not.toHaveBeenCalled();
+  });
+
   it("un parent ne signe pas un bulletin (403)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("PARENT", { schoolId: FIXTURES.schoolA }));
     expect((await post(body())).status).toBe(403);

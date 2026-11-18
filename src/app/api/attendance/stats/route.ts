@@ -3,7 +3,7 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/utils/logger";
-import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
+import { CACHE_TTL_SHORT, generateCacheKey, withCache, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
@@ -25,7 +25,7 @@ const url = new URL(request.url);
     const { startDate, endDate } = dateRange;
     const activeSchoolId = getActiveSchoolId(session);
 
-    const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
+    const cacheKey = generateCacheKey(url.pathname, url.searchParams, cacheScope(session));
     const handler = async (): Promise<NextResponse> => {
       const where: Prisma.AttendanceWhereInput = {};
 

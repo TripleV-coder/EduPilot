@@ -226,7 +226,7 @@ export const POST = createApiHandler(
     // Verify evaluation type belongs to same school
     const evalType = await prisma.evaluationType.findUnique({
       where: { id: validatedData.typeId },
-      select: { schoolId: true },
+      select: { schoolId: true, maxCount: true, name: true },
     });
 
     if (!evalType) {
@@ -242,7 +242,27 @@ export const POST = createApiHandler(
       }
     }
 
-    const evaluation = await prisma.evaluation.create({
+    // Le type doit être celui de l'établissement de la classe
+    if (evalType.schoolId !== classSubject.class.schoolId) {
+      return NextResponse.json(
+        translateError({ error: "Ce type d'évaluation n'appartient pas à l'établissement de la classe", key: "api.issues.eval_type_wrong_school" }, t),
+        { status: 400 }
+      );
+    }
+
+    // Plafond du type (ex. 2 devoirs surveillés) : par matière de la classe et
+    // par période. Il était configurable mais jamais appliqué (recette du
+    // 2026-10-26). Comptage et création sous verrou : deux envois simultanés ne
+    // dépassent pas le plafond.
+    const evaluation = await prisma.$transaction(async (tx) => {
+      if (evalType.maxCount) {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`evaluation-cap:${validatedData.classSubjectId}:${validatedData.periodId}:${validatedData.typeId}`}))::text`;
+        const existing = await tx.evaluation.count({
+          where: { classSubjectId: validatedData.classSubjectId, periodId: validatedData.periodId, typeId: validatedData.typeId },
+        });
+        if (existing >= evalType.maxCount) return null;
+      }
+      return tx.evaluation.create({
       data: {
         classSubjectId: validatedData.classSubjectId,
         periodId: validatedData.periodId,
@@ -265,6 +285,17 @@ export const POST = createApiHandler(
         type: true,
       },
     });
+    });
+
+    if (!evaluation) {
+      return NextResponse.json(
+        {
+          error: `Plafond atteint : ${evalType.maxCount} « ${evalType.name} » au maximum par période pour cette matière dans cette classe.`,
+          code: "EVALUATION_TYPE_CAP_REACHED",
+        },
+        { status: 409 }
+      );
+    }
 
     return NextResponse.json(evaluation, { status: 201 });
   },

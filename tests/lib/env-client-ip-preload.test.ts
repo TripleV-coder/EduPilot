@@ -17,8 +17,6 @@ const PRODUCTION_ENV: Record<string, string> = {
     SMTP_HOST: "smtp.ecole.example",
     SIGNATURE_SALT: "b".repeat(32),
     EMAIL_FROM: "noreply@ecole.example",
-    UPSTASH_REDIS_REST_URL: "https://redis.example",
-    UPSTASH_REDIS_REST_TOKEN: "jeton",
     SKIP_ENV_VALIDATION: "",
 };
 

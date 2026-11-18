@@ -11,11 +11,21 @@ import { formatAge, formatBytes, useRootMonitoring } from "@/hooks/use-root-moni
 
 
 
+// Garde AVANT le chargement : useRootMonitoring n'interroge /api/root/monitoring
+// que pour le super-admin ; un autre rôle voit le refus, sans 403 en console.
 export default function RootMonitoringPage() {
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <RootMonitoringContent />
+        </PageGuard>
+    );
+}
+
+function RootMonitoringContent() {
     const { data, loading, error } = useRootMonitoring();
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Monitoring root (infrastructure)"
@@ -52,9 +62,9 @@ export default function RootMonitoringPage() {
                                         </Badge>
                                     </div>
                                     <h3 className="font-semibold text-lg">Système principal</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">Sessions actives: {data.system.activeSessions}</p>
+                                    <p className="text-sm text-muted-foreground mt-1">Comptes connectés (24 h) : {data.system.connectedAccounts24h}</p>
                                     {data.system.maintenanceMode && (
-                                        <Badge variant="destructive" className="mt-2 text-[11px]">Maintenance Active</Badge>
+                                        <Badge variant="destructive" className="mt-2 text-xs">Maintenance Active</Badge>
                                     )}
                                 </CardContent>
                             </Card>
@@ -89,12 +99,12 @@ export default function RootMonitoringPage() {
                                                 Synchronisé
                                             </Badge>
                                         ) : (
-                                            <Badge variant="destructive">Déconnecté</Badge>
+                                            <Badge variant="destructive">Repli local</Badge>
                                         )}
                                     </div>
-                                    <h3 className="font-semibold text-lg">Redis cache</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">Hit rate: {data.cache.hitRate}%</p>
-                                    {data.cache.memory && <p className="text-xs text-muted-foreground mt-0.5">Mem: {data.cache.memory}</p>}
+                                    <h3 className="font-semibold text-lg">Cache et état partagé</h3>
+                                    <p className="text-sm text-muted-foreground mt-1">Réponses servies par le cache : {data.cache.hitRate} %</p>
+                                    {data.cache.memory && <p className="text-xs text-muted-foreground mt-0.5">Mémoire : {data.cache.memory}</p>}
                                 </CardContent>
                             </Card>
 
@@ -105,16 +115,65 @@ export default function RootMonitoringPage() {
                                             <Activity className={`w-5 h-5 ${data.errors.last24h > 0 ? "text-warning" : "text-muted-foreground"}`} />
                                         </div>
                                         {data.errors.last24h > 0 ? (
-                                            <Badge variant="outline" className="text-warning border-warning/40 bg-warning/10">Sous charge</Badge>
+                                            <Badge variant="outline" className="text-warning border-warning/40 bg-warning/10">À examiner</Badge>
                                         ) : (
                                             <Badge variant="outline" className="text-muted-foreground">Normal</Badge>
                                         )}
                                     </div>
                                     <h3 className="font-semibold text-lg">Logs & erreurs</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">{data.errors.last24h} erreurs / 24h</p>
+                                    <p className="text-sm text-muted-foreground mt-1">{data.errors.last24h} erreur{data.errors.last24h > 1 ? "s" : ""} / 24 h</p>
                                 </CardContent>
                             </Card>
                         </div>
+
+                        {/* Journal des erreurs serveur et navigateur (remplace Sentry) :
+                            chaque erreur distincte alerte aussi les super-administrateurs. */}
+                        <Card className="border-border mt-6">
+                            <CardContent className="pt-6">
+                                <h3 className="font-semibold text-lg">Journal des erreurs</h3>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    Erreurs de l&apos;application et des navigateurs, conservées 30 jours. Chaque nouvelle erreur vous est signalée (notification et e-mail).
+                                </p>
+                                {data.errors.journal.recent.length === 0 ? (
+                                    <p className="text-sm mt-4">Aucune erreur sur les dernières 24 h.</p>
+                                ) : (
+                                    <div className="mt-4 grid gap-6 lg:grid-cols-2">
+                                        <div>
+                                            <h4 className="text-sm font-semibold mb-2">Les plus fréquentes (7 jours)</h4>
+                                            <ul className="grid gap-2">
+                                                {data.errors.journal.frequent.map((e) => (
+                                                    <li key={e.fingerprint} className="rounded-md border border-border p-3 text-sm">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <Badge variant="outline">{e.source === "client" ? "Navigateur" : "Serveur"}</Badge>
+                                                            <span className="text-xs text-muted-foreground">{e.count} fois</span>
+                                                        </div>
+                                                        <p className="mt-1 break-words">{e.message}</p>
+                                                        {e.path ? <p className="text-xs text-muted-foreground mt-0.5">{e.path}</p> : null}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-semibold mb-2">Les plus récentes (24 h)</h4>
+                                            <ul className="grid gap-2">
+                                                {data.errors.journal.recent.slice(0, 8).map((e) => (
+                                                    <li key={e.id} className="rounded-md border border-border p-3 text-sm">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <Badge variant="outline">{e.source === "client" ? "Navigateur" : "Serveur"}</Badge>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {new Date(e.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                                                            </span>
+                                                        </div>
+                                                        <p className="mt-1 break-words">{e.message}</p>
+                                                        {e.path ? <p className="text-xs text-muted-foreground mt-0.5">{e.path}</p> : null}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
 
                         {/* Lot 7 — ce dont l'exploitant a besoin sans ouvrir un
                             terminal : place, mémoire, dernière sauvegarde. */}
@@ -236,6 +295,6 @@ export default function RootMonitoringPage() {
                     </>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

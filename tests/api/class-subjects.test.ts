@@ -105,6 +105,23 @@ describe("GET /api/class-subjects", () => {
     expect(prisma.classSubject.findMany).not.toHaveBeenCalled();
   });
 
+  it("super-admin avec une école choisie : seules les matières de cette école (souveraineté)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: FIXTURES.schoolA }));
+    vi.mocked(prisma.classSubject.findMany).mockResolvedValue([]);
+    const res = await GET(makeRequest("http://localhost/api/class-subjects"));
+    expect(res.status).toBe(200);
+    expect(prisma.classSubject.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ class: { schoolId: FIXTURES.schoolA } }) }),
+    );
+  });
+
+  it("super-admin sans école : 400, jamais la liste mélangée de toutes les écoles", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null, accessibleSchoolIds: [] }));
+    const res = await GET(makeRequest("http://localhost/api/class-subjects"));
+    expect(res.status).toBe(400);
+    expect(prisma.classSubject.findMany).not.toHaveBeenCalled();
+  });
+
   it("should list class subjects with filters", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(prisma.class.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);

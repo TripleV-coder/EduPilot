@@ -37,7 +37,7 @@ EduPilot est une application SaaS (Software as a Service) de gestion scolaire co
 - **CI/CD**: GitHub Actions
 
 ### Monitoring & Observabilité
-- **Tracking d'erreurs**: Sentry
+- **Tracking d'erreurs**: journal interne (`error_logs`) + alertes aux super-administrateurs
 - **Logs**: Winston / Console structuré
 - **Métriques**: Performance API intégrée
 
@@ -153,7 +153,7 @@ edupilot/
 │   ├── hooks/                 # React hooks personnalisés
 │   └── proxy.ts               # Proxy Next.js 16 (ex-middleware)
 │
-├── instrumentation.ts         # Observabilité (Sentry, démarrage)
+├── instrumentation.ts         # Démarrage, journal des erreurs (onRequestError)
 │
 ├── prisma/
 │   ├── schema.prisma          # Schéma de base de données

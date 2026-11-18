@@ -41,7 +41,7 @@ export function NavItem({ icon, label, count, active = false, onClick }: NavItem
                 <span
                     className="eduflow-tabular"
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 600,
                         padding: "1px 7px",
                         borderRadius: "var(--eduflow-radius-full)",

@@ -68,6 +68,15 @@ const FR_INT = (v: number | null): string =>
     v === null ? "—" : Math.round(v).toString();
 
 export default function OrientationCepPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]} >
+            <OrientationCepPageContent />
+        </PageGuard>
+    );
+}
+
+function OrientationCepPageContent() {
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [years, setYears] = useState<YearOption[]>([]);
     const [selectedClass, setSelectedClass] = useState("");
@@ -125,10 +134,7 @@ export default function OrientationCepPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-        >
+        <>
             <CycleGuard requires="PRIMARY">
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
@@ -391,7 +397,7 @@ export default function OrientationCepPage() {
                                     <div key={c.cycle}>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 fontWeight: 700,
                                                 color: `var(--eduflow-${c.color}-700)`,
                                                 marginBottom: 6,
@@ -425,7 +431,7 @@ export default function OrientationCepPage() {
                                 </h2>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         margin: "2px 0 0",
                                     }}
@@ -462,7 +468,7 @@ export default function OrientationCepPage() {
                                                     style={{
                                                         padding: "10px 14px",
                                                         textAlign: "left",
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 700,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
@@ -573,7 +579,7 @@ export default function OrientationCepPage() {
                                                         <td
                                                             style={{
                                                                 padding: "12px 14px",
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 color:
                                                                     "var(--eduflow-text-secondary)",
                                                             }}
@@ -603,7 +609,7 @@ export default function OrientationCepPage() {
                 }
             `}</style>
             </CycleGuard>
-        </PageGuard>
+        </>
     );
 }
 
@@ -625,7 +631,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

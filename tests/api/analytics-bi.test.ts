@@ -27,6 +27,9 @@ vi.mock("@/lib/prisma", () => ({
     academicYear: { findFirst: vi.fn() },
     payment: { groupBy: vi.fn() },
     attendance: { groupBy: vi.fn() },
+    // S6 : école sélectionnée du super-admin vérifiée en base, accès audité
+    school: { findUnique: vi.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id })) },
+    auditLog: { create: vi.fn() },
   },
 }));
 // Recouvrement sur l'attendu réel : prouvé par tests/lib/finance/expected-fees.test.ts.
@@ -72,13 +75,13 @@ describe("GET /api/analytics/bi", () => {
     expect((await res.json()).error).toBe("Accès refusé");
   });
 
-  it("super-admin sans école : tableau de bord vide (200), pas d'erreur", async () => {
+  it("super-admin sans école : sélection demandée (400), pas d'indicateurs à zéro présentés comme réels (S6)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
     const res = await GET(makeRequest("http://localhost/api/analytics/bi"), { session: makeSession("SUPER_ADMIN", { schoolId: null }) });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.kpis).toEqual({ studentCount: 0, collectionRate: 0, attendanceRate: 0, passRate: 0 });
-    expect(body.monthly).toEqual([]);
+    expect(body.code).toBe("SCHOOL_REQUIRED");
+    expect(body.kpis).toBeUndefined();
   });
 
   it("should forbid cross-school request via query param", async () => {

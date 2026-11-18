@@ -71,7 +71,7 @@ describe("evaluateRow", () => {
 describe("ROLE_DESCRIPTORS", () => {
     it("includes every UserRole declared in the matrix file", () => {
         const expected = new Set([
-            "DIRECTOR", "SCHOOL_ADMIN", "TEACHER", "PARENT",
+            "DIRECTOR", "SCHOOL_ADMIN", "NETWORK_ADMIN", "TEACHER", "PARENT",
             "STUDENT", "ACCOUNTANT", "STAFF", "SUPER_ADMIN",
         ]);
         const actual = new Set(ROLE_DESCRIPTORS.map((d) => d.role));

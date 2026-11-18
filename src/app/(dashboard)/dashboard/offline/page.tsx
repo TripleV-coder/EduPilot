@@ -44,6 +44,15 @@ function fmtBytes(n: number | null): string {
 }
 
 export default function OfflinePage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ}>
+            <OfflinePageContent />
+        </PageGuard>
+    );
+}
+
+function OfflinePageContent() {
     const [online, setOnline] = useState<boolean>(true);
     const [lastSync, setLastSync] = useState<Date>(() => new Date());
     const [storage, setStorage] = useState<StorageInfo>({ used: null, quota: null });
@@ -120,7 +129,7 @@ export default function OfflinePage() {
             : 0;
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ}>
+        <>
             <PageShell>
                 {!online ? (
                     <div
@@ -159,7 +168,7 @@ export default function OfflinePage() {
                             </div>
                             <div
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--eduflow-warning-800)",
                                 }}
                             >
@@ -248,7 +257,7 @@ export default function OfflinePage() {
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>État de la synchronisation</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>État de la synchronisation</p>
                             <div
                                 style={{
                                     marginTop: 10,
@@ -408,7 +417,7 @@ export default function OfflinePage() {
                                     ) : (
                                         <p
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--brand-700)",
                                                 marginTop: 10,
                                                 lineHeight: 1.5,
@@ -424,7 +433,7 @@ export default function OfflinePage() {
                         </Card>
 
                         <Card>
-                            <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Fonctionnalités offline-first</p>
+                            <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Fonctionnalités offline-first</p>
                             <div
                                 style={{
                                     marginTop: 8,
@@ -467,7 +476,7 @@ export default function OfflinePage() {
                             </div>
                             <p
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--eduflow-text-tertiary)",
                                     marginTop: 12,
                                     lineHeight: 1.5,
@@ -489,6 +498,6 @@ export default function OfflinePage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

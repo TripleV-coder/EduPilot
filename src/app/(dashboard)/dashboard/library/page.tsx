@@ -1,5 +1,6 @@
 "use client";
 
+import { ResourceActions } from "@/components/shared/resource-actions";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
@@ -7,7 +8,6 @@ import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
 import { PageGuard } from "@/components/guard/page-guard";
-import { Permission } from "@/lib/rbac/permissions";
 import { formatDateNumeric } from "@/lib/utils/formatters";
 import {
     Dialog,
@@ -36,8 +36,11 @@ type Book = {
     id: string;
     title: string;
     author?: string;
-    isbn?: string;
-    available?: boolean;
+    isbn?: string | null;
+    category?: string | null;
+    location?: string | null;
+    /** Exemplaires disponibles (entier, comme en base). */
+    available?: number;
     quantity?: number;
 };
 
@@ -54,6 +57,20 @@ type BorrowingRecord = {
 type Tab = "catalogue" | "borrowings";
 
 export default function LibraryPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard
+            // Garde par rôle : la permission exigée était REPORT_VIEW (rapports),
+            // que l'élève n'a pas — il ne pouvait ni consulter ni emprunter, alors
+            // que l'API d'emprunt lui est destinée (recette du 2026-10-26).
+            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
+        >
+            <LibraryPageContent />
+        </PageGuard>
+    );
+}
+
+function LibraryPageContent() {
     const { data: session } = useSession();
     const [activeTab, setActiveTab] = useState<Tab>("catalogue");
 
@@ -168,13 +185,10 @@ export default function LibraryPage() {
         session?.user?.role || ""
     );
 
-    const availableCount = books.filter((b) => b.available !== false).length;
+    const availableCount = books.filter((b) => (b.available ?? 0) > 0).length;
 
     return (
-        <PageGuard
-            permission={Permission.REPORT_VIEW}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Bibliothèque & fonds"
@@ -293,7 +307,9 @@ export default function LibraryPage() {
                             }}
                         >
                             {books.map((book) => {
-                                const available = book.available !== false;
+                                // `available` est un nombre d'exemplaires : `!== false` affichait
+                                // « Disponible » même à 0 exemplaire restant.
+                                const available = (book.available ?? 0) > 0;
                                 return (
                                     <Card
                                         key={book.id}
@@ -346,7 +362,7 @@ export default function LibraryPage() {
                                                     <div
                                                         className="eduflow-mono"
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color: "var(--eduflow-text-tertiary)",
                                                             marginTop: 4,
                                                         }}
@@ -361,7 +377,7 @@ export default function LibraryPage() {
                                         >
                                             {available ? (
                                                 <Badge variant="success" size="sm" dot>
-                                                    Disponible
+                                                    {book.quantity && book.quantity > 1 ? `${book.available}/${book.quantity} disponibles` : "Disponible"}
                                                 </Badge>
                                             ) : (
                                                 <Badge variant="warning" size="sm">
@@ -378,6 +394,25 @@ export default function LibraryPage() {
                                                 Emprunter
                                             </Button>
                                         </div>
+                                        {isAdmin ? (
+                                            <div className="mt-3">
+                                                <ResourceActions
+                                                    endpoint={`/api/library/books/${book.id}`}
+                                                    resourceLabel={`L'ouvrage « ${book.title} »`}
+                                                    fields={[
+                                                        { name: "title", label: "Titre", type: "text", required: true, maxLength: 200 },
+                                                        { name: "author", label: "Auteur", type: "text", required: true, maxLength: 120 },
+                                                        { name: "isbn", label: "ISBN (facultatif)", type: "text", maxLength: 20 },
+                                                        { name: "category", label: "Catégorie (facultatif)", type: "text", maxLength: 80 },
+                                                        { name: "location", label: "Rayon (facultatif)", type: "text", maxLength: 80 },
+                                                        { name: "quantity", label: "Nombre d'exemplaires (0 pour retirer du rayon)", type: "number", required: true, min: 0, integer: true },
+                                                    ]}
+                                                    initial={{ title: book.title, author: book.author ?? "", isbn: book.isbn ?? null, category: book.category ?? null, location: book.location ?? null, quantity: book.quantity ?? 1 }}
+                                                    onChanged={() => void fetchBooks()}
+                                                    deleteDescription="Un ouvrage déjà prêté garde son historique : la suppression sera refusée, mettez alors son nombre d'exemplaires à 0."
+                                                />
+                                            </div>
+                                        ) : null}
                                     </Card>
                                 );
                             })}
@@ -411,7 +446,7 @@ export default function LibraryPage() {
                                                 </div>
                                                 {rec.book.author ? (
                                                     <div
-                                                        className="text-[11px] italic"
+                                                        className="text-xs italic"
                                                         style={{ color: "var(--eduflow-text-tertiary)" }}
                                                     >
                                                         {rec.book.author}
@@ -519,7 +554,7 @@ export default function LibraryPage() {
                     </div>
                 ) : null}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 

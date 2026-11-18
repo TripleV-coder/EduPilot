@@ -9,7 +9,7 @@
  *
  * Refuse toute base non marquée jetable (règle 6) et ne tourne jamais en production.
  */
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { UserRole } from "@prisma/client";

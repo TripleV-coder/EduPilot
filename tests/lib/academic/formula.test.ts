@@ -35,8 +35,18 @@ describe("lecture d'une formule", () => {
     });
 
     it("lit 12,5 comme une décimale (virgule collée) et 12, 5 comme deux éléments", () => {
+        // Lecture conservée pour les formules déjà enregistrées
         expect(show(evaluateFormula("moyenne(12,5)", {}))).toBe(12.5);
         expect(show(evaluateFormula("moyenne(12, 5)", {}))).toBe(8.5);
+        // Hors fonction, 12,5 reste un décimal sans ambiguïté
+        expect(show(evaluateFormula("12,5", {}))).toBe(12.5);
+    });
+
+    it("DEF-009 : refuse à l'enregistrement « fn(12,5) », ambigu", () => {
+        const check = validateFormula("max(MI ; 12,5)", "SUBJECT");
+        expect(check).toEqual({ ok: false, error: expect.stringContaining("ambigu") });
+        expect(validateFormula("max(MI ; 12.5) * 0 + MI", "SUBJECT").ok).toBe(true);
+        expect(validateFormula("(MI + 12,5 * 0)", "SUBJECT").ok).toBe(true);
     });
 
     it("refuse ce qui n'est pas une formule (aucun code exécuté)", () => {

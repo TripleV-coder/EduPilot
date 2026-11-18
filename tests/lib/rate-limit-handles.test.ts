@@ -8,7 +8,7 @@ import {
 } from "@/lib/rate-limit";
 
 /**
- * Sans UPSTASH_REDIS_REST_URL/TOKEN (cas de la suite de tests), le moteur
+ * En tests unitaires (magasin partagé inactif), le moteur
  * tombe sur le magasin mémoire. Régression du bug CI 2026-06-10 : chaque
  * limiter doit garder son propre seau (la résolution par identité faisait
  * tout matcher sur auth 5/15min).

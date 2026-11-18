@@ -67,6 +67,17 @@ describe("getMaintenanceState", () => {
         expect(prisma.systemSetting.findMany).toHaveBeenCalledTimes(1);
     });
 
+    it("fresh ignore le cache : l'activation est vue sans attendre la fin du TTL", async () => {
+        vi.mocked(prisma.systemSetting.findMany).mockResolvedValueOnce([] as never);
+        expect((await getMaintenanceState()).enabled).toBe(false);
+        vi.mocked(prisma.systemSetting.findMany).mockResolvedValueOnce([
+            { key: MAINTENANCE_ENABLED_KEY, value: "true" },
+        ] as never);
+        expect((await getMaintenanceState()).enabled).toBe(false);
+        expect((await getMaintenanceState({ fresh: true })).enabled).toBe(true);
+        expect(prisma.systemSetting.findMany).toHaveBeenCalledTimes(2);
+    });
+
     it("fail-open : considère le service accessible si la base échoue", async () => {
         vi.mocked(prisma.systemSetting.findMany).mockRejectedValue(new Error("db down") as never);
         const state = await getMaintenanceState();

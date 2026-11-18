@@ -19,19 +19,21 @@ export const GET = createApiHandler(async (request, context) => {
         const session = context.session;
 
         const schoolId = await getActiveSchoolId(session);
-        
+
+        // Sans école active, seules les options globales (schoolId nul) : un
+        // filtre `undefined` renvoyait celles de TOUTES les écoles (souveraineté).
         const configs = await prisma.configOption.findMany({
-            where: { schoolId: schoolId || undefined },
+            where: { schoolId: schoolId ?? null },
             orderBy: { createdAt: 'asc' },
         });
 
         return NextResponse.json(configs);
-    
+
     } catch (error) {
         return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
     }
 
-});
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN"] });
 
 export const POST = createApiHandler(async (request, context) => {
     try {

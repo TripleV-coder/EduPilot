@@ -5,6 +5,7 @@ import { isZodError } from "@/lib/is-zod-error";
 import prisma from "@/lib/prisma";
 import { assertModelAccess } from "@/lib/security/tenant";
 import { logger } from "@/lib/utils/logger";
+import { EXAM_TIME_EXPIRED_ERROR, elapsedSeconds, isSubmissionTooLate } from "@/lib/exams/timing";
 
 // questionId → réponse ; bornes contre les corps démesurés.
 const submitSchema = z.object({
@@ -20,6 +21,9 @@ const submitSchema = z.object({
  * l'élève, publié, de sa classe, soumis UNE fois. Avant, tout élève pouvait
  * soumettre n'importe quel examen, de n'importe quelle école, autant de fois
  * qu'il voulait : le score renvoyé à chaque essai livrait les bonnes réponses.
+ *
+ * Durée (TD-023) : la session doit avoir été ouverte par /start, qui fixe
+ * l'heure de départ ; un envoi après l'échéance + la marge est refusé.
  */
 export const POST = createApiHandler(
   async (request, context) => {
@@ -58,18 +62,29 @@ export const POST = createApiHandler(
 
       const existing = await prisma.examSession.findUnique({
         where: { examTemplateId_studentId_attempt: { examTemplateId: id, studentId: studentProfile.id, attempt: 1 } },
-        select: { id: true, submittedAt: true },
+        select: { id: true, submittedAt: true, startedAt: true },
       });
-      if (existing?.submittedAt) {
+      if (!existing) {
+        return NextResponse.json(
+          { error: "Examen non commencé : ouvrez-le avant de le soumettre.", code: "EXAM_NOT_STARTED" },
+          { status: 409 },
+        );
+      }
+      if (existing.submittedAt) {
         return NextResponse.json({ error: "Examen déjà soumis" }, { status: 409 });
+      }
+      if (isSubmissionTooLate(existing.startedAt, exam.duration)) {
+        return NextResponse.json(EXAM_TIME_EXPIRED_ERROR, { status: 409 });
       }
 
       const result = await prisma.$transaction(async (tx) => {
-        const examSession = await tx.examSession.upsert({
-          where: { examTemplateId_studentId_attempt: { examTemplateId: id, studentId: studentProfile.id, attempt: 1 } },
-          create: { examTemplateId: id, studentId: studentProfile.id, totalPoints: exam.totalPoints },
-          update: {},
+        // Clôture conditionnelle : deux envois simultanés ne notent qu'une fois.
+        const claimed = await tx.examSession.updateMany({
+          where: { id: existing.id, submittedAt: null },
+          data: { submittedAt: new Date() },
         });
+        if (claimed.count === 0) return null;
+        const examSession = { id: existing.id };
 
         await tx.examAnswer.deleteMany({ where: { examSessionId: examSession.id } });
 
@@ -96,13 +111,16 @@ export const POST = createApiHandler(
         return tx.examSession.update({
           where: { id: examSession.id },
           data: {
-            submittedAt: new Date(),
+            timeSpent: elapsedSeconds(existing.startedAt),
             score: totalScore,
             isPassed: hasManualQuestions ? null : totalScore >= exam.passingScore,
           },
         });
       });
 
+      if (!result) {
+        return NextResponse.json({ error: "Examen déjà soumis" }, { status: 409 });
+      }
       return NextResponse.json(result);
     } catch (error) {
       if (isZodError(error)) {

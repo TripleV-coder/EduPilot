@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
+import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 import { roundTo } from "@/lib/analytics/helpers";
 import { Permission } from "@/lib/rbac/permissions";
 
@@ -69,8 +70,25 @@ export const GET = createApiHandler(
             return NextResponse.json({ error: "Élève introuvable" }, { status: 404 });
         }
 
-        if (!canAccessSchool(session, student.user.schoolId)) {
+        // École de la fiche élève (pas celle de son compte) ; l'accès à l'école
+        // ne suffit jamais à un parent ni à un élève : un parent ne voit que ses
+        // enfants, un élève que sa propre fiche. Refus avant toute autre lecture.
+        if (!canAccessSchool(session, student.schoolId)) {
             return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+        if (session.user.role === "PARENT") {
+            const link = await prisma.parentStudent.findFirst({
+                where: { studentId: student.id, parent: { userId: session.user.id } },
+                select: { id: true },
+            });
+            if (!link) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+        if (session.user.role === "STUDENT" && student.userId !== session.user.id) {
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+        // Enseignant (MS-02) : seulement les élèves de ses classes
+        if (session.user.role === "TEACHER" && !(await teacherTeachesStudent(session.user.id, student.id))) {
+            return NextResponse.json({ error: "Accès refusé : cet élève n'est pas dans vos classes" }, { status: 403 });
         }
 
         const currentEnrollment = student.enrollments[0];

@@ -61,6 +61,15 @@ function getWeeksBetween(start: string, end: string): number {
 }
 
 export default function AcademicPeriodsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <AcademicPeriodsPageContent />
+        </PageGuard>
+    );
+}
+
+function AcademicPeriodsPageContent() {
     const { toast } = useToast();
     const { mutate } = useSWRConfig();
     const [selectedYearId, setSelectedYearId] = useState<string>("");
@@ -177,7 +186,7 @@ export default function AcademicPeriodsPage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+        <>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <PageHeader
@@ -333,6 +342,6 @@ export default function AcademicPeriodsPage() {
                     })}
                 </div>
             </div>
-        </PageGuard>
+        </>
     );
 }

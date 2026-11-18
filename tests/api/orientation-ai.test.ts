@@ -162,7 +162,7 @@ describe("POST /api/orientation/generate-ai", () => {
   it("should return recommendations from the AI service", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(aiService.executeGovernance).mockResolvedValue(makeGovernanceResult({
-      data: { series: "SERIE_C", justification: "Profil scientifique solide", engine: "template" },
+      data: { series: "SERIE_C", justification: "Profil scientifique solide" },
       recommendations: ["SERIE_D", "SERIE_E"],
     }) as never);
     const res = await POST_GENERATE(makeRequest("http://localhost/api/orientation/generate-ai", {
@@ -176,7 +176,6 @@ describe("POST /api/orientation/generate-ai", () => {
     // Score = adéquation réelle de la série (absente ici : le résultat simulé n'en porte pas)
     expect(body.recommendations[0]).toEqual({ series: "SERIE_C", justification: "Profil scientifique solide", score: null });
     expect(body.recommendations[1]).toEqual({ series: "SERIE_D", score: null, justification: "Alternative suggérée par l'IA" });
-    expect(body.engine).toBe("template");
     expect(aiService.executeGovernance).toHaveBeenCalledWith(
       expect.objectContaining({ action: "recommend-orientation", studentId: FIXTURES.studentA, data: { academicYearId: "ay1" } })
     );

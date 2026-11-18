@@ -95,7 +95,7 @@ function AttendanceContent() {
     }
 
     if (isLoading) return <PageLoading label="Chargement de la présence…" />;
-    if (error) return <PageError message="Impossible de charger la présence du personnel." />;
+    if (error) return <PageError error={error} message="Impossible de charger la présence du personnel." />;
     if (!data) return null;
 
     const { summary, canManage, roster } = data;
@@ -104,7 +104,7 @@ function AttendanceContent() {
         <div className="space-y-5">
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <label className="flex flex-col gap-1">
-                    <span style={{ fontSize: 11, fontWeight: 600,color: "var(--eduflow-text-tertiary)" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600,color: "var(--eduflow-text-tertiary)" }}>
                         Date
                     </span>
                     <input
@@ -152,7 +152,7 @@ function AttendanceContent() {
                                 <Avatar name={row.name} size="sm" />
                                 <div className="min-w-0 flex-1">
                                     <div style={{ fontSize: 14, fontWeight: 600 }}>{row.name}</div>
-                                    <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                                    <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                         {formatUserRoleLabel(row.role)}
                                     </div>
                                 </div>

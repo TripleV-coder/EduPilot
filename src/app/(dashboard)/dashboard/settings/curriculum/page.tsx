@@ -39,6 +39,15 @@ interface SubjectOption {
 }
 
 export default function CurriculumConfigPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <CurriculumConfigPageContent />
+        </PageGuard>
+    );
+}
+
+function CurriculumConfigPageContent() {
     const { schoolId } = useSchool();
     const [selectedClassId, setSelectedClassId] = useState<string>("");
     const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
@@ -146,7 +155,7 @@ export default function CurriculumConfigPage() {
     const availableSubjects = allSubjects.filter(s => !assignedSubjectIds.has(s.id));
 
     return (
-        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+        <>
             <ConfirmActionDialog
                 open={pendingRemoveId !== null}
                 onOpenChange={(open) => { if (!open) setPendingRemoveId(null); }}
@@ -171,7 +180,7 @@ export default function CurriculumConfigPage() {
                 />
 
             {loadError ? (
-                <PageError message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
+                <PageError error={loadError} message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
             ) : null}
 
                 {/* Class selector */}
@@ -306,6 +315,6 @@ export default function CurriculumConfigPage() {
                     </Card>
                 )}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

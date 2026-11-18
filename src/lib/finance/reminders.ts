@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { incoherentPaymentPlanIds } from "@/lib/finance/helpers";
 import { DEFAULT_SCHOOL_PARAMETERS, PARAMETER_SECTIONS } from "@/lib/schools/school-parameters";
 import { getSchoolParameters } from "@/lib/schools/school-parameters-store";
 import { createBulkNotifications } from "@/lib/services/notification.service";
@@ -123,12 +124,19 @@ export interface ReminderRunResult {
  */
 export async function runInstallmentReminders(now: Date = new Date()): Promise<ReminderRunResult> {
   const today = startOfDay(now);
+  // Plans incohérents (élève et frais d'écoles différentes) : ni balayage ni
+  // relance tant qu'ils n'ont pas été examinés (souveraineté, lot 3d)
+  const frozenPlanIds = await incoherentPaymentPlanIds();
+  if (frozenPlanIds.length > 0) {
+    logger.warn("Relances : plans de paiement incohérents tenus à l'écart", { count: frozenPlanIds.length, planIds: frozenPlanIds });
+  }
 
   // 1. Balayage temporel : échéances PENDING échues → OVERDUE (état réel en base).
   const swept = await prisma.installmentPayment.updateMany({
     where: {
       status: "PENDING",
       dueDate: { lt: today },
+      paymentPlanId: { notIn: frozenPlanIds },
       paymentPlan: { status: { notIn: ["COMPLETED", "CANCELLED"] } },
     },
     data: { status: "OVERDUE" },
@@ -149,6 +157,7 @@ export async function runInstallmentReminders(now: Date = new Date()): Promise<R
       status: { in: ["PENDING", "OVERDUE"] },
       dueDate: { lte: horizon },
       lastReminderStage: { not: "CRITICAL" },
+      paymentPlanId: { notIn: frozenPlanIds },
       paymentPlan: {
         status: { notIn: ["COMPLETED", "CANCELLED"] },
         student: { user: { isActive: true } },

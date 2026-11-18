@@ -46,7 +46,7 @@ function PrintCardsInner() {
         );
     }
     if (isLoading) return <PageLoading label="Génération des cartes…" />;
-    if (error) return <PageError message="Impossible de générer les cartes. Réessayez plus tard." />;
+    if (error) return <PageError error={error} message="Impossible de générer les cartes. Réessayez plus tard." />;
 
     const cards: StudentCardView[] = data
         ? "cards" in data

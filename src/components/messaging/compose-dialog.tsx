@@ -204,7 +204,7 @@ export function ComposeDialog({
                                 <label style={{ display: "block" }}>
                                     <span
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             fontWeight: 700,
                                             color: "var(--eduflow-text-tertiary)",
                                         }}
@@ -229,7 +229,7 @@ export function ComposeDialog({
                             <label style={{ display: "block" }}>
                                 <span
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
@@ -254,7 +254,7 @@ export function ComposeDialog({
                                     style={{
                                         display: "block",
                                         textAlign: "right",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginTop: 4,
                                     }}

@@ -54,7 +54,7 @@ L'application sera accessible sur http://localhost:3000
 │   ├── lib/                    # Logique métier & utilitaires
 │   │   ├── auth.ts             # Configuration NextAuth
 │   │   ├── prisma.ts           # Client Prisma
-│   │   ├── cache/              # Système de cache Redis
+│   │   ├── cache/              # Cache mémoire borné
 │   │   ├── rbac/               # Permissions & RBAC
 │   │   └── import/             # Logique d'import
 │   └── proxy.ts                # Middleware Next.js (auth + rate limiting)
@@ -124,9 +124,6 @@ EMAIL_PROVIDER="resend"  # ou "sendgrid"
 EMAIL_API_KEY="re_xxx"
 EMAIL_FROM="noreply@edupilot.com"
 
-# Redis/Rate Limiting Distribué (Optionnel, fallback in-memory par défaut)
-UPSTASH_REDIS_REST_URL="https://xxx.upstash.io"
-UPSTASH_REDIS_REST_TOKEN="xxx"
 ```
 
 ---
@@ -160,8 +157,8 @@ curl -X POST http://localhost:3000/api/auth/login \
 - **Base de données**: PostgreSQL 15 + Prisma ORM
 - **Authentification**: NextAuth.js v5
 - **UI**: React 18 + Tailwind CSS + shadcn/ui
-- **Cache**: Redis (Upstash) avec fallback in-memory
-- **Rate Limiting**: Upstash avec fallback in-memory
+- **Cache**: mémoire du processus, bornée (LRU)
+- **Rate Limiting**: état partagé dans PostgreSQL (`src/lib/shared-state`), repli mémoire
 
 ### Concepts Clés
 
@@ -192,7 +189,7 @@ Interface wizard complète avec :
 - Gestion d'erreurs par ligne
 
 #### 4. Cache
-Système de cache distribué avec Redis Upstash et fallback in-memory pour développement.
+Cache de réponses en mémoire, borné ; limites de débit et coupe-circuits partagés par PostgreSQL (ADR-0013).
 
 Utilisé dans :
 - `/api/finance/stats` : Statistiques financières
@@ -257,7 +254,6 @@ Assurez-vous de configurer :
 - `DATABASE_URL` (PostgreSQL)
 - `NEXTAUTH_SECRET` (secret fort)
 - `NEXTAUTH_URL` (URL publique)
-- `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (pour cache distribué)
 
 ---
 
@@ -300,7 +296,6 @@ Avant de déployer en production :
 - [ ] Variables d'environnement configurées
 - [ ] `DATABASE_URL` pointe vers PostgreSQL de production
 - [ ] `NEXTAUTH_SECRET` est un secret fort unique
-- [ ] Rate limiting Redis configuré (`UPSTASH_*`)
 - [ ] Tests passent (`yarn test`)
 - [ ] Build de production réussi (`yarn build`)
 - [ ] Migrations DB appliquées (`npx prisma migrate deploy`)

@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
 export const GET = createApiHandler(async (_request, context) => {
         const session = context.session;
 
-    const schoolId = session.user.schoolId;
+    // École ouverte (et non l'école principale du compte) : un compte rattaché
+    // à plusieurs écoles voit l'avancement de celle qu'il configure.
+    const schoolId = getActiveSchoolId(session);
     if (!schoolId) {
         return NextResponse.json({
             academicYears: 0,
@@ -38,4 +41,4 @@ export const GET = createApiHandler(async (_request, context) => {
         });
     }
 
-});
+}, { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] });

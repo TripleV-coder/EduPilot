@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
 import type { Prisma } from "@prisma/client";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] as const;
 
@@ -37,10 +38,13 @@ export const GET = createApiHandler(
         const { fiscalYearId, format } = parsed.data;
 
         const dateRange = parseDateRangeParams(url.searchParams);
-        const schoolId = session.user.schoolId ?? undefined;
+        // S6 : l'export d'un super-admin portait sur les écritures de TOUTES
+        // les écoles, même avec une école sélectionnée
+        const scope = await resolveFinanceSchool(session, url.searchParams.get("schoolId"), "accounting:export");
+        if (!scope.ok) return scope.response;
 
         const where: Prisma.JournalEntryWhereInput = {
-            ...(schoolId && session.user.role !== "SUPER_ADMIN" ? { schoolId } : {}),
+            schoolId: scope.schoolId,
             ...(fiscalYearId ? { fiscalYearId } : {}),
             status: "POSTED",
         };

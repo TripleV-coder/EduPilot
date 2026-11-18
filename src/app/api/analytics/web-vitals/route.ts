@@ -22,6 +22,11 @@ const webVitalSchema = z.object({
   navigationType: z.string().max(40).optional(),
 });
 
+const batchSchema = z.object({
+  path: z.string().max(200).optional(),
+  metrics: z.array(webVitalSchema).min(1).max(10),
+});
+
 export const POST = createApiHandler(async (request, context) => {
     try {
     // Endpoint anonyme : rate limit IP pour éviter le flood
@@ -31,13 +36,16 @@ export const POST = createApiHandler(async (request, context) => {
       return NextResponse.json({ error: "Trop de requêtes" }, { status: 429 });
     }
 
+    // Lot d'une page { path, metrics: [...] } (envoi groupé), ou une mesure seule (ancien format)
     const body = await request.json();
-    const parsed = webVitalSchema.safeParse(body);
-    if (!parsed.success) {
+    const batch = batchSchema.safeParse(body);
+    const single = batch.success ? null : webVitalSchema.safeParse(body);
+    if (!batch.success && !single?.success) {
       return NextResponse.json({ error: "Métrique invalide" }, { status: 400 });
     }
+    const metrics = batch.success ? batch.data.metrics : [single!.data!];
 
-    const pathname = request.headers.get("referer")
+    const refererPath = request.headers.get("referer")
       ? (() => {
           try {
             return new URL(request.headers.get("referer")!).pathname.slice(0, 200);
@@ -46,14 +54,15 @@ export const POST = createApiHandler(async (request, context) => {
           }
         })()
       : null;
+    const pathname = (batch.success ? batch.data.path : undefined) ?? refererPath;
 
-    await prisma.performanceMetric.create({
-      data: {
-        metric: parsed.data.name,
-        value: parsed.data.value,
-        rating: parsed.data.rating ?? null,
+    await prisma.performanceMetric.createMany({
+      data: metrics.map((metric) => ({
+        metric: metric.name,
+        value: metric.value,
+        rating: metric.rating ?? null,
         pathname,
-      },
+      })),
     });
 
     return NextResponse.json({ ok: true }, { status: 201 });

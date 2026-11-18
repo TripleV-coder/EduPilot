@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { makeRequest, makeSession, FIXTURES, cuid } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/teachers/taught-classes", () => ({ teacherTeachesStudent: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
     studentProfile: { findUnique: vi.fn() },
@@ -24,6 +25,9 @@ function makeStudent(overrides: Record<string, unknown> = {}) {
   return {
     id: STUDENT_ID,
     matricule: "E00001",
+    // École de la fiche : c'est elle qui fonde l'accès (pas celle du compte)
+    schoolId: FIXTURES.schoolA,
+    userId: cuid("user1"),
     user: {
       id: cuid("user1"),
       firstName: "Jean",
@@ -136,6 +140,19 @@ describe("GET /api/students/[id]/profile-360", () => {
     const res = await GET(makeRequest(`http://localhost/api/students/${STUDENT_ID}/profile-360`), { params: Promise.resolve({ id: STUDENT_ID }) });
     expect(res.status).toBe(404);
     expect((await res.json()).error).toBe("Élève introuvable");
+  });
+
+  it("refuse (403) à un enseignant un élève hors de ses classes, et l'accepte dans ses classes", async () => {
+    const { teacherTeachesStudent } = await import("@/lib/teachers/taught-classes");
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER"));
+    vi.mocked(teacherTeachesStudent).mockResolvedValue(false);
+    const refused = await GET(makeRequest(`http://localhost/api/students/${STUDENT_ID}/profile-360`), { params: Promise.resolve({ id: STUDENT_ID }) });
+    expect(refused.status).toBe(403);
+    expect(prisma.studentAnalytics.findFirst).not.toHaveBeenCalled();
+
+    vi.mocked(teacherTeachesStudent).mockResolvedValue(true);
+    const allowed = await GET(makeRequest(`http://localhost/api/students/${STUDENT_ID}/profile-360`), { params: Promise.resolve({ id: STUDENT_ID }) });
+    expect(allowed.status).toBe(200);
   });
 
   it("should return 403 for a student from another school", async () => {

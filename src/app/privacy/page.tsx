@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalLayout } from "@/components/layout/legal-layout";
+import { platformContactEmail } from "@/lib/system/platform-contact";
 
 export const metadata: Metadata = {
     title: "Politique de confidentialité — EduPilot",
@@ -7,8 +8,7 @@ export const metadata: Metadata = {
         "Politique de confidentialité d'EduPilot : collecte, traitement et protection des données personnelles, conformément au RGPD.",
 };
 
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "EduPilot";
-const CONTACT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "privacy@edupilot.app";
+const APP_NAME = "EduPilot";
 
 const sectionTitleStyle: React.CSSProperties = {
     fontSize: 18,
@@ -30,7 +30,8 @@ const linkStyle: React.CSSProperties = {
     textDecoration: "underline",
 };
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+    const contactEmail = await platformContactEmail();
     return (
         <LegalLayout
             title="Politique de confidentialité"
@@ -44,9 +45,13 @@ export default function PrivacyPage() {
                     La présente politique décrit comment nous collectons, utilisons et protégeons vos données
                     personnelles, en conformité avec le Règlement Général sur la Protection des Données (RGPD —
                     Règlement UE 2016/679). Pour toute question, contactez-nous à{" "}
-                    <a href={`mailto:${CONTACT_EMAIL}`} style={linkStyle}>
-                        {CONTACT_EMAIL}
-                    </a>
+                    {contactEmail ? (
+                        <a href={`mailto:${contactEmail}`} style={linkStyle}>
+                            {contactEmail}
+                        </a>
+                    ) : (
+                        "l'administrateur de la plateforme"
+                    )}
                     .
                 </p>
             </section>
@@ -157,9 +162,13 @@ export default function PrivacyPage() {
                 </ul>
                 <p style={{ marginTop: 12 }}>
                     Pour exercer ces droits, écrivez à{" "}
-                    <a href={`mailto:${CONTACT_EMAIL}`} style={linkStyle}>
-                        {CONTACT_EMAIL}
-                    </a>{" "}
+                    {contactEmail ? (
+                        <a href={`mailto:${contactEmail}`} style={linkStyle}>
+                            {contactEmail}
+                        </a>
+                    ) : (
+                        "l'administrateur de la plateforme"
+                    )}{" "}
                     ou utilisez le menu <em>Paramètres › Confidentialité</em> de votre compte.
                 </p>
             </section>

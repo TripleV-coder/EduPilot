@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -16,7 +16,9 @@ import {
 } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError, PageLoading } from "@/components/layout/page-states";
+import { FetchError, defaultHttpErrorMessage } from "@/lib/http-error";
 import { SubLabel } from "@/components/edu-homes/_shared";
+import { useLiveNotifications } from "@/hooks/use-live-notifications";
 
 type UserStub = {
     id: string;
@@ -105,24 +107,38 @@ function fmtDayLabel(iso: string): string {
 }
 
 export default function MessagesPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ}>
+            <MessagesPageContent />
+        </PageGuard>
+    );
+}
+
+function MessagesPageContent() {
     const { data: session } = useSession();
     const myId = session?.user?.id;
 
     const [messages, setMessages] = useState<RawMessage[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<Error | null>(null);
     const [search, setSearch] = useState("");
     const [activeOtherId, setActiveOtherId] = useState<string | null>(null);
     const [draft, setDraft] = useState("");
     const [sending, setSending] = useState(false);
     const [composing, setComposing] = useState(false);
     const [recipients, setRecipients] = useState<UserStub[]>([]);
+    const [recipientTotal, setRecipientTotal] = useState(0);
+    const [recipientQuery, setRecipientQuery] = useState("");
     const [recipientId, setRecipientId] = useState("");
     const [newSubject, setNewSubject] = useState("");
     const [newContent, setNewContent] = useState("");
     const threadRef = useRef<HTMLDivElement>(null);
 
-    const refresh = async () => {
+    // Signature de la liste : une relève sans nouveauté ne redessine rien
+    const signatureRef = useRef("");
+
+    const refresh = useCallback(async () => {
         try {
             const [inboxRes, sentRes] = await Promise.all([
                 fetch("/api/messages?type=inbox&limit=100"),
@@ -132,6 +148,13 @@ export default function MessagesPage() {
                 inboxRes.json().catch(() => ({})),
                 sentRes.json().catch(() => ({})),
             ]);
+            // Une réponse en erreur n'est plus lue comme « aucun message »
+            const failed = !inboxRes.ok ? { res: inboxRes, body: inbox } : !sentRes.ok ? { res: sentRes, body: sent } : null;
+            if (failed) {
+                const message = typeof failed.body?.error === "string" ? failed.body.error : defaultHttpErrorMessage(failed.res.status);
+                setError(new FetchError(failed.res.status, message));
+                return;
+            }
             const all: RawMessage[] = [
                 ...(inbox.messages ?? inbox.data ?? []),
                 ...(sent.messages ?? sent.data ?? []),
@@ -139,17 +162,49 @@ export default function MessagesPage() {
             // Dedup by id (a sent message could appear in both via threading)
             const map = new Map<string, RawMessage>();
             for (const m of all) map.set(m.id, m);
-            setMessages(Array.from(map.values()));
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
+            const next = Array.from(map.values());
+            const signature = next.map((m) => `${m.id}:${m.isRead ? 1 : 0}`).sort().join("|");
+            setError(null);
+            if (signature === signatureRef.current) return;
+            signatureRef.current = signature;
+            setMessages(next);
+        } catch {
+            setError(new Error("Connexion impossible : les messages n'ont pas pu être actualisés."));
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        refresh();
-    }, []);
+        void refresh();
+    }, [refresh]);
+
+    // Temps réel : un message reçu déclenche aussitôt la relecture (flux de
+    // notifications), ainsi qu'une reconnexion du flux pour rattraper une
+    // coupure.
+    useLiveNotifications((event) => {
+        if (event.kind === "reconnected" || event.items.some((item) => item.type === "MESSAGE")) void refresh();
+    });
+
+    // Filet : relève toutes les 20 s tant que l'onglet est visible (accusés
+    // de lecture, flux indisponible), et dès qu'il redevient visible ou que
+    // la connexion revient.
+    useEffect(() => {
+        const visible = () => document.visibilityState === "visible";
+        const timer = window.setInterval(() => {
+            if (visible()) void refresh();
+        }, 20_000);
+        const onVisible = () => {
+            if (visible()) void refresh();
+        };
+        document.addEventListener("visibilitychange", onVisible);
+        window.addEventListener("online", onVisible);
+        return () => {
+            window.clearInterval(timer);
+            document.removeEventListener("visibilitychange", onVisible);
+            window.removeEventListener("online", onVisible);
+        };
+    }, [refresh]);
 
     const conversations = useMemo<Conversation[]>(() => {
         if (!myId) return [];
@@ -240,11 +295,11 @@ export default function MessagesPage() {
                 }).catch(() => null)
             )
         ).then(() => {
-            setMessages((prev) =>
-                prev.map((m) =>
-                    unreadIds.includes(m.id) ? { ...m, isRead: true } : m
-                )
-            );
+            setMessages((prev) => {
+                const next = prev.map((m) => (unreadIds.includes(m.id) ? { ...m, isRead: true } : m));
+                signatureRef.current = next.map((m) => `${m.id}:${m.isRead ? 1 : 0}`).sort().join("|");
+                return next;
+            });
         });
     }, [active, myId]);
 
@@ -281,25 +336,43 @@ export default function MessagesPage() {
             setDraft("");
             await refresh();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
+            setError(err instanceof Error ? err : new Error("Erreur inconnue"));
         } finally {
             setSending(false);
         }
     };
 
-    const openCompose = async () => {
-        setComposing(true);
-        setError(null);
+    // Destinataires : recherche côté serveur (une école compte des milliers
+    // de comptes ; la liste en affiche au plus 50, triés par nom).
+    const loadRecipients = useCallback(async (query: string, signal?: AbortSignal) => {
         try {
-            const res = await fetch("/api/messages/recipients");
+            const res = await fetch(`/api/messages/recipients?q=${encodeURIComponent(query)}`, { signal });
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(body.error || "Destinataires indisponibles");
             const list: UserStub[] = body.data ?? [];
             setRecipients(list);
-            setRecipientId(list[0]?.id ?? "");
+            setRecipientTotal(typeof body.total === "number" ? body.total : list.length);
+            setRecipientId((current) => (list.some((person) => person.id === current) ? current : list[0]?.id ?? ""));
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
+            if (err instanceof DOMException && err.name === "AbortError") return;
+            setError(err instanceof Error ? err : new Error("Erreur inconnue"));
         }
+    }, []);
+
+    useEffect(() => {
+        if (!composing) return;
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => void loadRecipients(recipientQuery, controller.signal), recipientQuery ? 250 : 0);
+        return () => {
+            window.clearTimeout(timer);
+            controller.abort();
+        };
+    }, [composing, recipientQuery, loadRecipients]);
+
+    const openCompose = () => {
+        setError(null);
+        setRecipientQuery("");
+        setComposing(true);
     };
 
     const handleCreate = async () => {
@@ -325,7 +398,7 @@ export default function MessagesPage() {
             setActiveOtherId(recipientId);
             await refresh();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
+            setError(err instanceof Error ? err : new Error("Erreur inconnue"));
         } finally {
             setSending(false);
         }
@@ -339,7 +412,7 @@ export default function MessagesPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Messagerie"
@@ -350,7 +423,7 @@ export default function MessagesPage() {
                     ]}
                     actions={
                         <div className="flex items-center gap-2">
-                            <Button icon="plus" onClick={() => void openCompose()}>
+                            <Button icon="plus" onClick={openCompose}>
                                 Nouveau message
                             </Button>
                             <Button
@@ -369,12 +442,18 @@ export default function MessagesPage() {
                 />
 
                 {error ? (
-                    <PageError message={error} onRetry={() => void refresh()} />
+                    <PageError error={error} message={error.message} onRetry={() => void refresh()} />
                 ) : null}
 
                 {composing ? (
                     <Card padding={16} className="mb-4">
                         <div className="grid gap-3">
+                            <Input
+                                aria-label="Rechercher un destinataire"
+                                placeholder="Rechercher un destinataire (nom, prénom ou e-mail)"
+                                value={recipientQuery}
+                                onChange={(e) => setRecipientQuery(e.target.value)}
+                            />
                             <label className="grid gap-1 text-sm">
                                 Destinataire
                                 <select
@@ -385,14 +464,21 @@ export default function MessagesPage() {
                                     style={{ borderColor: "var(--eduflow-border-default)", background: "var(--eduflow-surface-card)" }}
                                 >
                                     {recipients.length === 0 ? (
-                                        <option value="">Aucun destinataire dans votre périmètre</option>
+                                        <option value="">
+                                            {recipientQuery.trim() ? "Aucun destinataire ne correspond" : "Aucun destinataire dans votre périmètre"}
+                                        </option>
                                     ) : null}
                                     {recipients.map((person) => (
                                         <option key={person.id} value={person.id}>
-                                            {person.firstName} {person.lastName} · {ROLE_LABEL[person.role] ?? person.role}
+                                            {person.firstName} {person.lastName} · {ROLE_LABEL[person.role] ?? person.role} · {person.email}
                                         </option>
                                     ))}
                                 </select>
+                                {recipientTotal > recipients.length ? (
+                                    <span className="text-xs" style={{ color: "var(--eduflow-text-secondary)" }}>
+                                        {recipients.length} affichés sur {recipientTotal} : précisez la recherche pour trouver une personne.
+                                    </span>
+                                ) : null}
                             </label>
                             <Input
                                 aria-label="Objet"
@@ -522,7 +608,7 @@ export default function MessagesPage() {
                                                     </span>
                                                     <span
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                             whiteSpace: "nowrap",
@@ -533,7 +619,7 @@ export default function MessagesPage() {
                                                 </div>
                                                 <div
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color: c.unreadCount > 0
                                                             ? "var(--eduflow-text-primary)"
                                                             : "var(--eduflow-text-tertiary)",
@@ -555,7 +641,7 @@ export default function MessagesPage() {
                                                         borderRadius: 9,
                                                         background: "var(--brand-600)",
                                                         color: "#fff",
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 700,
                                                         display: "grid",
                                                         placeItems: "center",
@@ -609,7 +695,7 @@ export default function MessagesPage() {
                                             </div>
                                             <div
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                 }}
                                             >
@@ -730,7 +816,7 @@ export default function MessagesPage() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -780,7 +866,7 @@ export default function MessagesPage() {
                                         </SubLabel>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 6,
                                                 lineHeight: 1.6,
@@ -840,7 +926,7 @@ export default function MessagesPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 
@@ -871,7 +957,7 @@ function renderThread(messages: RawMessage[], myId: string | undefined): React.R
                         padding: "4px 12px",
                         borderRadius: 12,
                         background: "var(--eduflow-surface-card)",
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                         border: "1px solid var(--eduflow-border-subtle)",
                     }}
@@ -902,7 +988,7 @@ function renderThread(messages: RawMessage[], myId: string | undefined): React.R
                     {m.subject && !m.subject.startsWith("Re:") ? (
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: 700,
                                 color: "var(--eduflow-text-tertiary)",
                                 marginBottom: 4,
@@ -933,7 +1019,7 @@ function renderThread(messages: RawMessage[], myId: string | undefined): React.R
                     </div>
                     <div
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--eduflow-text-tertiary)",
                             marginTop: 4,
                             textAlign: fromMe ? "right" : "left",

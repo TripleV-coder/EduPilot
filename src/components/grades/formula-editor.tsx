@@ -42,7 +42,7 @@ export function FormulaEditor({
 
     return (
         <div className="grid gap-2">
-            <label htmlFor={id} style={{ fontSize: 11, fontWeight: 600, color: "var(--eduflow-text-tertiary)" }}>
+            <label htmlFor={id} style={{ fontSize: 12, fontWeight: 600, color: "var(--eduflow-text-tertiary)" }}>
                 {label}
             </label>
             <input

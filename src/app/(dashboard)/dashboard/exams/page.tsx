@@ -31,6 +31,15 @@ type ExamItem = {
 type ExamResponse = { exams?: ExamItem[] };
 
 export default function ExamsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.EVALUATION_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT"]} >
+            <ExamsPageContent />
+        </PageGuard>
+    );
+}
+
+function ExamsPageContent() {
     const { data: response, error, isLoading: loading } = useSWR<ExamResponse | ExamItem[]>(
         "/api/exams",
         fetcher
@@ -77,10 +86,7 @@ export default function ExamsPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.EVALUATION_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Examens en ligne"
@@ -215,7 +221,7 @@ export default function ExamsPage() {
                                         <div
                                             className="mt-1 flex flex-wrap items-center gap-2"
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -314,7 +320,7 @@ export default function ExamsPage() {
                 onConfirm={confirmDelete}
             />
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 
@@ -337,7 +343,7 @@ function Stat({
         >
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     color: "var(--eduflow-text-tertiary)",
                 }}

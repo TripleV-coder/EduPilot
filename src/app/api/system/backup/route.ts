@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import fs from "fs/promises";
 import { logger } from "@/lib/utils/logger";
 import { appEnv } from "@/lib/env";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { checkBackupPrerequisites } from "@/lib/system/backup-prerequisites";
 
-const execAsync = promisify(exec);
+// execFile : le script est lancé sans shell (chemin issu de l'environnement)
+const execFileAsync = promisify(execFile);
 
 function isBackupApiAllowed(): boolean {
   if (!appEnv.allowBackupApi) return false;
@@ -38,21 +40,26 @@ export const POST = createApiHandler(async (request, context) => {
       "postgres-backup.sh"
     );
 
-    // Vérifier que le script existe
-    try {
-      await fs.access(backupScript);
-    } catch (_error) {
-      // L5 (audit) : jamais le chemin. L'exploitant le retrouve dans le
+    // Prérequis vérifiés AVANT de lancer quoi que ce soit (2026-10-18) : script,
+    // outils PostgreSQL, phrase secrète, répertoire, connexion propriétaire.
+    // Le conteneur web ne les a pas, volontairement : la sauvegarde de
+    // production est la tâche planifiée de l'hôte (scripts/cron/edupilot.cron).
+    const missing = await checkBackupPrerequisites(backupScript);
+    if (missing.length > 0) {
+      // L5 (audit) : jamais le chemin. L'exploitant retrouve le détail dans le
       // journal du serveur, pas dans une réponse HTTP.
-      logger.error("Script de sauvegarde introuvable", undefined, { module: "system/backup", script: backupScript });
+      logger.error("Sauvegarde indisponible sur ce serveur", undefined, { module: "system/backup", missing });
       return NextResponse.json(
-        { error: "Script de sauvegarde non trouvé sur le serveur." },
-        { status: 404 }
+        {
+          error: "Sauvegarde indisponible sur ce serveur : elle s'exécute par la tâche planifiée de l'hôte. Détail dans le journal du serveur.",
+          code: "BACKUP_UNAVAILABLE",
+        },
+        { status: 503 }
       );
     }
 
     // Exécuter le script de sauvegarde
-    const { stdout } = await execAsync(backupScript);
+    const { stdout } = await execFileAsync(backupScript);
 
     // Parser la sortie pour extraire les informations
     const sizeMatch = stdout.match(/Taille de la sauvegarde: (.*)/);
@@ -99,20 +106,23 @@ export const GET = createApiHandler(async (request, context) => {
     // Même répertoire que scripts/backup/postgres-backup.sh.
     const backupDir = process.env.BACKUP_DIR || "/var/backups/edupilot/postgres";
 
+    // Données d'exécution hors du projet : `turbopackIgnore` empêche le traçage
+    // de ces accès dynamiques, qui incluait TOUT le projet (sources, docs,
+    // rapports d'audit, .env) dans .next/standalone.
     try {
-      const files = await fs.readdir(backupDir);
+      const files = await fs.readdir(/* turbopackIgnore: true */ backupDir);
       // Sauvegardes chiffrées (Lot 7) ; les .sql.gz d'avant restent listées.
       const backups = files.filter((f) => f.endsWith(".sql.gz.enc") || f.endsWith(".sql.gz"));
 
       const backupDetails = await Promise.all(
         backups.map(async (file) => {
-          const filePath = path.join(backupDir, file);
-          const stats = await fs.stat(filePath);
+          const filePath = path.join(/* turbopackIgnore: true */ backupDir, file);
+          const stats = await fs.stat(/* turbopackIgnore: true */ filePath);
           const checksumPath = `${filePath}.sha256`;
 
           let checksum = null;
           try {
-            checksum = (await fs.readFile(checksumPath, "utf-8")).trim();
+            checksum = (await fs.readFile(/* turbopackIgnore: true */ checksumPath, "utf-8")).trim();
           } catch (_e) {
             // Pas de checksum disponible
           }

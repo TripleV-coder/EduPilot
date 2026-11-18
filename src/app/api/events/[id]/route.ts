@@ -32,6 +32,26 @@ export const GET = createApiHandler(async (request, context) => {
         const session = context.session;
     const { id } = await context.params;
 
+    // École vérifiée AVANT de charger les participants : sous RLS, les élèves
+    // d'une autre école sont masqués et le chargement groupé échouait (500 au
+    // lieu d'un refus).
+    const owner = await prisma.schoolEvent.findUnique({ where: { id }, select: { schoolId: true } });
+    if (!owner) {
+      return NextResponse.json(
+        { error: "Événement non trouvé" },
+        { status: 404 }
+      );
+    }
+    if (
+      session.user.role !== "SUPER_ADMIN" &&
+      owner.schoolId !== getActiveSchoolId(session)
+    ) {
+      return NextResponse.json(
+        { error: "Accès non autorisé" },
+        { status: 403 }
+      );
+    }
+
     const event = await prisma.schoolEvent.findUnique({
       where: { id },
       include: {

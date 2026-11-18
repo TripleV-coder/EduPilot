@@ -37,6 +37,12 @@ function classPeriodResult(rules: CalculationOptions = OFFICIAL_RULES, mathsA = 
 }
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Classes enseignées (MS-02) : l'enseignant de ces tests enseigne la classe testée
+vi.mock("@/lib/teachers/taught-classes", () => ({
+  taughtClassIds: vi.fn(async () => ["class-a"]),
+  teacherTeachesStudent: vi.fn(async () => true),
+}));
+
 // Calcul de la classe : prouvé contre l'oracle exact (tests/precision) ;
 // ici, la route seule (mise en forme, droits, NC, arrondi de l'école)
 vi.mock("@/lib/academic/class-averages", () => ({

@@ -12,6 +12,7 @@ import {
   LOGIN_RATE_LIMIT,
 } from "@/lib/rate-limit";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { setupTokenMatches, setupTokenPolicy } from "@/lib/auth/setup-token";
 
 const initialSetupSchema = z.object({
   // Informations administrateur - validations renforcées
@@ -75,6 +76,23 @@ export const POST = createApiHandler(
         return NextResponse.json(
           { error: "Données trop volumineuses" },
           { status: 413 }
+        );
+      }
+
+      // Jeton d'installation (voir lib/auth/setup-token) : vérifié avant toute
+      // lecture des données, et avant même de révéler si l'installation est faite.
+      const policy = setupTokenPolicy();
+      if (policy.mode === "locked") {
+        logger.error(`Installation verrouillée : ${policy.reason}`);
+        return NextResponse.json(
+          { error: "Installation verrouillée : l'exploitant doit définir le jeton d'installation sur le serveur.", code: "SETUP_LOCKED" },
+          { status: 503 },
+        );
+      }
+      if (policy.mode === "required" && !setupTokenMatches((body as { setupToken?: unknown })?.setupToken, policy.expected)) {
+        return NextResponse.json(
+          { error: "Jeton d'installation invalide.", code: "SETUP_TOKEN_INVALID" },
+          { status: 403 },
         );
       }
 
@@ -184,8 +202,14 @@ export const GET = createApiHandler(
   async () => {
     try {
       const userCount = await prisma.user.count();
+      const policy = setupTokenPolicy();
       return NextResponse.json(
-        { setupNeeded: userCount === 0 },
+        {
+          setupNeeded: userCount === 0,
+          // La page demande le jeton ; « locked » : l'exploitant doit le configurer
+          tokenRequired: policy.mode !== "optional",
+          locked: policy.mode === "locked",
+        },
         { status: 200 }
       );
     } catch (error) {

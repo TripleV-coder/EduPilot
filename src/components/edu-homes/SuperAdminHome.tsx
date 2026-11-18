@@ -81,6 +81,7 @@ export function SuperAdminHome({ userName, data }: SuperAdminHomeProps) {
                         { href: "/dashboard/root-control/users", label: "Utilisateurs", icon: "users", color: MODULE.purple },
                         { href: "/dashboard/root-control/logs", label: "Journaux", icon: "cards", color: MODULE.teal },
                         { href: "/dashboard/root-control/maintenance", label: "Maintenance", icon: "settings", color: MODULE.pink },
+                        { href: "/dashboard/root-control/integrations", label: "Intégrations", icon: "sms", color: MODULE.orange },
                     ]}
                 />
             </Block>

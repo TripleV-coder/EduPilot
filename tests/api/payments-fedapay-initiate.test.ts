@@ -1,12 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/payments/fedapay", () => ({
-  isFedaPayConfigured: vi.fn(),
-  createFedaPayCheckout: vi.fn(),
+// S7 : compte marchand de l'école du frais (résolution et client testés sur une
+// vraie base : integration-db/school-payment-accounts)
+vi.mock("@/lib/payments/school-accounts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/payments/school-accounts")>()),
+  resolveCollectingAccount: vi.fn(),
 }));
+vi.mock("@/lib/payments/fedapay-account-client", () => ({ createAccountCheckout: vi.fn() }));
 // L3 : `@/lib/rate-limit` est désormais le module unique (limiteurs, clés,
 // mappage de routes, identifiant client). Mock PARTIEL : seule la fonction
 // contrôlée par ce test est remplacée, tout le reste garde son code réel.
@@ -16,14 +19,17 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 }));
 vi.mock("@/lib/prisma", () => ({
   default: {
-    payment: { findUnique: vi.fn(), update: vi.fn() },
+    payment: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
     user: { findUnique: vi.fn() },
   },
 }));
 
 import prisma from "@/lib/prisma";
-import { isFedaPayConfigured, createFedaPayCheckout } from "@/lib/payments/fedapay";
+import { resolveCollectingAccount } from "@/lib/payments/school-accounts";
+import { createAccountCheckout as createFedaPayCheckout } from "@/lib/payments/fedapay-account-client";
+
+const credentials = { accountId: "acct-a", environment: "SANDBOX" as const, secretKey: "sk_sandbox_synthetique" };
 import { checkRateLimit } from "@/lib/rate-limit";
 import { POST } from "@/app/api/payments/fedapay/initiate/route";
 
@@ -35,17 +41,17 @@ function paymentRecord(overrides: Record<string, unknown> = {}) {
     amount: 50000,
     status: "PENDING",
     reference: "EDU-ref1",
+    createdAt: new Date(),
     studentId: FIXTURES.studentA,
     student: { schoolId: FIXTURES.schoolA },
-    fee: { name: "Scolarité T1" },
+    fee: { name: "Scolarité T1", schoolId: FIXTURES.schoolA },
     ...overrides,
   } as never;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.FEDAPAY_SECRET_KEY = "sk_test";
-  vi.mocked(isFedaPayConfigured).mockReturnValue(true);
+  vi.mocked(resolveCollectingAccount).mockResolvedValue({ ok: true, account: { id: "acct-a", schoolId: FIXTURES.schoolA } as never, credentials });
   vi.mocked(checkRateLimit).mockResolvedValue({
     success: true,
     remaining: 19,
@@ -56,9 +62,6 @@ beforeEach(() => {
     token: "tok_1",
     transactionId: "42",
   });
-});
-afterEach(() => {
-  delete process.env.FEDAPAY_SECRET_KEY;
 });
 
 describe("POST /api/payments/fedapay/initiate", () => {
@@ -75,13 +78,17 @@ describe("POST /api/payments/fedapay/initiate", () => {
     expect(res.status).toBe(401);
   });
 
-  it("retourne 503 si FedaPay n'est pas configuré", async () => {
+  it("école du frais sans compte marchand actif : 503, rien d'attribué, aucun appel FedaPay (S7)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
-    vi.mocked(isFedaPayConfigured).mockReturnValue(false);
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue(paymentRecord());
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ firstName: "Awa", lastName: "Dossou", email: "awa@school.bj" } as never);
+    vi.mocked(resolveCollectingAccount).mockResolvedValue({ ok: false, reason: "NO_ACTIVE_ACCOUNT" });
     const res = await post({ paymentId });
     expect(res.status).toBe(503);
-    expect((await res.json()).code).toBe("FEDAPAY_NOT_CONFIGURED");
-    expect(prisma.payment.findUnique).not.toHaveBeenCalled();
+    expect((await res.json()).code).toBe("ONLINE_PAYMENT_UNAVAILABLE");
+    expect(resolveCollectingAccount).toHaveBeenCalledWith(prisma, FIXTURES.schoolA);
+    expect(prisma.payment.updateMany).not.toHaveBeenCalled();
+    expect(createFedaPayCheckout).not.toHaveBeenCalled();
   });
 
   it("retourne 429 en cas de rate limit", async () => {
@@ -163,6 +170,7 @@ describe("POST /api/payments/fedapay/initiate", () => {
       email: "awa@school.bj",
     } as never);
     vi.mocked(prisma.payment.update).mockResolvedValue({ id: paymentId } as never);
+    vi.mocked(prisma.payment.updateMany).mockResolvedValue({ count: 1 } as never);
 
     const res = await post({ paymentId });
     const body = await res.json();
@@ -171,17 +179,38 @@ describe("POST /api/payments/fedapay/initiate", () => {
     expect(body.url).toBe("https://checkout.fedapay.sandbox/x");
     expect(body.reference).toBe("EDU-ref1");
     expect(createFedaPayCheckout).toHaveBeenCalledWith(
+      credentials,
       expect.objectContaining({
         amount: 50000,
         reference: "EDU-ref1",
         customer: { firstname: "Awa", lastname: "Dossou", email: "awa@school.bj" },
       })
     );
-    const updateArgs = vi.mocked(prisma.payment.update).mock.calls[0][0] as {
+    // Prise conditionnelle (S3) : seul un paiement confié à aucun fournisseur est attribué à FedaPay
+    const claimArgs = vi.mocked(prisma.payment.updateMany).mock.calls[0][0] as {
+      where: Record<string, unknown>;
       data: { reference: string; method: string };
     };
-    expect(updateArgs.data.method).toBe("MOBILE_MONEY_MTN");
-    expect(updateArgs.data.reference).toBe("EDU-ref1");
+    expect(claimArgs.where).toEqual({ id: paymentId, status: "PENDING", provider: null });
+    expect(claimArgs.data.method).toBe("MOBILE_MONEY_MTN");
+    expect(claimArgs.data.reference).toBe("EDU-ref1");
+    expect(claimArgs.data).toMatchObject({ provider: "FEDAPAY", paymentAccountId: "acct-a" });
+    // Identifiant FedaPay rangé pour la réconciliation à 24 h
+    const idArgs = vi.mocked(prisma.payment.update).mock.calls[0][0] as { data: Record<string, unknown> };
+    expect(idArgs.data).toHaveProperty("providerTransactionId");
+  });
+
+  it("refuse de relancer une demande de plus de 24 h (409, aucun appel FedaPay)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue(
+      paymentRecord({ createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) })
+    );
+
+    const res = await post({ paymentId });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("PAYMENT_EXPIRED");
+    expect(createFedaPayCheckout).not.toHaveBeenCalled();
   });
 
   it("enregistre la référence AVANT de créer la transaction chez FedaPay (arrêt brutal)", async () => {
@@ -193,12 +222,13 @@ describe("POST /api/payments/fedapay/initiate", () => {
       email: "awa@school.bj",
     } as never);
     vi.mocked(prisma.payment.update).mockResolvedValue({ id: paymentId } as never);
+    vi.mocked(prisma.payment.updateMany).mockResolvedValue({ count: 1 } as never);
 
     await post({ paymentId });
 
     // Si le processus s'arrête juste après la création chez FedaPay, le
     // webhook (merchant_reference) doit déjà retrouver le paiement.
-    const updateOrder = vi.mocked(prisma.payment.update).mock.invocationCallOrder[0];
+    const updateOrder = vi.mocked(prisma.payment.updateMany).mock.invocationCallOrder[0];
     const checkoutOrder = vi.mocked(createFedaPayCheckout).mock.invocationCallOrder[0];
     expect(updateOrder).toBeLessThan(checkoutOrder);
   });
@@ -217,6 +247,7 @@ describe("POST /api/payments/fedapay/initiate", () => {
       email: "awa@school.bj",
     } as never);
     vi.mocked(createFedaPayCheckout).mockRejectedValue(new Error("fedapay down"));
+    vi.mocked(prisma.payment.updateMany).mockResolvedValue({ count: 1 } as never);
 
     const res = await post({ paymentId });
 
@@ -224,9 +255,46 @@ describe("POST /api/payments/fedapay/initiate", () => {
     expect((await res.json()).error).toBe(
       "Échec de l'initialisation du paiement. Réessayez."
     );
-    const updateArgs = vi.mocked(prisma.payment.update).mock.calls[0]?.[0] as
+    const claimArgs = vi.mocked(prisma.payment.updateMany).mock.calls[0]?.[0] as
       | { data: Record<string, unknown> }
       | undefined;
-    expect(updateArgs?.data).toEqual({ reference: "EDU-ref1", method: "MOBILE_MONEY_MTN" });
+    expect(claimArgs?.data).toEqual({ reference: "EDU-ref1", method: "MOBILE_MONEY_MTN", provider: "FEDAPAY", paymentAccountId: "acct-a" });
+    // Résultat inconnu (lot 3b) : l'essai reste PENDING, repéré par une note, sans changement de statut
+    const marked = vi.mocked(prisma.payment.updateMany).mock.calls[1]?.[0] as { where: unknown; data: Record<string, unknown> };
+    expect(marked.where).toEqual({ id: paymentId, status: "PENDING" });
+    expect(marked.data).not.toHaveProperty("status");
+    expect(String(marked.data.notes)).toContain("Résultat de l'initialisation inconnu");
+  });
+
+  // S3 : un paiement déjà confié à un fournisseur n'est ni réattribué à FedaPay ni recréé chez lui
+  it.each([
+    ["MOMO", "PAYMENT_PROVIDER_CONFLICT"],
+    ["FEDAPAY", "PAYMENT_ALREADY_STARTED"],
+  ])("paiement déjà confié à %s : 409 %s, aucune transaction FedaPay, rien de modifié", async (provider, code) => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue(paymentRecord({ provider }));
+
+    const res = await post({ paymentId });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe(code);
+    expect(createFedaPayCheckout).not.toHaveBeenCalled();
+    expect(prisma.payment.update).not.toHaveBeenCalled();
+    expect(prisma.payment.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("deux lancements simultanés : la prise conditionnelle perdue renvoie 409 sans appeler FedaPay", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.payment.findUnique)
+      .mockResolvedValueOnce(paymentRecord())
+      .mockResolvedValueOnce({ provider: "FEDAPAY", notes: null } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ firstName: "Awa", lastName: "Dossou", email: "awa@school.bj" } as never);
+    vi.mocked(prisma.payment.updateMany).mockResolvedValue({ count: 0 } as never);
+
+    const res = await post({ paymentId });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("PAYMENT_ALREADY_STARTED");
+    expect(createFedaPayCheckout).not.toHaveBeenCalled();
   });
 });

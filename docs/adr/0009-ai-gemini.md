@@ -1,6 +1,6 @@
 # ADR-0009 : Gemini pour les fonctionnalités IA (bulletins, plans d'action)
 
-**Statut** : Accepté
+**Statut** : Supersedé par ADR-0012 (2026-11-07)
 **Date** : 2025-09-20
 
 ## Contexte

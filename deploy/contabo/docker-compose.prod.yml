@@ -1,0 +1,46 @@
+# ============================================================
+# EduPilot — surcouche de PRODUCTION (VPS : Contabo, OVH…)
+#
+#   docker compose -f docker-compose.yml -f deploy/contabo/docker-compose.prod.yml up -d
+#
+# Ajoute Caddy (HTTPS automatique Let's Encrypt) devant l'application :
+# seuls les ports 80 et 443 sont publics. L'application tourne avec le rôle
+# PostgreSQL `edupilot_app`, soumis à la RLS (audit M2) ; les migrations
+# passent par le rôle propriétaire. Variables : deploy/contabo/.env.exemple.
+# ============================================================
+
+services:
+  app:
+    # Plus de port public : seul Caddy joint l'application (réseau Docker)
+    ports: !reset []
+    environment:
+      DATABASE_URL: "postgresql://edupilot_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD manquant}@postgres:5432/${POSTGRES_DB:-edupilot}?schema=public"
+      MIGRATE_DATABASE_URL: "postgresql://${POSTGRES_USER:-edupilot}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}@postgres:5432/${POSTGRES_DB:-edupilot}?schema=public"
+      # Derrière Caddy : un saut de proxy de confiance (adresse client réelle)
+      TRUSTED_PROXY_HOPS: "1"
+      # 2 processus pour 4 vCPU (le reste : PostgreSQL et Caddy)
+      WEB_CONCURRENCY: "${WEB_CONCURRENCY:-2}"
+
+  caddy:
+    image: caddy:2.8.4-alpine
+    container_name: edupilot-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: "${DOMAIN:?DOMAIN manquant (ex. app.mon-ecole.bj)}"
+    volumes:
+      - ./deploy/contabo/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - edupilot-network
+
+volumes:
+  caddy_data:
+  caddy_config:

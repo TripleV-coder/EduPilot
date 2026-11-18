@@ -29,3 +29,17 @@ export const INCIDENT_SEVERITY_LABELS: Record<string, string> = {
 export const incidentTypeLabel = (type: string | null | undefined) => (type ? INCIDENT_TYPE_LABELS[type] ?? type : "—");
 export const incidentSeverityLabel = (severity: string | null | undefined) =>
     severity ? INCIDENT_SEVERITY_LABELS[severity] ?? severity : "—";
+
+export const SANCTION_TYPE_LABELS: Record<string, string> = {
+    WARNING: "Avertissement",
+    DETENTION: "Retenue",
+    SUSPENSION: "Exclusion temporaire",
+    EXPULSION: "Exclusion définitive",
+    COMMUNITY_SERVICE: "Travail d'intérêt scolaire",
+    LOSS_OF_PRIVILEGE: "Privation d'activité",
+    PARENT_CONFERENCE: "Convocation des parents",
+    COUNSELING: "Entretien de suivi",
+    OTHER: "Autre",
+};
+
+export const sanctionTypeLabel = (type: string | null | undefined) => (type ? SANCTION_TYPE_LABELS[type] ?? type : "—");

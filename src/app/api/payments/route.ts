@@ -5,15 +5,24 @@ import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { PaymentWhereFilter } from "@/lib/types/api";
-import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
+import { cacheMiddleware, generateCacheKey, invalidateByPath, CACHE_PATHS, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache, cachePresets } from "@/lib/api/cache-http";
-import { syncPaymentPlanLedger } from "@/lib/finance/helpers";
+import { assertReferenceFree, assertWithinAvailable, runFeeMutation } from "@/lib/finance/collection";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool, superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 
 /** GET /api/payments — contrat décrit par docs/openapi.json (npm run docs:openapi). */
 export const GET = createApiHandler(
   async (request, { session }, t) => {
-    const cacheKey = generateCacheKey("/api/payments", new URL(request.url).searchParams, session.user.id);
+    // S6 : le super-admin lit les paiements d'UNE école sélectionnée, jamais
+    // de tous les établissements mélangés (contrôle hors cache : il est audité).
+    let superAdminSchoolId: string | null = null;
+    if (session.user.role === "SUPER_ADMIN") {
+      const scope = await resolveFinanceSchool(session, new URL(request.url).searchParams.get("schoolId"), "payments:list");
+      if (!scope.ok) return scope.response;
+      superAdminSchoolId = scope.schoolId;
+    }
+    const cacheKey = generateCacheKey("/api/payments", new URL(request.url).searchParams, cacheScope(session));
 
     const cachedHandler = cacheMiddleware({ ttl: 60, key: cacheKey });
 
@@ -39,8 +48,9 @@ export const GET = createApiHandler(
       if (feeId) where.feeId = feeId;
 
       // Multi-tenant security: filter by school
-      if (session.user.role !== "SUPER_ADMIN" && activeSchoolId) {
-        where.fee = { schoolId: activeSchoolId };
+      const scopedSchoolId = session.user.role === "SUPER_ADMIN" ? superAdminSchoolId : activeSchoolId;
+      if (scopedSchoolId) {
+        where.fee = { schoolId: scopedSchoolId };
       }
 
       // PARENT can only see their children's payments
@@ -256,8 +266,18 @@ export const POST = createApiHandler(
       );
     }
 
-    const payment = await prisma.$transaction(async (tx) => {
-      const createdPayment = await tx.payment.create({
+    // Intégrité (lot 3f) : un paiement n'impute jamais le frais d'une autre école
+    if (fee.schoolId !== student.schoolId) {
+      return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
+    }
+    const outOfScope = await superAdminTargetOutOfScope(session, fee.schoolId, "payments:create");
+    if (outOfScope) return outOfScope;
+
+    // Plafond relu sous verrou, avec ou sans échéancier (lot 3b)
+    const result = await runFeeMutation(validatedData.studentId, validatedData.feeId, async (tx, balance) => {
+      assertWithinAvailable(balance.available, validatedData.amount);
+      await assertReferenceFree(tx, validatedData.reference);
+      return tx.payment.create({
         data: {
           studentId: validatedData.studentId,
           feeId: validatedData.feeId,
@@ -280,11 +300,9 @@ export const POST = createApiHandler(
           fee: true,
         },
       });
-
-      await syncPaymentPlanLedger(tx, validatedData.studentId, validatedData.feeId);
-
-      return createdPayment;
     });
+    if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
+    const payment = result.value;
 
     await Promise.all([
       invalidateByPath(CACHE_PATHS.payments),

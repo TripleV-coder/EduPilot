@@ -254,7 +254,7 @@ export default function NewUserPage() {
                             <Form {...form}>
                                 {/* Sans ce cas, la liste déroulante restait vide sans explication. */}
                                 {loadError ? (
-                                    <PageError message="Impossible de charger la liste des établissements." onRetry={() => void reloadOptions()} />
+                                    <PageError error={loadError} message="Impossible de charger la liste des établissements." onRetry={() => void reloadOptions()} />
                                 ) : null}
                                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

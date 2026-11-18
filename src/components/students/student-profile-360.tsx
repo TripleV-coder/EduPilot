@@ -154,7 +154,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                     key={i}
                                     className="inline-flex items-center gap-1 rounded-md font-bold"
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         padding: "3px 8px",
                                         background: `var(--eduflow-${b.variant}-50)`,
                                         color: `var(--eduflow-${b.variant}-800)`,
@@ -213,8 +213,8 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                 </div>
             </div>
 
-            <div className="grid gap-3.5" style={{ gridTemplateColumns: "1.5fr 1fr" }}>
-                <div className="flex flex-col gap-3.5">
+            <div className="grid gap-3.5 lg:grid-cols-[1.5fr_1fr]">
+                <div className="flex min-w-0 flex-col gap-3.5">
                     {/* Subjects */}
                     <div
                         className="rounded-xl p-4"
@@ -247,7 +247,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                     }}
                                 >
                                     <span style={{ fontSize: 13, fontWeight: 500 }}>{m.name}</span>
-                                    <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                                    <span style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                         {m.coefficient !== null ? `coef. ${m.coefficient}` : "coef. —"}
                                     </span>
                                     <div
@@ -285,7 +285,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                         <SubLabel>Évolution sur les {evolution.length} dernières périodes</SubLabel>
                         <div className="flex items-end gap-3 mt-3" style={{ height: 120 }}>
                             {evolution.length === 0 ? (
-                                <p style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                                <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                     Pas encore d&apos;historique disponible.
                                 </p>
                             ) : evolution.map((b, i) => {
@@ -294,7 +294,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                     <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
                                         <span
                                             className="font-mono"
-                                            style={{ fontSize: 11, fontWeight: 700, color: "var(--eduflow-brand-700)" }}
+                                            style={{ fontSize: 12, fontWeight: 700, color: "var(--eduflow-brand-700)" }}
                                         >
                                             {fmt1(b.average)}
                                         </span>
@@ -307,7 +307,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                                 minHeight: 12,
                                             }}
                                         />
-                                        <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                                        <span style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                             {b.label}
                                         </span>
                                     </div>
@@ -318,14 +318,14 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                 </div>
 
                 {/* Right column */}
-                <div className="flex flex-col gap-3.5">
+                <div className="flex min-w-0 flex-col gap-3.5">
                     <div
                         className="rounded-xl p-4"
                         style={{ background: "var(--eduflow-surface-card)", border: "1px solid var(--eduflow-border-subtle)" }}
                     >
                         <SubLabel>Famille & contacts</SubLabel>
                         {parents.length === 0 ? (
-                            <p style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 6 }}>
+                            <p style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", marginTop: 6 }}>
                                 Aucun contact parent enregistré.
                             </p>
                         ) : parents.map((p, i) => (
@@ -343,7 +343,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                         width: 32, height: 32,
                                         background: "var(--eduflow-neutral-200)",
                                         color: "var(--eduflow-text-secondary)",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                     }}
                                 >
                                     {initials(p.firstName, p.lastName)}
@@ -352,7 +352,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                     <div style={{ fontSize: 12, fontWeight: 600 }}>
                                         {p.firstName} {p.lastName}
                                     </div>
-                                    <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                                    <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                         {p.relationship}{p.phone ? ` · ${p.phone}` : ""}
                                     </div>
                                 </div>
@@ -360,7 +360,7 @@ export function StudentProfile360({ studentId }: { studentId: string }) {
                                     <span
                                         className="rounded-md font-bold"
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             padding: "2px 6px",
                                             background: "var(--eduflow-success-50)",
                                             color: "var(--eduflow-success-800)",
@@ -484,7 +484,7 @@ function StatChip({
         <div>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--eduflow-text-tertiary)",
                 }}
             >
@@ -512,7 +512,7 @@ function DeltaBadge({ delta }: { delta: number }) {
         <span
             className="inline-flex items-center gap-1 rounded-md font-bold"
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 padding: "2px 7px",
                 background: positive ? "var(--eduflow-success-50)" : "var(--eduflow-warning-50)",
                 color: positive ? "var(--eduflow-success-800)" : "var(--eduflow-warning-800)",
@@ -548,7 +548,7 @@ function SubLabel({ children }: { children: React.ReactNode }) {
     return (
         <div
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--eduflow-text-tertiary)",
             }}

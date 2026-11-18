@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { Reveal } from "./Reveal";
 import {
     BarChart,
     Button,
@@ -37,11 +37,8 @@ const PROOF = [
 export function ProductScreenshotSection() {
     return (
         <section className="eduflow-scope relative px-6 pb-20" style={{ background: "var(--eduflow-surface-page)" }}>
-            <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.5 }}
+            <Reveal
+                dy={24}
                 style={{
                     maxWidth: 1100,
                     margin: "0 auto",
@@ -141,13 +138,12 @@ export function ProductScreenshotSection() {
                         </Button>
                     </Card>
                 </div>
-            </motion.div>
+            </Reveal>
 
-            <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-40px" }}
-                transition={{ duration: 0.4, delay: 0.1 }}
+            <Reveal
+                dy={16}
+                duration={400}
+                delay={100}
                 style={{
                     maxWidth: 1100,
                     margin: "24px auto 0",
@@ -181,7 +177,7 @@ export function ProductScreenshotSection() {
                         </div>
                     </Card>
                 ))}
-            </motion.div>
+            </Reveal>
         </section>
     );
 }

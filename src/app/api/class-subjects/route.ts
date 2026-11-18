@@ -54,8 +54,12 @@ export const GET = createApiHandler(
       where.teacherId = teacherId;
     }
 
-    if (session.user.role !== "SUPER_ADMIN" && activeSchoolId) {
+    // École active pour TOUS les rôles, super-admin compris : il recevait les
+    // matières de toutes les écoles mélangées même avec une école choisie.
+    if (activeSchoolId) {
       where.class = { schoolId: activeSchoolId };
+    } else if (!classId) {
+      return NextResponse.json({ error: "Choisissez d'abord un établissement." }, { status: 400 });
     }
 
     const classSubjects = await prisma.classSubject.findMany({

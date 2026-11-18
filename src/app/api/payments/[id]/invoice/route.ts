@@ -5,6 +5,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { canAccessSchool } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
+import { getFeeBalance } from "@/lib/finance/online-payments";
 
 interface JsPdfWithAutoTable extends jsPDF {
   lastAutoTable: { finalY: number };
@@ -12,8 +13,14 @@ interface JsPdfWithAutoTable extends jsPDF {
 
 /**
  * GET /api/payments/[id]/invoice
- * Generate payment invoice/receipt as PDF
+ * Reçu PDF d'un paiement CONFIRMÉ (validé ou rapproché) : un paiement en
+ * attente, annulé ou expiré n'a pas de reçu (409). Montant dû = facturé réel
+ * (échéancier en vigueur, bourses déduites, sinon frais). La famille ne voit
+ * jamais les notes internes (rapprochement, fournisseur, compte marchand).
+ * Le n° est l'identifiant tronqué : la numérotation officielle des reçus
+ * reste une décision ouverte.
  */
+const RECEIPT_STATUSES = new Set(["VERIFIED", "RECONCILED"]);
 export const GET = createApiHandler(async (request, context) => {
   try {
     const session = context.session;
@@ -89,6 +96,16 @@ export const GET = createApiHandler(async (request, context) => {
     if (userRole !== "SUPER_ADMIN" && !canAccessSchool(session, payment.fee.schoolId)) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
+    // Un remboursement (extourne, montant négatif) n'a pas de reçu de paiement.
+    if (payment.deletedAt || !RECEIPT_STATUSES.has(payment.status) || payment.refundOfId) {
+      return NextResponse.json(
+        { error: "Reçu disponible seulement pour un paiement confirmé.", code: "RECEIPT_NOT_AVAILABLE" },
+        { status: 409 }
+      );
+    }
+    const isFamily = userRole === "PARENT" || userRole === "STUDENT";
+    const balance = await getFeeBalance(prisma, payment.studentId, payment.feeId);
+    const billed = balance?.billed ?? Math.round(Number(payment.fee.amount));
 
     const doc = new jsPDF();
     const school = payment.fee.school;
@@ -154,7 +171,7 @@ export const GET = createApiHandler(async (request, context) => {
       [
         payment.fee.name,
         payment.fee.description || "",
-        `${Number(payment.fee.amount).toLocaleString("fr-FR")} FCFA`,
+        `${billed.toLocaleString("fr-FR")} FCFA`,
         `${Number(payment.amount).toLocaleString("fr-FR")} FCFA`,
       ],
     ];
@@ -210,7 +227,7 @@ export const GET = createApiHandler(async (request, context) => {
       finalY += 6;
     }
 
-    if (payment.notes) {
+    if (payment.notes && !isFamily) {
       doc.text("Notes:", 20, finalY);
       const splitNotes = doc.splitTextToSize(payment.notes, 170);
       doc.text(splitNotes, 20, finalY + 6);

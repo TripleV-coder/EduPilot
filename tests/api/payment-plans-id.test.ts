@@ -3,24 +3,40 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/prisma", () => ({
-  default: {
-    paymentPlan: { findUnique: vi.fn(), update: vi.fn() },
+// Verrou élève/frais et solde relu (lot 3b) : logique réelle prouvée contre
+// PostgreSQL (payment-plan-uniqueness) ; ici solde ouvert.
+vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/online-payments")>()),
+  lockStudentFee: vi.fn(async () => {}),
+  getFeeBalance: vi.fn(async () => ({ billed: 100000, settled: 0, reserved: 0, remaining: 100000, available: 100000 })),
+}));
+vi.mock("@/lib/prisma", () => {
+  const prismaMock: Record<string, unknown> = {
+    paymentPlan: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
+    payment: { count: vi.fn() },
     studentProfile: { findUnique: vi.fn() },
     auditLog: { create: vi.fn() },
     notification: { create: vi.fn() },
-  },
-}));
+  };
+  // Annulation dans une transaction (lot 3d)
+  prismaMock.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(prismaMock));
+  return { default: prismaMock };
+});
 
 import prisma from "@/lib/prisma";
 import { GET, DELETE } from "@/app/api/payment-plans/[id]/route";
 
 const planId = cuid("plan1");
 
+/** Plan relu sous verrou par l'annulation : statut et écoles (lot 3d). */
+const lockedPlan = () =>
+  ({ id: planId, status: "ACTIVE", student: { schoolId: FIXTURES.schoolA }, fee: { schoolId: FIXTURES.schoolA } }) as never;
+
 function fullPlan(overrides: Record<string, unknown> = {}) {
   return {
     id: planId,
     studentId: FIXTURES.studentA,
+    feeId: FIXTURES.feeA,
     status: "ACTIVE",
     totalAmount: 100000,
     paidAmount: 0,
@@ -184,17 +200,33 @@ describe("DELETE /api/payment-plans/[id]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("refuse l'annulation quand des échéances sont déjà payées (400)", async () => {
+  it("refuse l'annulation dès qu'une opération de paiement existe pour ces frais (409, lot 3d)", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     vi.mocked(prisma.paymentPlan.findUnique)
       .mockResolvedValueOnce({ student: { schoolId: FIXTURES.schoolA } } as never)
-      .mockResolvedValueOnce(
-        fullPlan({ installmentPayments: [{ id: cuid("inst1"), status: "PAID" }] })
-      );
+      .mockResolvedValueOnce(fullPlan({ installmentPayments: [{ id: cuid("inst1"), status: "PENDING" }] }))
+      .mockResolvedValueOnce(lockedPlan());
+    vi.mocked(prisma.payment.count).mockResolvedValue(1);
 
     const res = await DELETE(makeRequest(`http://localhost:3000/api/payment-plans/${planId}`, { method: "DELETE" }), params());
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
+    expect(vi.mocked(prisma.payment.count).mock.calls[0][0]).toEqual({ where: { studentId: FIXTURES.studentA, feeId: FIXTURES.feeA } });
+    expect(prisma.paymentPlan.update).not.toHaveBeenCalled();
+  });
+
+  it("refuse l'annulation d'un plan incohérent (élève et frais d'écoles différentes) : 409, plan conservé", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
+    vi.mocked(prisma.paymentPlan.findUnique)
+      .mockResolvedValueOnce({ student: { schoolId: FIXTURES.schoolA } } as never)
+      .mockResolvedValueOnce(fullPlan())
+      .mockResolvedValueOnce({ id: planId, status: "ACTIVE", student: { schoolId: FIXTURES.schoolA }, fee: { schoolId: FIXTURES.schoolB } } as never);
+    vi.mocked(prisma.payment.count).mockResolvedValue(0);
+
+    const res = await DELETE(makeRequest(`http://localhost:3000/api/payment-plans/${planId}`, { method: "DELETE" }), params());
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/établissements différents/);
     expect(prisma.paymentPlan.update).not.toHaveBeenCalled();
   });
 
@@ -206,7 +238,9 @@ describe("DELETE /api/payment-plans/[id]", () => {
         fullPlan({
           installmentPayments: [{ id: cuid("inst1"), status: "PENDING" }],
         })
-      );
+      )
+      .mockResolvedValueOnce(lockedPlan());
+    vi.mocked(prisma.payment.count).mockResolvedValue(0);
     vi.mocked(prisma.paymentPlan.update).mockResolvedValue({} as never);
     vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
     vi.mocked(prisma.notification.create).mockResolvedValue({} as never);
@@ -230,7 +264,9 @@ describe("DELETE /api/payment-plans/[id]", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("SCHOOL_ADMIN"));
     vi.mocked(prisma.paymentPlan.findUnique)
       .mockResolvedValueOnce({ student: { schoolId: FIXTURES.schoolA } } as never)
-      .mockResolvedValueOnce(fullPlan());
+      .mockResolvedValueOnce(fullPlan())
+      .mockResolvedValueOnce(lockedPlan());
+    vi.mocked(prisma.payment.count).mockResolvedValue(0);
     vi.mocked(prisma.paymentPlan.update).mockRejectedValue(new Error("db down"));
 
     const res = await DELETE(makeRequest(`http://localhost:3000/api/payment-plans/${planId}`, { method: "DELETE" }), params());

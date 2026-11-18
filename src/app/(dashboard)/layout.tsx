@@ -25,10 +25,11 @@ export default async function DashboardLayout({
     children: React.ReactNode;
 }) {
     // Mode maintenance globale : les rôles non-SUPER_ADMIN voient l'écran
-    // maintenance au lieu du dashboard (état en cache TTL).
+    // maintenance au lieu du dashboard. Lecture directe en base : le cache TTL
+    // de ce module n'est pas invalidé ici par la route qui active la maintenance.
     const session = await auth();
     if (maintenanceBlocksRole(session?.user?.role)) {
-        const maintenance = await getMaintenanceState();
+        const maintenance = await getMaintenanceState({ fresh: true });
         if (maintenance.enabled) {
             return <MaintenanceScreen message={maintenance.message} />;
         }

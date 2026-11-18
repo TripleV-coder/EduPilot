@@ -80,10 +80,15 @@ const schoolOverview = memoizeAsync(
       return emptySchoolOverview(null);
     }
 
-    const academicYear = await prisma.academicYear.findUnique({
-      where: { id: yearId },
+    // Année de CET établissement seulement (défense en profondeur : la route
+    // a déjà refusé une année étrangère)
+    const academicYear = await prisma.academicYear.findFirst({
+      where: { id: yearId, schoolId },
       select: { startDate: true, endDate: true },
     });
+    if (!academicYear) {
+      return emptySchoolOverview(null);
+    }
 
     // 1. Student statistics
     const totalStudents = await prisma.studentProfile.count({
@@ -200,6 +205,7 @@ const schoolOverview = memoizeAsync(
       const previousPeriod = await prisma.period.findFirst({
         where: {
           academicYearId: yearId,
+          academicYear: { schoolId },
           sequence: currentPeriod?.sequence ? currentPeriod.sequence - 1 : undefined,
         },
       });
@@ -246,7 +252,7 @@ const schoolOverview = memoizeAsync(
     }
 
     const periods = await prisma.period.findMany({
-      where: { academicYearId: yearId },
+      where: { academicYearId: yearId, academicYear: { schoolId } },
       select: { id: true, name: true, sequence: true },
       orderBy: { sequence: "asc" },
     });
@@ -300,6 +306,22 @@ export const GET = createApiHandler(async (request, context) => {
     const periodId = searchParams.get("periodId");
     const requestedYear = searchParams.get("academicYearId");
     const academicYearId = requestedYear === "ALL" ? null : requestedYear;
+
+    // L'année et la période viennent du navigateur : elles doivent appartenir à
+    // l'établissement autorisé. Une année d'une autre école renvoyait ses
+    // périodes (audit du 2026-10-16). Même réponse qu'un identifiant inexistant :
+    // rien ne révèle l'existence de l'objet.
+    if (academicYearId) {
+      const year = await prisma.academicYear.findFirst({ where: { id: academicYearId, schoolId }, select: { id: true } });
+      if (!year) return NextResponse.json({ error: "Année scolaire introuvable" }, { status: 404 });
+    }
+    if (periodId) {
+      const period = await prisma.period.findFirst({
+        where: { id: periodId, academicYear: { schoolId }, ...(academicYearId ? { academicYearId } : {}) },
+        select: { id: true },
+      });
+      if (!period) return NextResponse.json({ error: "Période introuvable" }, { status: 404 });
+    }
 
     return NextResponse.json(await schoolOverview(schoolId, academicYearId, periodId));
   

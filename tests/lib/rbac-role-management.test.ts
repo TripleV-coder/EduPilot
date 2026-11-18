@@ -71,8 +71,19 @@ describe("rbac/permissions — role management", () => {
   });
 
   describe("role groups", () => {
-    it("AUTHENTICATED_DASHBOARD_ROLES contains 8 roles", () => {
-      expect(AUTHENTICATED_DASHBOARD_ROLES.length).toBe(8);
+    it("AUTHENTICATED_DASHBOARD_ROLES contains every UserRole", () => {
+      expect(AUTHENTICATED_DASHBOARD_ROLES).toEqual(expect.arrayContaining([
+        "SUPER_ADMIN",
+        "NETWORK_ADMIN",
+        "SCHOOL_ADMIN",
+        "DIRECTOR",
+        "TEACHER",
+        "STUDENT",
+        "PARENT",
+        "ACCOUNTANT",
+        "STAFF",
+      ]));
+      expect(AUTHENTICATED_DASHBOARD_ROLES).toHaveLength(9);
     });
 
     it("ADMIN_ROLES is SUPER_ADMIN only", () => {

@@ -5,10 +5,10 @@ import { persistStudentAnalyticsSnapshot } from "@/lib/services/analytics-sync";
 import { dedupeLatestAnalyticsByStudent, roundTo } from "@/lib/analytics/helpers";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
-import { CACHE_TTL_SHORT, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
+import { CACHE_TTL_SHORT, generateCacheKey, withCache, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { roleSatisfies } from "@/lib/rbac/permissions";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, clientInputError } from "@/lib/api/api-helpers";
 
 /**
  * GET /api/analytics/students
@@ -71,7 +71,7 @@ export const GET = createApiHandler(async (request, context) => {
     const limitParam = searchParams.get("limit");
     const classId = searchParams.get("classId");
 
-    const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
+    const cacheKey = generateCacheKey(url.pathname, url.searchParams, cacheScope(session));
     const handler = async () => {
     const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : null;
     const limit = Math.min(
@@ -335,6 +335,9 @@ export const POST = createApiHandler(async (request, context) => {
     return NextResponse.json(fullAnalytics, { status: 201 });
   
     } catch (error) {
+    // Entrée invalide du client (mauvais type, format) : 400, pas une panne
+    const badInput = clientInputError(error);
+    if (badInput) return badInput;
     logger.error(" generating analytics:", error as Error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }

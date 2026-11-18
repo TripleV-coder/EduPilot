@@ -110,8 +110,9 @@ export interface RoleDescriptor {
 
 export const ROLE_DESCRIPTORS: RoleDescriptor[] = [
     { role: "DIRECTOR",     color: "brand",   note: "Accès complet à l'établissement · pas d'accès cross-école" },
-    { role: "SCHOOL_ADMIN", color: "brand",   note: "Configuration et administration de l'établissement" },
-    { role: "TEACHER",      color: "info",    note: "Saisie de notes, présences et communication avec les parents" },
+    { role: "SCHOOL_ADMIN",  color: "brand",   note: "Configuration et administration de l'établissement" },
+    { role: "NETWORK_ADMIN", color: "info",    note: "Mêmes droits qu'un administrateur, bornés aux écoles de son réseau" },
+    { role: "TEACHER",       color: "info",    note: "Saisie de notes, présences et communication avec les parents" },
     { role: "PARENT",       color: "success", note: "Lecture seule sur le dossier de ses enfants" },
     { role: "STUDENT",      color: "warning", note: "Lecture seule sur son propre dossier" },
     { role: "ACCOUNTANT",   color: "neutral", note: "Recouvrement, encaissement et états financiers" },

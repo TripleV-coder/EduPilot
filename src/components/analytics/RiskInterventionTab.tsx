@@ -126,7 +126,7 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                                                     {item.student.user.lastName} {item.student.user.firstName}
                                                 </p>
                                                 <div className="flex items-center gap-2 mt-0.5">
-                                                    <Badge variant="outline" className="text-[11px] py-0 h-4">
+                                                    <Badge variant="outline" className="text-xs py-0 h-4">
                                                         {item.student.class.name}
                                                     </Badge>
                                                     <span className="text-xs text-muted-foreground">
@@ -260,7 +260,7 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                                             {interventionPlan.recommendations.map((rec, i) => (
                                                 <div key={i} className="flex gap-3 text-sm p-3 rounded-lg bg-green-50/50 border border-green-100/50">
                                                     <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                                                        <span className="text-[11px] font-bold text-green-700">{i+1}</span>
+                                                        <span className="text-xs font-bold text-green-700">{i+1}</span>
                                                     </div>
                                                     <p className="text-green-900/80 leading-snug">{rec}</p>
                                                 </div>
@@ -285,7 +285,7 @@ export function RiskInterventionTab({ atRiskStudents, academicYearId }: RiskInte
                                                     <div className="absolute top-4 right-4 h-8 w-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary opacity-50 group-hover:opacity-100 transition-opacity">
                                                         {action.type === 'Pédagogique' ? <BookOpen className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
                                                     </div>
-                                                    <Badge variant="secondary" className="mb-2 text-[11px] font-bold tracking-tighter">
+                                                    <Badge variant="secondary" className="mb-2 text-xs font-bold tracking-tighter">
                                                         {action.type}
                                                     </Badge>
                                                     <h4 className="font-bold text-sm mb-1">{action.title}</h4>

@@ -84,7 +84,8 @@ describe("GET /api/finance/stats", () => {
     vi.mocked(auth).mockResolvedValue(NO_SCHOOL_ROOT);
     const res = await GET(makeRequest("http://localhost/api/finance/stats"));
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Établissement (schoolId) requis");
+    // S6 : sélection d'école exigée du super-admin
+    expect((await res.json()).code).toBe("SCHOOL_REQUIRED");
   });
 
   it("calcule revenus, recouvrement, croissance et répartition cycle/mois", async () => {

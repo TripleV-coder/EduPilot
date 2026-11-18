@@ -70,6 +70,15 @@ const defaultValues: ConfigOptionFormInput = {
 };
 
 export default function ConfigOptionsSettingsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
+            <ConfigOptionsSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function ConfigOptionsSettingsPageContent() {
   const { data, isLoading, mutate } = useSWR<ConfigOption[]>("/api/config-options?activeOnly=false", fetcher, {
     revalidateOnFocus: false,
   });
@@ -251,7 +260,7 @@ export default function ConfigOptionsSettingsPage() {
     ];
 
   return (
-    <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}>
+    <>
       <div className="flex h-full flex-col gap-6">
         <PageHeader
           title="Options de configuration"
@@ -491,6 +500,6 @@ export default function ConfigOptionsSettingsPage() {
           onConfirm={() => void deleteOption()}
         />
       </div>
-    </PageGuard>
+    </>
   );
 }

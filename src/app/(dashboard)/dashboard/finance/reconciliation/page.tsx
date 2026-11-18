@@ -8,7 +8,7 @@ import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageError } from "@/components/layout/page-states";
 import { Card, CardContent } from "@/components/ui/card";
 import { Permission } from "@/lib/rbac/permissions";
-import { Link2, AlertCircle, Search, Loader2, FilterX, Wallet, Clock3 } from "lucide-react";
+import { RefreshCw, AlertCircle, Search, Loader2, FilterX, Wallet, Clock3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -25,12 +25,18 @@ import { toast } from "sonner";
 import { SectionToolbar } from "@/components/ui/section-toolbar";
 import { MetricCardPro } from "@/components/ui/metric-card-pro";
 import { EmptyStateAction } from "@/components/ui/empty-state";
+import { RoleActionGuard } from "@/components/guard/role-action-guard";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 type PendingPayment = {
     id: string;
     amount: number;
     status: string;
     reference?: string | null;
+    /** Renseigné pour un paiement en ligne (FEDAPAY…) ; null pour une déclaration au guichet. */
+    provider?: string | null;
     createdAt: string;
     label?: string | null;
     description?: string | null;
@@ -43,7 +49,19 @@ type PendingPaymentsResponse = {
 };
 
 export default function FinanceReconciliationPage() {
-    const [reconcilingId, setReconcilingId] = useState<string | null>(null);
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.FEE_UPDATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+            <FinanceReconciliationPageContent />
+        </PageGuard>
+    );
+}
+
+function FinanceReconciliationPageContent() {
+    // TD-025 : vérification d'un paiement en ligne en attente, motif obligatoire
+    const [verifyTarget, setVerifyTarget] = useState<PendingPayment | null>(null);
+    const [justification, setJustification] = useState("");
+    const [verifying, setVerifying] = useState(false);
     const [search, setSearch] = useState("");
     const [statement, setStatement] = useState<Array<{ date: string; label: string; amount: number; reference: string; matched: boolean }>>([]);
     const { data: paymentsData, isLoading, error: loadError, mutate: reloadPage } = useSWR<PendingPaymentsResponse>(
@@ -100,29 +118,35 @@ export default function FinanceReconciliationPage() {
         toast.success(`${rows.length} ligne${rows.length > 1 ? "s" : ""} lue${rows.length > 1 ? "s" : ""}, ${hits} correspondance${hits > 1 ? "s" : ""}.`);
     };
 
-    const handleReconcile = async (paymentId: string) => {
-        setReconcilingId(paymentId);
+    // TD-025 (décision 2026-10-25) : le fournisseur est interrogé sur le compte
+    // marchand de l'école ; le paiement n'est validé ou annulé que sur sa réponse
+    // définitive. L'ancien bouton « Réconcilier » appelait /api/payments/reconcile
+    // (paiements déjà validés seulement) et était toujours refusé ici.
+    const handleVerifyProvider = async () => {
+        if (!verifyTarget) return;
+        setVerifying(true);
         try {
-            const res = await fetch("/api/payments/reconcile", {
+            const res = await fetch(`/api/payments/${verifyTarget.id}/verify-provider`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ paymentId }),
+                body: JSON.stringify({ justification }),
             });
-            if (!res.ok) {
-                const d = await res.json();
-                throw new Error(d.error || "Erreur de réconciliation");
-            }
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || body.message || "Vérification impossible");
             await mutate("/api/finance/payments?status=PENDING&limit=50");
-            toast.success("Paiement réconcilié avec succès.");
+            if (body.outcome === "STILL_PENDING") toast.info(body.message);
+            else toast.success(body.message);
+            setVerifyTarget(null);
+            setJustification("");
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Erreur de réconciliation");
+            toast.error(err instanceof Error ? err.message : "Vérification impossible");
         } finally {
-            setReconcilingId(null);
+            setVerifying(false);
         }
     };
 
     return (
-        <PageGuard permission={[Permission.FEE_UPDATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Réconciliation bancaire"
@@ -135,7 +159,7 @@ export default function FinanceReconciliationPage() {
                 />
 
             {loadError ? (
-                <PageError message="Impossible de charger les paiements à rapprocher." onRetry={() => void reloadPage()} />
+                <PageError error={loadError} message="Impossible de charger les paiements à rapprocher." onRetry={() => void reloadPage()} />
             ) : null}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -263,24 +287,28 @@ export default function FinanceReconciliationPage() {
                                                     </TableCell>
                                                     <TableCell>
                                                         <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 font-normal">
-                                                            Attente Match
+                                                            En attente
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="gap-2 border-primary/20 hover:bg-primary/5 hover:text-primary"
-                                                            disabled={reconcilingId === payment.id}
-                                                            onClick={() => handleReconcile(payment.id)}
-                                                        >
-                                                            {reconcilingId === payment.id ? (
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                            ) : (
-                                                                <Link2 className="w-4 h-4" />
-                                                            )}
-                                                            Réconcilier
-                                                        </Button>
+                                                        {payment.provider ? (
+                                                            <RoleActionGuard
+                                                                allowedRoles={["SCHOOL_ADMIN", "ACCOUNTANT"]}
+                                                                fallback={<span className="text-xs text-muted-foreground">Paiement en ligne en attente</span>}
+                                                            >
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="gap-2 border-primary/20 hover:bg-primary/5 hover:text-primary"
+                                                                    onClick={() => { setJustification(""); setVerifyTarget(payment); }}
+                                                                >
+                                                                    <RefreshCw className="w-4 h-4" aria-hidden />
+                                                                    Interroger le fournisseur
+                                                                </Button>
+                                                            </RoleActionGuard>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">Déclaré au guichet</span>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             ))
@@ -293,6 +321,38 @@ export default function FinanceReconciliationPage() {
                     </div>
                 </div>
             </PageShell>
-        </PageGuard>
+
+            <Dialog open={verifyTarget !== null} onOpenChange={(open) => { if (!open && !verifying) setVerifyTarget(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Interroger le fournisseur</DialogTitle>
+                        <DialogDescription>
+                            {verifyTarget ? `${Number(verifyTarget.amount).toLocaleString("fr-FR")} FCFA${verifyTarget.reference ? ` · réf. ${verifyTarget.reference}` : ""}. ` : ""}
+                            Le paiement n&apos;est validé ou annulé que si le fournisseur donne une réponse définitive et conforme. Sinon, rien ne change et le montant reste réservé.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                        <Label htmlFor="verify-justification">Motif (obligatoire, conservé dans le journal)</Label>
+                        <Textarea
+                            id="verify-justification"
+                            value={justification}
+                            onChange={(e) => setJustification(e.target.value)}
+                            placeholder="Ex. : la famille présente un débit sur son téléphone"
+                            maxLength={500}
+                            rows={3}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setVerifyTarget(null)} disabled={verifying}>
+                            Annuler
+                        </Button>
+                        <Button type="button" onClick={handleVerifyProvider} disabled={verifying || justification.trim().length < 10}>
+                            {verifying ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : null}
+                            Interroger
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }

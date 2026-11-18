@@ -1,5 +1,9 @@
 "use client";
 
+import Link from "next/link";
+import { MODULES } from "@/lib/modules/catalog";
+import { moduleHomeHref } from "@/lib/navigation/service-catalog";
+
 import * as React from "react";
 import useSWR from "swr";
 import { PageGuard } from "@/components/guard/page-guard";
@@ -10,6 +14,11 @@ import { Badge, Button, Card, Icon } from "@/components/edu";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError } from "@/components/layout/page-states";
 import { SubLabel } from "@/components/edu-homes/_shared";
+
+const moduleHome = (id: string) => {
+    const def = MODULES.find((m) => m.id === id);
+    return def ? moduleHomeHref(def.pagePrefixes) : null;
+};
 
 /**
  * Modules de l'établissement (Lot 6 — minimisation).
@@ -105,13 +114,23 @@ function SchoolModulesContent() {
                         {data.data.map((m) => {
                             const on = m.required || current.has(m.id);
                             return (
-                                <Card
-                                    key={m.id}
-                                    interactive={!m.required}
-                                    onClick={m.required ? undefined : () => toggle(m)}
-                                    padding={18}
-                                >
+                                // La carte n'est plus elle-même un bouton : elle contenait un lien
+                                // (« Ouvrir »), soit deux commandes imbriquées, illisibles au clavier
+                                // et au lecteur d'écran. Le bouton d'activation et le lien sont voisins.
+                                <Card key={m.id} padding={18}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                                      <button
+                                        type="button"
+                                        aria-pressed={on}
+                                        disabled={m.required}
+                                        onClick={() => toggle(m)}
+                                        style={{
+                                            display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0,
+                                            background: "none", border: 0, padding: 0, textAlign: "left",
+                                            font: "inherit", color: "inherit",
+                                            cursor: m.required ? "default" : "pointer",
+                                        }}
+                                      >
                                         <div
                                             aria-hidden
                                             style={{
@@ -131,6 +150,17 @@ function SchoolModulesContent() {
                                                 {m.description}
                                             </div>
                                         </div>
+                                      </button>
+                                        {m.enabled && moduleHome(m.id) ? (
+                                            // Un module activé n'apparaissait nulle part : lien direct vers sa page
+                                            <Link
+                                                href={moduleHome(m.id)!}
+                                                className="text-xs font-semibold"
+                                                style={{ color: "var(--brand-700)" }}
+                                            >
+                                                Ouvrir
+                                            </Link>
+                                        ) : null}
                                         <Badge variant={on ? "success" : "neutral"} size="sm" dot>
                                             {on ? "Activé" : "Désactivé"}
                                         </Badge>

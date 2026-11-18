@@ -2,7 +2,7 @@
  * POST /api/system/retention
  *
  * Endpoint d'enforcement des politiques de rétention RGPD.
- * À appeler via un cron job (PM2 cron, n8n scheduler, Vercel Cron, etc.)
+ * À appeler via un cron job (PM2 cron, Vercel Cron, cron système, etc.)
  * selon la fréquence souhaitée (ex: chaque nuit à 02:00).
  *
  * Sécurité :

@@ -1,3 +1,4 @@
+import { publicBaseUrl } from "@/lib/system/platform";
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import prisma from "@/lib/prisma";
@@ -18,7 +19,7 @@ export const POST = createApiHandler(
       const body = await request.json();
       const { email } = forgotPasswordSchema.parse(body);
 
-      // Rate limiting via Redis
+      // Limite de débit (état partagé PostgreSQL)
       const identifier = getClientIdentifier(request);
       const result = await checkRateLimit(authLimiter, identifier);
 
@@ -65,7 +66,7 @@ export const POST = createApiHandler(
       });
 
       // Build reset URL
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const baseUrl = (publicBaseUrl() ?? "http://localhost:3000");
       const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
       // Send email

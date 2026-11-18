@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
+import { createApiHandler, clientInputError } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/utils/logger";
 import { ensureSchoolAccess } from "@/lib/api/tenant-isolation";
@@ -304,6 +305,11 @@ const { searchParams } = new URL(request.url);
       }
     }
 
+    // Enseignant (MS-02) : seulement les élèves de ses classes
+    if (session.user.role === "TEACHER" && !(await teacherTeachesStudent(session.user.id, studentId))) {
+      return NextResponse.json({ error: "Accès refusé : cet élève n'est pas dans vos classes" }, { status: 403 });
+    }
+
     const reportCard = await getReportCardData(studentId, periodId);
     return NextResponse.json(reportCard);
 
@@ -348,6 +354,11 @@ const body = await request.json();
       return accessError;
     }
 
+    // Enseignant (MS-02) : seulement les élèves de ses classes
+    if (session.user.role === "TEACHER" && !(await teacherTeachesStudent(session.user.id, studentId))) {
+      return NextResponse.json({ error: "Accès refusé : cet élève n'est pas dans vos classes" }, { status: 403 });
+    }
+
 
     const reportCardData = await getReportCardData(studentId, periodId);
 
@@ -371,6 +382,9 @@ const body = await request.json();
       data: pdfData,
     });
   } catch (error) {
+    // Entrée invalide du client (mauvais type, format) : 400, pas une panne
+    const badInput = clientInputError(error);
+    if (badInput) return badInput;
     logger.error("Error generating PDF report card", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la génération du PDF" },

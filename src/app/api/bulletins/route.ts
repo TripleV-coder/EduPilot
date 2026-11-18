@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import prisma from "@/lib/prisma";
 import { gradeStatus, toDisplay } from "@/lib/academic/average-engine";
@@ -90,6 +91,10 @@ const { searchParams } = new URL(request.url);
       }
     } else if (!roleSatisfies(userRole, ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"])) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+    }
+    // Enseignant (MS-02) : seulement les élèves de ses classes
+    if (session.user.role === "TEACHER" && !(await teacherTeachesStudent(session.user.id, studentId))) {
+      return NextResponse.json({ error: "Accès refusé : cet élève n'est pas dans vos classes" }, { status: 403 });
     }
 
     const enrollment = student.enrollments[0];

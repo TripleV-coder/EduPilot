@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { Permission } from "@/lib/rbac/permissions";
 import { ensureRequestedSchoolAccess } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 
@@ -108,4 +109,8 @@ export const GET = createApiHandler(async (request, context) => {
       { status: 500 }
     );
   }
+}, {
+  // Même droit que /api/attendance : les familles (et tout compte de l'école)
+  // recevaient les absents de l'établissement avec e-mail et téléphone
+  requiredPermissions: [Permission.ATTENDANCE_READ],
 });

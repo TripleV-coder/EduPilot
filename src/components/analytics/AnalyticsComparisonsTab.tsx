@@ -40,7 +40,7 @@ export function AnalyticsComparisonsTab({ classes, academicYearId, periods }: An
                     </div>
                     <div>
                         <h2 className="text-sm font-bold tracking-tight">Comparaisons analytiques</h2>
-                        <p className="text-[11px] text-muted-foreground font-medium">Comparez les performances entre classes ou entre périodes.</p>
+                        <p className="text-xs text-muted-foreground font-medium">Comparez les performances entre classes ou entre périodes.</p>
                     </div>
                 </div>
             </div>
@@ -54,7 +54,7 @@ export function AnalyticsComparisonsTab({ classes, academicYearId, periods }: An
             <div className="space-y-4" data-reveal>
                 <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-border" />
-                    <Badge variant="outline" className="px-4 py-1 text-[11px] font-bold bg-muted/50">
+                    <Badge variant="outline" className="px-4 py-1 text-xs font-bold bg-muted/50">
                         Comparaison Longitudinale
                     </Badge>
                     <div className="h-px flex-1 bg-border" />

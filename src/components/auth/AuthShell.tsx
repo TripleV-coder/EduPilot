@@ -92,7 +92,7 @@ export function AuthShell({
                     {children}
                 </div>
                 <div
-                    className="flex flex-wrap items-center justify-between gap-2 text-[11px] max-md:justify-center max-md:text-center"
+                    className="flex flex-wrap items-center justify-between gap-2 text-xs max-md:justify-center max-md:text-center"
                     style={{ color: "var(--eduflow-text-tertiary)" }}
                 >
                     <span>© {new Date().getFullYear()} EduPilot</span>
@@ -118,7 +118,7 @@ export function AuthShell({
                     />
                     <div className="relative">
                         {testimonial.eyebrow ? (
-                            <div className="mb-[18px] text-[11px] font-bold opacity-70">
+                            <div className="mb-[18px] text-xs font-bold opacity-70">
                                 {testimonial.eyebrow}
                             </div>
                         ) : null}

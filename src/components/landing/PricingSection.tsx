@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
@@ -8,6 +7,7 @@ import { Check, Sparkles, CreditCard, RefreshCw } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Reveal } from "./Reveal";
 import { cn } from "@/lib/utils";
 import { fetcher } from "@/lib/fetcher";
 import { SectionHeader } from "./SectionHeader";
@@ -147,19 +147,19 @@ export function PricingSection() {
                             const features = [...quotaLines(plan), ...plan.features];
 
                             return (
-                                <motion.article
+                                <Reveal
+                                    as="article"
                                     key={plan.id}
-                                    aria-labelledby={`plan-${plan.id}`}
+                                    labelledBy={`plan-${plan.id}`}
                                     className={cn(
                                         "relative rounded-2xl border p-8 flex flex-col transition-shadow duration-300",
                                         plan.isFeatured
                                             ? "border-primary bg-card shadow-xl shadow-primary/10"
                                             : "border-border bg-card hover:border-primary/30 hover:shadow-lg"
                                     )}
-                                    initial={{ opacity: 0, y: 16 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    viewport={{ once: true }}
-                                    transition={{ duration: 0.4, delay: idx * 0.08 }}
+                                    dy={16}
+                                    duration={400}
+                                    delay={idx * 80}
                                 >
                                     {plan.isFeatured && (
                                         <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
@@ -217,7 +217,7 @@ export function PricingSection() {
                                                     : t("landing.pricing.cta")}
                                         </Link>
                                     </Button>
-                                </motion.article>
+                                </Reveal>
                             );
                         })}
                     </div>

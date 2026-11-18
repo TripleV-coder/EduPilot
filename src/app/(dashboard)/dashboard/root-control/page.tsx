@@ -106,7 +106,7 @@ export default function RootDashboard() {
 
         {/* Sans ce cas, une panne affichait un réseau à 0 établissement. */}
         {error ? (
-          <PageError
+          <PageError error={error}
             message="Impossible de charger les métriques réseau."
             onRetry={() => void mutate()}
           />
@@ -147,7 +147,7 @@ export default function RootDashboard() {
                       </div>
                       <span
                         className={cn(
-                          "rounded-full px-2.5 py-1 text-[11px] font-bold",
+                          "rounded-full px-2.5 py-1 text-xs font-bold",
                           school.isActive
                             ? "bg-success/10 text-success"
                             : "bg-muted text-muted-foreground"
@@ -168,7 +168,7 @@ export default function RootDashboard() {
                 <ShieldAlert className="h-4 w-4 text-warning" />
                 Activité Root
               </CardTitle>
-              <span className="rounded-full bg-warning/10 px-2 py-1 text-[11px] font-bold text-warning">
+              <span className="rounded-full bg-warning/10 px-2 py-1 text-xs font-bold text-warning">
                 {recentActivity.length}
               </span>
             </CardHeader>
@@ -181,7 +181,7 @@ export default function RootDashboard() {
                 <div className="divide-y divide-border/60">
                   {recentActivity.slice(0, 5).map((activity) => (
                     <div key={activity.id} className="space-y-2 p-4">
-                      <div className="flex items-center justify-between gap-3 text-[11px] font-bold text-muted-foreground">
+                      <div className="flex items-center justify-between gap-3 text-xs font-bold text-muted-foreground">
                         <span className="tracking-tighter">
                           {activity.action.replaceAll("_", " ")}
                         </span>
@@ -203,7 +203,7 @@ export default function RootDashboard() {
 
         <Card className="border border-border/60 bg-foreground text-background shadow-sm">
           <CardHeader className="border-b border-background/20">
-            <CardTitle className="flex items-center gap-2 text-[11px] font-bold text-background/70">
+            <CardTitle className="flex items-center gap-2 text-xs font-bold text-background/70">
               <Activity className="h-4 w-4 text-success" />
               Journal d'audit racine
             </CardTitle>
@@ -228,7 +228,7 @@ export default function RootDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-background">{formatActor(activity)}</p>
-                      <p className="text-[11px] text-background/60">{formatTimestamp(activity.createdAt)}</p>
+                      <p className="text-xs text-background/60">{formatTimestamp(activity.createdAt)}</p>
                     </div>
                   </div>
                 ))}

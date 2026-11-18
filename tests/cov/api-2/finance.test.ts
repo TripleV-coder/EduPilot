@@ -29,6 +29,13 @@ vi.mock("@/lib/api/cache-helpers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/cache-helpers")>();
   return { ...actual, invalidateByPath: vi.fn() };
 });
+// Verrou élève/frais et solde relu (lot 3b) : logique réelle prouvée contre
+// PostgreSQL (payment-collection-guard) ; ici solde ouvert.
+vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/online-payments")>()),
+  lockStudentFee: vi.fn(async () => {}),
+  getFeeBalance: vi.fn(async () => ({ billed: 1_000_000, settled: 0, reserved: 0, remaining: 1_000_000, available: 1_000_000 })),
+}));
 vi.mock("@/lib/finance/helpers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/finance/helpers")>();
   return { ...actual, resolveFinanceDateRange: vi.fn(), syncPaymentPlanLedger: vi.fn() };
@@ -246,8 +253,12 @@ describe("/api/finance/payments/[id]", () => {
   const ctx = { params: Promise.resolve({ id }) };
   const url = `http://localhost/api/finance/payments/${id}`;
   const existing = (schoolId: string, status = "PENDING") => ({
-    studentId: "s1", feeId: "f1", paidAt: null, status, amount: 10000,
-    student: { user: { schoolId } }, fee: { schoolId },
+    studentId: "s1", feeId: "f1", paidAt: null, status, amount: 10000, createdAt: new Date(),
+    student: { schoolId, user: { schoolId } }, fee: { schoolId },
+  });
+  // Modification et recalcul dans une seule transaction (lot 3b)
+  beforeEach(() => {
+    vi.mocked(prisma.$transaction).mockImplementation((async (fn: (tx: unknown) => unknown) => fn(prisma)) as never);
   });
 
   it("PUT : accepte un montant transmis en chaîne (converti en nombre)", async () => {
@@ -256,6 +267,7 @@ describe("/api/finance/payments/[id]", () => {
     const res = await putPayment(makeRequest(url, { method: "PUT", body: { amount: "15000" } }), ctx);
     expect(res.status).toBe(200);
     expect(vi.mocked(prisma.payment.update).mock.calls[0][0].data.amount).toBe(15000);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(syncPaymentPlanLedger).toHaveBeenCalledWith(prisma, "s1", "f1");
     expect(invalidateByPath).toHaveBeenCalledWith("/api/finance/dashboard");
   });

@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { meanOf, Rational, toDisplay } from "@/lib/academic/average-engine";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { teacherReadableClassIds } from "@/lib/academic/grade-access";
 import { getGradingSettings } from "@/lib/academic/grading-settings";
 import { Prisma } from "@prisma/client";
 
@@ -28,6 +29,11 @@ const { searchParams } = new URL(request.url);
 
         const classAccess = await assertModelAccess(session, "class", classId, "Classe introuvable");
         if (classAccess) return classAccess;
+        // Enseignant (MS-02) : seulement ses classes (matière ou professeur principal)
+        const teacherClassIds = await teacherReadableClassIds(session);
+        if (teacherClassIds && !teacherClassIds.includes(classId)) {
+            return NextResponse.json({ error: "Accès refusé : vous n'enseignez pas dans cette classe" }, { status: 403 });
+        }
 
         // Build dynamic where clause for evaluations
         const evaluationWhere: Prisma.EvaluationWhereInput = {};

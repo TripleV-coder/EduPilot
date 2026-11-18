@@ -120,6 +120,10 @@ describe("GET /api/events/[id]", () => {
     vi.mocked(prisma.schoolEvent.findUnique).mockResolvedValue({ id: "e1", schoolId: FIXTURES.schoolB } as never);
     const res = await GET_ONE(makeRequest("http://localhost/api/events/e1"), { params: Promise.resolve({ id: "e1" }) });
     expect(res.status).toBe(403);
+    // L'école est vérifiée AVANT de charger les participants : sous RLS, ce
+    // chargement échouait pour une autre école (500 au lieu du refus).
+    expect(prisma.schoolEvent.findUnique).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(prisma.schoolEvent.findUnique).mock.calls[0][0]).toEqual({ where: { id: "e1" }, select: { schoolId: true } });
   });
 
   it("should return the event for an authorized user", async () => {

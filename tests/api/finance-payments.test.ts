@@ -6,6 +6,17 @@ import { invalidateCache } from "@/lib/api/cache-helpers";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Verrou élève/frais et solde relu (lot 3b) : logique réelle prouvée contre
+// PostgreSQL (payment-collection-guard) ; ici solde ouvert, restauré par
+// resetAllMocks (implémentation initiale du simulacre).
+const { feeBalance } = vi.hoisted(() => ({
+  feeBalance: vi.fn(async () => ({ billed: 1_000_000, settled: 0, reserved: 0, remaining: 1_000_000, available: 1_000_000 })),
+}));
+vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/online-payments")>()),
+  lockStudentFee: vi.fn(async () => {}),
+  getFeeBalance: feeBalance,
+}));
 // Modèles lus : user (filtre école du GET), payment, studentProfile + fee
 // (contrôle multi-tenant du POST), paymentPlan (ledger via syncPaymentPlanLedger).
 vi.mock("@/lib/prisma", () => {
@@ -156,7 +167,7 @@ describe("POST /api/finance/payments", () => {
   it("bloque un étudiant hors périmètre (403)", async () => {
     vi.mocked(auth).mockResolvedValue(ACCOUNTANT);
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
-      user: { schoolId: FIXTURES.schoolB },
+      schoolId: FIXTURES.schoolB,
     } as never);
     vi.mocked(prisma.fee.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
 
@@ -168,7 +179,7 @@ describe("POST /api/finance/payments", () => {
   it("bloque un frais hors périmètre (403)", async () => {
     vi.mocked(auth).mockResolvedValue(ACCOUNTANT);
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
-      user: { schoolId: FIXTURES.schoolA },
+      schoolId: FIXTURES.schoolA,
     } as never);
     vi.mocked(prisma.fee.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolB } as never);
 
@@ -180,7 +191,7 @@ describe("POST /api/finance/payments", () => {
   it("crée le paiement VERIFIED (201) et synchronise le ledger", async () => {
     vi.mocked(auth).mockResolvedValue(ACCOUNTANT);
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
-      user: { schoolId: FIXTURES.schoolA },
+      schoolId: FIXTURES.schoolA,
     } as never);
     vi.mocked(prisma.fee.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
     vi.mocked(prisma.payment.create).mockResolvedValue(paymentRecord() as never);
@@ -206,7 +217,7 @@ describe("POST /api/finance/payments", () => {
   it("retourne 500 sur erreur de transaction", async () => {
     vi.mocked(auth).mockResolvedValue(ACCOUNTANT);
     vi.mocked(prisma.studentProfile.findUnique).mockResolvedValue({
-      user: { schoolId: FIXTURES.schoolA },
+      schoolId: FIXTURES.schoolA,
     } as never);
     vi.mocked(prisma.fee.findUnique).mockResolvedValue({ schoolId: FIXTURES.schoolA } as never);
     vi.mocked(prisma.$transaction).mockRejectedValue(new Error("db down"));
@@ -221,9 +232,11 @@ describe("PUT /api/finance/payments/[id]", () => {
     return {
       studentId: FIXTURES.studentA,
       feeId: FIXTURES.feeA,
+      amount: 50000,
+      createdAt: new Date(),
       paidAt: null,
       status: "PENDING",
-      student: { user: { schoolId: FIXTURES.schoolA } },
+      student: { schoolId: FIXTURES.schoolA },
       fee: { schoolId: FIXTURES.schoolA },
       ...overrides,
     };
@@ -258,7 +271,7 @@ describe("PUT /api/finance/payments/[id]", () => {
   it("bloque la modification cross-tenant (403)", async () => {
     vi.mocked(auth).mockResolvedValue(ACCOUNTANT);
     vi.mocked(prisma.payment.findUnique).mockResolvedValue(
-      existingPayment({ student: { user: { schoolId: FIXTURES.schoolB } } }) as never
+      existingPayment({ student: { schoolId: FIXTURES.schoolB } }) as never
     );
     const res = await PUT(makeRequest(`http://localhost/api/finance/payments/${paymentId}`, { method: "PUT", body: { amount: 60000 } }), {
       params: Promise.resolve({ id: paymentId }),
@@ -317,7 +330,7 @@ describe("DELETE /api/finance/payments/[id]", () => {
       studentId: FIXTURES.studentA,
       feeId: FIXTURES.feeA,
       status: "PENDING",
-      student: { user: { schoolId: FIXTURES.schoolA } },
+      student: { schoolId: FIXTURES.schoolA },
       fee: { schoolId: FIXTURES.schoolA },
       ...overrides,
     };
@@ -366,7 +379,7 @@ describe("DELETE /api/finance/payments/[id]", () => {
     // Le tx du $transaction reçoit le prismaMock : l'update passe par le même vi.fn
     expect(vi.mocked(prisma.payment.update).mock.calls[0][0]).toEqual({
       where: { id: paymentId },
-      data: { status: "CANCELLED" },
+      data: { status: "CANCELLED", cancellationSource: "MANUAL" },
     });
     expect(prisma.paymentPlan.findFirst).toHaveBeenCalled();
   });

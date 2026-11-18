@@ -2,12 +2,13 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 import { AuthShell } from "@/components/auth/AuthShell";
 import { OtpInput, OTP_LENGTH } from "@/components/auth/OtpInput";
 import { Button } from "@/components/edu";
 import { safeCallbackPath } from "@/lib/security/safe-redirect";
+import { signOutAndPurge } from "@/lib/pwa/sign-out";
 
 const ERROR_ID = "mfa-verify-error";
 
@@ -48,8 +49,11 @@ function MfaVerifyForm() {
                 const updated = await update({ twoFactorCode: value });
 
                 if (updated?.user?.isTwoFactorAuthenticated) {
-                    router.replace(callbackUrl);
-                    router.refresh();
+                    // Navigation COMPLÈTE : le routeur client gardait en cache
+                    // la redirection vers /mfa-verify reçue en préchargeant
+                    // la page cible avant validation, et y renvoyait
+                    // l'utilisateur malgré le code accepté (2026-11-08).
+                    window.location.replace(callbackUrl);
                     return;
                 }
 
@@ -66,7 +70,7 @@ function MfaVerifyForm() {
                 setIsLoading(false);
             }
         },
-        [update, router, callbackUrl]
+        [update, callbackUrl]
     );
 
     if (status === "loading") {
@@ -199,7 +203,7 @@ function MfaVerifyForm() {
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => void signOut({ callbackUrl: "/login" })}
+                        onClick={() => void signOutAndPurge({ callbackUrl: "/login" })}
                     >
                         Se déconnecter
                     </Button>

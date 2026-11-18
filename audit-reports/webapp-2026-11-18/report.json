@@ -1,0 +1,771 @@
+{
+  "tool": "webapp-audit 1.0.0",
+  "url": "http://localhost:3100/",
+  "date": "2026-11-18T14:51:03.554Z",
+  "durationSec": 109,
+  "modules": [
+    "connectivity",
+    "security",
+    "exposure",
+    "perf",
+    "assets",
+    "seo",
+    "crawl",
+    "browser"
+  ],
+  "budgets": {
+    "ttfbP50Ms": 500,
+    "ttfbP95Ms": 1000,
+    "pageWeightKB": 1500,
+    "jsKB": 350,
+    "cssKB": 100,
+    "requests": 60,
+    "lcpMs": 2500,
+    "cls": 0.1,
+    "tbtMs": 200,
+    "fcpMs": 1800,
+    "loadP95Ms": 1200,
+    "loadMaxErrorRate": 0.01
+  },
+  "scores": {
+    "tls": 100,
+    "security": 100,
+    "perf": 98,
+    "assets": 77,
+    "browser": 0,
+    "a11y": 100,
+    "seo": 94,
+    "crawl": 100,
+    "global": 84
+  },
+  "metrics": {
+    "dnsMs": 18.31,
+    "ipAddresses": "127.0.0.1",
+    "redirectHops": 0,
+    "homeStatus": 200,
+    "htmlKB": 78.51,
+    "exposedFiles": 0,
+    "notFoundStatus": 404,
+    "ttfbFirstMs": 58.92,
+    "ttfbP50Ms": 35.31,
+    "ttfbP95Ms": 96.85,
+    "ttfbMaxMs": 96.85,
+    "htmlDownloadP50Ms": 47.79,
+    "htmlEncoding": "gzip",
+    "htmlCacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "renderBlockingScripts": 1,
+    "inlineJsKB": 13.71,
+    "imagesInHtml": 0,
+    "jsKB": 788.9,
+    "cssKB": 123.81,
+    "imgKB": 0,
+    "fontKB": 0,
+    "pageWeightKB": 991.22,
+    "initialRequests": 19,
+    "thirdPartyDomains": 0,
+    "h1Count": 1,
+    "pagesCrawled": 40,
+    "brokenLinks": 0,
+    "crawlTtfbP95Ms": 617,
+    "desktop.lcpMs": 740,
+    "desktop.fcpMs": 336,
+    "desktop.cls": 0,
+    "desktop.tbtMs": 0,
+    "desktop.loadMs": 448.1,
+    "desktop.transferKB": 324.79,
+    "desktop.requests": 40,
+    "desktop.domNodes": 464,
+    "desktop.heapMB": 9.54,
+    "a11y.violations": 0,
+    "mobile.lcpMs": 1764,
+    "mobile.fcpMs": 1152,
+    "mobile.cls": 0.05,
+    "mobile.tbtMs": 908,
+    "mobile.loadMs": 2571.3,
+    "mobile.transferKB": 315.24,
+    "mobile.requests": 40,
+    "mobile.domNodes": 464,
+    "mobile.heapMB": 9.54,
+    "desktop:/login.lcpMs": 220,
+    "desktop:/login.fcpMs": 220,
+    "desktop:/login.cls": 0,
+    "desktop:/login.tbtMs": 70,
+    "desktop:/login.loadMs": 349.9,
+    "desktop:/login.transferKB": 380.94,
+    "desktop:/login.requests": 108,
+    "desktop:/login.domNodes": 402,
+    "desktop:/login.heapMB": 9.54,
+    "a11y:/login.violations": 0,
+    "mobile:/login.lcpMs": 3272,
+    "mobile:/login.fcpMs": 1424,
+    "mobile:/login.cls": 0,
+    "mobile:/login.tbtMs": 657,
+    "mobile:/login.loadMs": 2807,
+    "mobile:/login.transferKB": 318.24,
+    "mobile:/login.requests": 80,
+    "mobile:/login.domNodes": 428,
+    "mobile:/login.heapMB": 9.54,
+    "desktop:/dashboard.lcpMs": 612,
+    "desktop:/dashboard.fcpMs": 228,
+    "desktop:/dashboard.cls": 0,
+    "desktop:/dashboard.tbtMs": 13,
+    "desktop:/dashboard.loadMs": 341,
+    "desktop:/dashboard.transferKB": 366.94,
+    "desktop:/dashboard.requests": 102,
+    "desktop:/dashboard.domNodes": 401,
+    "desktop:/dashboard.heapMB": 9.54,
+    "a11y:/dashboard.violations": 0,
+    "mobile:/dashboard.lcpMs": 3512,
+    "mobile:/dashboard.fcpMs": 924,
+    "mobile:/dashboard.cls": 0,
+    "mobile:/dashboard.tbtMs": 1193,
+    "mobile:/dashboard.loadMs": 2789.1,
+    "mobile:/dashboard.transferKB": 362.03,
+    "mobile:/dashboard.requests": 64,
+    "mobile:/dashboard.domNodes": 399,
+    "mobile:/dashboard.heapMB": 9.54,
+    "desktop:/dashboard/students.lcpMs": 648,
+    "desktop:/dashboard/students.fcpMs": 288,
+    "desktop:/dashboard/students.cls": 0,
+    "desktop:/dashboard/students.tbtMs": 88,
+    "desktop:/dashboard/students.loadMs": 459.5,
+    "desktop:/dashboard/students.transferKB": 415.19,
+    "desktop:/dashboard/students.requests": 88,
+    "desktop:/dashboard/students.domNodes": 635,
+    "desktop:/dashboard/students.heapMB": 10.11,
+    "a11y:/dashboard/students.violations": 0,
+    "mobile:/dashboard/students.lcpMs": 3860,
+    "mobile:/dashboard/students.fcpMs": 800,
+    "mobile:/dashboard/students.cls": 0,
+    "mobile:/dashboard/students.tbtMs": 1826,
+    "mobile:/dashboard/students.loadMs": 3283.3,
+    "mobile:/dashboard/students.transferKB": 402.04,
+    "mobile:/dashboard/students.requests": 79,
+    "mobile:/dashboard/students.domNodes": 635,
+    "mobile:/dashboard/students.heapMB": 9.54,
+    "desktop:/dashboard/grades.lcpMs": 768,
+    "desktop:/dashboard/grades.fcpMs": 384,
+    "desktop:/dashboard/grades.cls": 0,
+    "desktop:/dashboard/grades.tbtMs": 44,
+    "desktop:/dashboard/grades.loadMs": 618.2,
+    "desktop:/dashboard/grades.transferKB": 424.51,
+    "desktop:/dashboard/grades.requests": 93,
+    "desktop:/dashboard/grades.domNodes": 946,
+    "desktop:/dashboard/grades.heapMB": 9.54,
+    "a11y:/dashboard/grades.violations": 0,
+    "mobile:/dashboard/grades.lcpMs": 2752,
+    "mobile:/dashboard/grades.fcpMs": 888,
+    "mobile:/dashboard/grades.cls": 0,
+    "mobile:/dashboard/grades.tbtMs": 830,
+    "mobile:/dashboard/grades.loadMs": 2987.6,
+    "mobile:/dashboard/grades.transferKB": 422.03,
+    "mobile:/dashboard/grades.requests": 85,
+    "mobile:/dashboard/grades.domNodes": 946,
+    "mobile:/dashboard/grades.heapMB": 11.35,
+    "desktop:/dashboard/finance.lcpMs": 724,
+    "desktop:/dashboard/finance.fcpMs": 284,
+    "desktop:/dashboard/finance.cls": 0,
+    "desktop:/dashboard/finance.tbtMs": 153,
+    "desktop:/dashboard/finance.loadMs": 546.3,
+    "desktop:/dashboard/finance.transferKB": 411.56,
+    "desktop:/dashboard/finance.requests": 86,
+    "desktop:/dashboard/finance.domNodes": 484,
+    "desktop:/dashboard/finance.heapMB": 12.11,
+    "a11y:/dashboard/finance.violations": 0,
+    "mobile:/dashboard/finance.lcpMs": 3620,
+    "mobile:/dashboard/finance.fcpMs": 784,
+    "mobile:/dashboard/finance.cls": 0,
+    "mobile:/dashboard/finance.tbtMs": 1656,
+    "mobile:/dashboard/finance.loadMs": 3048.7,
+    "mobile:/dashboard/finance.transferKB": 401.57,
+    "mobile:/dashboard/finance.requests": 86,
+    "mobile:/dashboard/finance.domNodes": 480,
+    "mobile:/dashboard/finance.heapMB": 12.11,
+    "desktop:/dashboard/attendance.lcpMs": 736,
+    "desktop:/dashboard/attendance.fcpMs": 260,
+    "desktop:/dashboard/attendance.cls": 0,
+    "desktop:/dashboard/attendance.tbtMs": 94,
+    "desktop:/dashboard/attendance.loadMs": 484.8,
+    "desktop:/dashboard/attendance.transferKB": 337.63,
+    "desktop:/dashboard/attendance.requests": 71,
+    "desktop:/dashboard/attendance.domNodes": 304,
+    "desktop:/dashboard/attendance.heapMB": 9.54,
+    "a11y:/dashboard/attendance.violations": 0,
+    "mobile:/dashboard/attendance.lcpMs": 3016,
+    "mobile:/dashboard/attendance.fcpMs": 848,
+    "mobile:/dashboard/attendance.cls": 0,
+    "mobile:/dashboard/attendance.tbtMs": 597,
+    "mobile:/dashboard/attendance.loadMs": 2645.1,
+    "mobile:/dashboard/attendance.transferKB": 326.67,
+    "mobile:/dashboard/attendance.requests": 70,
+    "mobile:/dashboard/attendance.domNodes": 304,
+    "mobile:/dashboard/attendance.heapMB": 9.54
+  },
+  "findings": [
+    {
+      "cat": "assets",
+      "sev": "high",
+      "title": "JavaScript initial : 789 Ko (décompressé)",
+      "detail": "Budget : 350 Ko",
+      "fix": "Code splitting par route, lazy-loading des composants lourds, tree-shaking, retirer les dépendances inutiles (analyser avec un bundle analyzer)."
+    },
+    {
+      "cat": "browser",
+      "sev": "high",
+      "title": "TBT ≈ 1161 ms — / (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 200 ms (proxy de l’INP)",
+      "fix": "Découper les tâches longues, moins de JS à l’hydratation, Web Workers, différer les scripts tiers."
+    },
+    {
+      "cat": "browser",
+      "sev": "high",
+      "title": "TBT ≈ 908 ms — / (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 200 ms (proxy de l’INP)",
+      "fix": "Découper les tâches longues, moins de JS à l’hydratation, Web Workers, différer les scripts tiers."
+    },
+    {
+      "cat": "browser",
+      "sev": "high",
+      "title": "TBT ≈ 657 ms — /login (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 200 ms (proxy de l’INP)",
+      "fix": "Découper les tâches longues, moins de JS à l’hydratation, Web Workers, différer les scripts tiers."
+    },
+    {
+      "cat": "browser",
+      "sev": "high",
+      "title": "TBT ≈ 1193 ms — /dashboard (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 200 ms (proxy de l’INP)",
+      "fix": "Découper les tâches longues, moins de JS à l’hydratation, Web Workers, différer les scripts tiers."
+    },
+    {
+      "cat": "browser",
+      "sev": "high",
+      "title": "TBT ≈ 1826 ms — /dashboard/students (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 200 ms (proxy de l’INP)",
+      "fix": "Découper les tâches longues, moins de JS à l’hydratation, Web Workers, différer les scripts tiers."
+    },
+    {
+      "cat": "browser",
+      "sev": "high",
+      "title": "TBT ≈ 830 ms — /dashboard/grades (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 200 ms (proxy de l’INP)",
+      "fix": "Découper les tâches longues, moins de JS à l’hydratation, Web Workers, différer les scripts tiers."
+    },
+    {
+      "cat": "browser",
+      "sev": "high",
+      "title": "TBT ≈ 1656 ms — /dashboard/finance (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 200 ms (proxy de l’INP)",
+      "fix": "Découper les tâches longues, moins de JS à l’hydratation, Web Workers, différer les scripts tiers."
+    },
+    {
+      "cat": "assets",
+      "sev": "medium",
+      "title": "CSS initial : 124 Ko",
+      "detail": "Budget : 100 Ko",
+      "fix": "Purger le CSS inutilisé, CSS critique inline, reste différé."
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "1 erreur(s) console — / (desktop)",
+      "detail": "Failed to load resource: net::ERR_SSL_PROTOCOL_ERROR",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "6 requête(s) échouée(s) — / (desktop)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/privacy?_rsc=5CB68i4pnAekjehf\nnet::ERR_ABORTED http://localhost:3100/explorer?_rsc=tXyZJ52UQVBCVsD3\nnet::ERR_SSL_PROTOCOL_ERROR https://localhost:3100/dashboard\nnet::ERR_ABORTED http://localhost:3100/privacy?_rsc=tXyZJ52UQVBCVsD3\nnet::ERR_ABORTED http://localhost:3100/dashboard?_rsc=5CB68i4pnAekjehf\n… +1 autres",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "1 erreur(s) console — / (desktop)",
+      "detail": "Failed to load resource: net::ERR_SSL_PROTOCOL_ERROR",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "6 requête(s) échouée(s) — / (desktop)",
+      "detail": "net::ERR_SSL_PROTOCOL_ERROR https://localhost:3100/dashboard\nnet::ERR_ABORTED http://localhost:3100/privacy?_rsc=5CB68i4pnAekjehf\nnet::ERR_ABORTED http://localhost:3100/explorer?_rsc=tXyZJ52UQVBCVsD3\nnet::ERR_ABORTED http://localhost:3100/dashboard?_rsc=5CB68i4pnAekjehf\nnet::ERR_ABORTED http://localhost:3100/privacy?_rsc=tXyZJ52UQVBCVsD3\n… +1 autres",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "3 requête(s) échouée(s) — / (mobile, 4G lente + CPU ×4)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/explorer?_rsc=tXyZJ52UQVBCVsD3\nnet::ERR_ABORTED http://localhost:3100/dashboard?_rsc=5CB68i4pnAekjehf\nnet::ERR_ABORTED http://localhost:3100/dashboard?_rsc=0iLTdQ1m-DrmvBc9",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "1 erreur(s) console — /login (desktop)",
+      "detail": "Failed to load resource: net::ERR_SSL_PROTOCOL_ERROR",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "48 requête(s) échouée(s) — /login (desktop)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/privacy?_rsc=_H_fFy2_Q06N8BA7\nnet::ERR_SSL_PROTOCOL_ERROR https://localhost:3100/dashboard\nnet::ERR_ABORTED http://localhost:3100/privacy?_rsc=sW2A7HEmFQnSVIMx\nnet::ERR_ABORTED http://localhost:3100/dashboard?_rsc=qYT2Wy2QR8kXuUU6\nnet::ERR_ABORTED http://localhost:3100/dashboard/students?_rsc=j79Vj4yH5aoiafxS\n… +43 autres",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "LCP 3272 ms — /login (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 2500 ms",
+      "fix": "Optimiser l’élément LCP : image prioritaire (fetchpriority=\"high\", preload, format moderne), TTFB, CSS bloquant, rendu côté serveur."
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "8 requête(s) échouée(s) — /login (mobile, 4G lente + CPU ×4)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/privacy?_rsc=sW2A7HEmFQnSVIMx\nnet::ERR_ABORTED http://localhost:3100/dashboard?_rsc=qYT2Wy2QR8kXuUU6\nnet::ERR_ABORTED http://localhost:3100/dashboard?_rsc=MjsNqZimym96QOiY\nnet::ERR_ABORTED http://localhost:3100/dashboard/settings?_rsc=j79Vj4yH5aoiafxS\nnet::ERR_ABORTED http://localhost:3100/dashboard/notifications?_rsc=j79Vj4yH5aoiafxS\n… +3 autres",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "45 requête(s) échouée(s) — /dashboard (desktop)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/dashboard/settings?_rsc=j79Vj4yH5aoiafxS\nnet::ERR_ABORTED http://localhost:3100/privacy?_rsc=IOe_mmh6jQxP6_Ru\nnet::ERR_ABORTED http://localhost:3100/dashboard/notifications?_rsc=j79Vj4yH5aoiafxS\nnet::ERR_ABORTED http://localhost:3100/dashboard/settings/profile?_rsc=j79Vj4yH5aoiafxS\nnet::ERR_ABORTED http://localhost:3100/dashboard/grades?_rsc=j79Vj4yH5aoiafxS\n… +40 autres",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "LCP 3512 ms — /dashboard (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 2500 ms",
+      "fix": "Optimiser l’élément LCP : image prioritaire (fetchpriority=\"high\", preload, format moderne), TTFB, CSS bloquant, rendu côté serveur."
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "32 requête(s) échouée(s) — /dashboard/students (desktop)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/dashboard?_rsc=Qys76BXrCeF-yBuI\nnet::ERR_ABORTED http://localhost:3100/dashboard/attendance?_rsc=Qys76BXrCeF-yBuI\nnet::ERR_ABORTED http://localhost:3100/dashboard/announcements?_rsc=Qys76BXrCeF-yBuI\nnet::ERR_ABORTED http://localhost:3100/dashboard/students/cmwm70et300o444fk3w5txwld?_rsc=Qys76BXrCeF-yBuI\nnet::ERR_ABORTED http://localhost:3100/dashboard/students/cmwm70w9w05yu44fksv497z4r?_rsc=Qys76BXrCeF-yBuI\n… +27 autres",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "LCP 3860 ms — /dashboard/students (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 2500 ms",
+      "fix": "Optimiser l’élément LCP : image prioritaire (fetchpriority=\"high\", preload, format moderne), TTFB, CSS bloquant, rendu côté serveur."
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "7 requête(s) échouée(s) — /dashboard/students (mobile, 4G lente + CPU ×4)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/dashboard?_rsc=BWPQgmo5A9xJtN1e\nnet::ERR_ABORTED http://localhost:3100/dashboard/finance?_rsc=GWOPV-ZNhWDMiiLH\nnet::ERR_ABORTED http://localhost:3100/dashboard/students/cmwm70et300o444fk3w5txwld?_rsc=BWPQgmo5A9xJtN1e\nnet::ERR_ABORTED http://localhost:3100/dashboard/grades?_rsc=kb8OKxHJ4nFEzjNu\nnet::ERR_ABORTED http://localhost:3100/dashboard/attendance?_rsc=BWPQgmo5A9xJtN1e\n… +2 autres",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "37 requête(s) échouée(s) — /dashboard/grades (desktop)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/dashboard/attendance?_rsc=2L8InVSZtCnDOlgm\nnet::ERR_ABORTED http://localhost:3100/dashboard?_rsc=2L8InVSZtCnDOlgm\nnet::ERR_ABORTED http://localhost:3100/dashboard/students?_rsc=2L8InVSZtCnDOlgm\nnet::ERR_ABORTED http://localhost:3100/dashboard/calendar?_rsc=2L8InVSZtCnDOlgm\nnet::ERR_ABORTED http://localhost:3100/dashboard/incidents?_rsc=2L8InVSZtCnDOlgm\n… +32 autres",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "LCP 2752 ms — /dashboard/grades (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 2500 ms",
+      "fix": "Optimiser l’élément LCP : image prioritaire (fetchpriority=\"high\", preload, format moderne), TTFB, CSS bloquant, rendu côté serveur."
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "11 requête(s) échouée(s) — /dashboard/grades (mobile, 4G lente + CPU ×4)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/dashboard/settings/profile?_rsc=2L8InVSZtCnDOlgm\nnet::ERR_ABORTED http://localhost:3100/dashboard?_rsc=d6zloDK3qlf5hE6O\nnet::ERR_ABORTED http://localhost:3100/dashboard/grades/entry?evaluationId=cmwm74sp41lu844fkj6sokujj&_rsc=d6zloDK3qlf5hE6O\nnet::ERR_ABORTED http://localhost:3100/dashboard/finance?_rsc=6syTYGYOgSt66jZn\nnet::ERR_ABORTED http://localhost:3100/dashboard/messages?_rsc=d6zloDK3qlf5hE6O\n… +6 autres",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "20 requête(s) échouée(s) — /dashboard/finance (desktop)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/dashboard?_rsc=i6Jbj4pE589B1KN3\nnet::ERR_ABORTED http://localhost:3100/dashboard/attendance?_rsc=i6Jbj4pE589B1KN3\nnet::ERR_ABORTED http://localhost:3100/dashboard/students?_rsc=i6Jbj4pE589B1KN3\nnet::ERR_ABORTED http://localhost:3100/dashboard/grades?_rsc=i6Jbj4pE589B1KN3\nnet::ERR_ABORTED http://localhost:3100/dashboard/messages?_rsc=i6Jbj4pE589B1KN3\n… +15 autres",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "LCP 3620 ms — /dashboard/finance (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 2500 ms",
+      "fix": "Optimiser l’élément LCP : image prioritaire (fetchpriority=\"high\", preload, format moderne), TTFB, CSS bloquant, rendu côté serveur."
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "5 requête(s) échouée(s) — /dashboard/finance (mobile, 4G lente + CPU ×4)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/privacy?_rsc=iW26yp4cE3OPheuO\nnet::ERR_ABORTED http://localhost:3100/dashboard/finance/payments/new?_rsc=iW26yp4cE3OPheuO\nnet::ERR_ABORTED http://localhost:3100/dashboard/students?_rsc=pe9PGXkK-JltC6uu\nnet::ERR_ABORTED http://localhost:3100/dashboard/settings?_rsc=iW26yp4cE3OPheuO\nnet::ERR_ABORTED http://localhost:3100/dashboard/notifications?_rsc=iW26yp4cE3OPheuO",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "24 requête(s) échouée(s) — /dashboard/attendance (desktop)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/dashboard?_rsc=7eFxYAuxJuCsloL3\nnet::ERR_ABORTED http://localhost:3100/dashboard/incidents?_rsc=7eFxYAuxJuCsloL3\nnet::ERR_ABORTED http://localhost:3100/dashboard/announcements?_rsc=7eFxYAuxJuCsloL3\nnet::ERR_ABORTED http://localhost:3100/dashboard/students?_rsc=7eFxYAuxJuCsloL3\nnet::ERR_ABORTED http://localhost:3100/dashboard/calendar?_rsc=7eFxYAuxJuCsloL3\n… +19 autres",
+      "fix": ""
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "LCP 3016 ms — /dashboard/attendance (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 2500 ms",
+      "fix": "Optimiser l’élément LCP : image prioritaire (fetchpriority=\"high\", preload, format moderne), TTFB, CSS bloquant, rendu côté serveur."
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "TBT ≈ 597 ms — /dashboard/attendance (mobile, 4G lente + CPU ×4)",
+      "detail": "Bon : ≤ 200 ms (proxy de l’INP)",
+      "fix": "Découper les tâches longues, moins de JS à l’hydratation, Web Workers, différer les scripts tiers."
+    },
+    {
+      "cat": "browser",
+      "sev": "medium",
+      "title": "8 requête(s) échouée(s) — /dashboard/attendance (mobile, 4G lente + CPU ×4)",
+      "detail": "net::ERR_ABORTED http://localhost:3100/dashboard/finance?_rsc=4TZIwReTvIo6Bcdq\nnet::ERR_ABORTED http://localhost:3100/dashboard?_rsc=NZUrYWIABfXnOHF0\nnet::ERR_ABORTED http://localhost:3100/dashboard/grades?_rsc=3SArszZwJ2sjjSsI\nnet::ERR_ABORTED http://localhost:3100/dashboard/ai?_rsc=NZUrYWIABfXnOHF0\nnet::ERR_ABORTED http://localhost:3100/privacy?_rsc=NZUrYWIABfXnOHF0\n… +3 autres",
+      "fix": ""
+    },
+    {
+      "cat": "assets",
+      "sev": "low",
+      "title": "1 script(s) bloquant(s) le rendu dans <head>",
+      "detail": "",
+      "fix": "Ajouter defer (ou type=\"module\"), ou déplacer en fin de <body>."
+    },
+    {
+      "cat": "perf",
+      "sev": "low",
+      "title": "Pas de validateur de cache (ETag / Last-Modified)",
+      "detail": "",
+      "fix": "Activer ETag pour permettre les réponses 304."
+    },
+    {
+      "cat": "seo",
+      "sev": "low",
+      "title": "Longueur du titre : 8 caractères",
+      "detail": "EduPilot",
+      "fix": "Viser 30–60 caractères."
+    },
+    {
+      "cat": "seo",
+      "sev": "low",
+      "title": "Lien canonical absent",
+      "detail": "",
+      "fix": "<link rel=\"canonical\" href=\"…\"> pour éviter le contenu dupliqué."
+    },
+    {
+      "cat": "seo",
+      "sev": "low",
+      "title": "1 titre(s) dupliqué(s) entre pages",
+      "detail": "« EduPilot » × 37",
+      "fix": "Un titre unique par page."
+    },
+    {
+      "cat": "assets",
+      "sev": "info",
+      "title": "Analyse statique du HTML initial",
+      "detail": "Les ressources injectées par JavaScript (SPA) ne sont visibles qu’avec --browser.",
+      "fix": ""
+    },
+    {
+      "cat": "perf",
+      "sev": "info",
+      "title": "Compression gzip (Brotli serait ~15–20 % plus efficace)",
+      "detail": "",
+      "fix": ""
+    },
+    {
+      "cat": "security",
+      "sev": "info",
+      "title": "Cross-Origin-Opener-Policy absente",
+      "detail": "",
+      "fix": "Envisager COOP: same-origin (isolation contre les attaques cross-window)."
+    },
+    {
+      "cat": "seo",
+      "sev": "info",
+      "title": "Pas de données structurées JSON-LD",
+      "detail": "",
+      "fix": "schema.org (Organization, Product, BreadcrumbList…) pour les résultats enrichis."
+    }
+  ],
+  "load": [],
+  "pages": [
+    {
+      "url": "http://localhost:3100/",
+      "status": 200,
+      "ttfb": 62
+    },
+    {
+      "url": "http://localhost:3100/explorer",
+      "status": 200,
+      "ttfb": 124
+    },
+    {
+      "url": "http://localhost:3100/dashboard/students",
+      "status": 200,
+      "ttfb": 617
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/school",
+      "status": 200,
+      "ttfb": 627
+    },
+    {
+      "url": "http://localhost:3100/login",
+      "status": 200,
+      "ttfb": 669
+    },
+    {
+      "url": "http://localhost:3100/privacy",
+      "status": 200,
+      "ttfb": 46
+    },
+    {
+      "url": "http://localhost:3100/terms",
+      "status": 200,
+      "ttfb": 49
+    },
+    {
+      "url": "http://localhost:3100/dashboard",
+      "status": 200,
+      "ttfb": 161
+    },
+    {
+      "url": "http://localhost:3100/setup",
+      "status": 200,
+      "ttfb": 187
+    },
+    {
+      "url": "http://localhost:3100/dashboard/attendance",
+      "status": 200,
+      "ttfb": 200
+    },
+    {
+      "url": "http://localhost:3100/dashboard/calendar",
+      "status": 200,
+      "ttfb": 215
+    },
+    {
+      "url": "http://localhost:3100/dashboard/incidents",
+      "status": 200,
+      "ttfb": 216
+    },
+    {
+      "url": "http://localhost:3100/dashboard/announcements",
+      "status": 200,
+      "ttfb": 222
+    },
+    {
+      "url": "http://localhost:3100/dashboard/notifications",
+      "status": 200,
+      "ttfb": 389
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/profile",
+      "status": 200,
+      "ttfb": 404
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings",
+      "status": 200,
+      "ttfb": 409
+    },
+    {
+      "url": "http://localhost:3100/dashboard/services",
+      "status": 200,
+      "ttfb": 425
+    },
+    {
+      "url": "http://localhost:3100/dashboard/analytics",
+      "status": 200,
+      "ttfb": 369
+    },
+    {
+      "url": "http://localhost:3100/dashboard/risks/failure",
+      "status": 200,
+      "ttfb": 377
+    },
+    {
+      "url": "http://localhost:3100/dashboard/finance",
+      "status": 200,
+      "ttfb": 378
+    },
+    {
+      "url": "http://localhost:3100/dashboard/grades/entry",
+      "status": 200,
+      "ttfb": 379
+    },
+    {
+      "url": "http://localhost:3100/dashboard/finance/payments/new",
+      "status": 200,
+      "ttfb": 124
+    },
+    {
+      "url": "http://localhost:3100/dashboard/grades/bulletins",
+      "status": 200,
+      "ttfb": 133
+    },
+    {
+      "url": "http://localhost:3100/dashboard/students/inscription",
+      "status": 200,
+      "ttfb": 139
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes",
+      "status": 200,
+      "ttfb": 137
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70co4002e44fk8by5ymxs",
+      "status": 200,
+      "ttfb": 195
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cp2002m44fk0ai06m88",
+      "status": 200,
+      "ttfb": 221
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70ctt003s44fkpr20i46q",
+      "status": 200,
+      "ttfb": 219
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cnb002844fktclbs22r",
+      "status": 200,
+      "ttfb": 224
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cpw002u44fkcl8y59tc",
+      "status": 200,
+      "ttfb": 232
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70ct8003m44fkeple5olb",
+      "status": 200,
+      "ttfb": 238
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cs6003e44fkei70x5j7",
+      "status": 200,
+      "ttfb": 238
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cuj004044fkjivu66x9",
+      "status": 200,
+      "ttfb": 239
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/notifications",
+      "status": 200,
+      "ttfb": 155
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cqd002y44fkg657jic0",
+      "status": 200,
+      "ttfb": 167
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/security",
+      "status": 200,
+      "ttfb": 171
+    },
+    {
+      "url": "http://localhost:3100/dashboard/classes/cmwm70cqu003244fk2ofiy1c6",
+      "status": 200,
+      "ttfb": 165
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/appearance",
+      "status": 200,
+      "ttfb": 132
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/my-data",
+      "status": 200,
+      "ttfb": 132
+    },
+    {
+      "url": "http://localhost:3100/dashboard/settings/locale",
+      "status": 200,
+      "ttfb": 136
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "screenshot-desktop-accueil.png",
+      "label": "/ (desktop)"
+    },
+    {
+      "file": "screenshot-mobile-accueil.png",
+      "label": "/ (mobile, 4G lente + CPU ×4)"
+    },
+    {
+      "file": "screenshot-desktop-accueil.png",
+      "label": "/ (desktop)"
+    },
+    {
+      "file": "screenshot-mobile-accueil.png",
+      "label": "/ (mobile, 4G lente + CPU ×4)"
+    },
+    {
+      "file": "screenshot-desktop-_login.png",
+      "label": "/login (desktop)"
+    },
+    {
+      "file": "screenshot-mobile-_login.png",
+      "label": "/login (mobile, 4G lente + CPU ×4)"
+    },
+    {
+      "file": "screenshot-desktop-_dashboard.png",
+      "label": "/dashboard (desktop)"
+    },
+    {
+      "file": "screenshot-mobile-_dashboard.png",
+      "label": "/dashboard (mobile, 4G lente + CPU ×4)"
+    },
+    {
+      "file": "screenshot-desktop-_dashboard_students.png",
+      "label": "/dashboard/students (desktop)"
+    },
+    {
+      "file": "screenshot-mobile-_dashboard_students.png",
+      "label": "/dashboard/students (mobile, 4G lente + CPU ×4)"
+    },
+    {
+      "file": "screenshot-desktop-_dashboard_grades.png",
+      "label": "/dashboard/grades (desktop)"
+    },
+    {
+      "file": "screenshot-mobile-_dashboard_grades.png",
+      "label": "/dashboard/grades (mobile, 4G lente + CPU ×4)"
+    },
+    {
+      "file": "screenshot-desktop-_dashboard_finance.png",
+      "label": "/dashboard/finance (desktop)"
+    },
+    {
+      "file": "screenshot-mobile-_dashboard_finance.png",
+      "label": "/dashboard/finance (mobile, 4G lente + CPU ×4)"
+    },
+    {
+      "file": "screenshot-desktop-_dashboard_attendance.png",
+      "label": "/dashboard/attendance (desktop)"
+    },
+    {
+      "file": "screenshot-mobile-_dashboard_attendance.png",
+      "label": "/dashboard/attendance (mobile, 4G lente + CPU ×4)"
+    }
+  ],
+  "errors": [],
+  "baseline": null
+}

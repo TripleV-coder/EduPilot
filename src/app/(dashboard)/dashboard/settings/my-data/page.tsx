@@ -38,6 +38,15 @@ const CONSENT_ROWS: { key: ConsentKey; title: string; desc: string }[] = [
 ];
 
 export default function MyDataSettingsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <MyDataSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function MyDataSettingsPageContent() {
     const [exporting, setExporting] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -118,7 +127,7 @@ export default function MyDataSettingsPage() {
     };
 
     return (
-        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+        <>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <PageHeader
                     title="Mes données personnelles"
@@ -250,7 +259,7 @@ export default function MyDataSettingsPage() {
                     </Card>
                 </div>
             </div>
-        </PageGuard>
+        </>
     );
 }
 

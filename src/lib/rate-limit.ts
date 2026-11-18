@@ -1,31 +1,23 @@
 /**
  * Limites de débit — module unique (L3, décision du propriétaire du 2026-09-18).
  *
- * Remplace `lib/rate-limit.ts` (paquet @upstash/ratelimit), `lib/auth/rate-limiter.ts`
- * (moteur maison) et `lib/api/middleware-rate-limit.ts` (surcouche de mappage).
- * Deux moteurs coexistaient, avec deux magasins mémoire distincts : une même
- * adresse pouvait consommer deux quotas séparés selon la porte d'entrée.
+ * Moteur : fenêtre fixe (compteur + expiration). C'est le seul qui sache
+ * **rendre** une unité consommée (`releaseRateLimit`), ce dont dépend le
+ * correctif H4 — seuls les échecs de connexion comptent.
  *
- * Moteur retenu : INCR + EXPIRE. C'est le seul qui sache **rendre** une unité
- * consommée (`releaseRateLimit`), ce dont dépend le correctif H4 — seuls les
- * échecs de connexion comptent.
- *
- * Stratégie de stockage :
- *  - `REDIS_URL` (Redis auto-hébergé) → partagé entre instances, prioritaire ;
- *  - Upstash configuré → Redis, partagé entre instances ;
- *  - sinon → repli mémoire (exact tant que l'application tourne en un seul
- *    processus, ce qui est le déploiement retenu).
- * Dans les deux cas, le coupe-circuit H6 bascule sur la mémoire dès que Redis
- * dépasse son délai, pour que l'application ne soit jamais sans limite.
+ * Stockage (2026-11-07, Redis retiré) :
+ *  - PostgreSQL (`lib/shared-state/pg`, table UNLOGGED) : compteur partagé
+ *    par toutes les instances et tous les processus, une instruction atomique
+ *    par appel, horloge du serveur de base ;
+ *  - un refus est retenu localement jusqu'à la fin de sa fenêtre : une rafale
+ *    contre une clé bloquée (force brute) est refusée SANS toucher la base ;
+ *  - base lente ou injoignable → coupe-circuit, repli mémoire immédiat : la
+ *    plateforme n'est jamais sans limite ni bloquée en attente.
  */
 
 import type { NextRequest } from "next/server";
-import type { Redis } from "@upstash/redis";
-import type TcpRedis from "ioredis";
-import { createUpstashRedis, redisCircuit } from "@/lib/redis/circuit";
-import { getTcpRedis, tcpRedisCircuit } from "@/lib/redis/tcp";
 import { getClientIp as getTrustedClientIp } from "@/lib/security/client-ip";
-import { logger } from "@/lib/utils/logger";
+import { counterDelete, counterRelease, sharedStoreEnabled, storeCircuit, windowAdd } from "@/lib/shared-state/pg";
 
 // ─── Types publics ────────────────────────────────────────────────────────────
 
@@ -64,6 +56,9 @@ class InMemoryStore {
             for (const [key, entry] of this.store.entries()) {
                 if (entry.resetTime < now) this.store.delete(key);
             }
+            for (const [key, until] of blockedUntil) {
+                if (until < now) blockedUntil.delete(key);
+            }
         }, 5 * 60 * 1000);
         if (interval.unref) interval.unref();
     }
@@ -86,73 +81,20 @@ class InMemoryStore {
     }
 }
 
+/** Clés refusées par le magasin partagé, jusqu'à la fin de leur fenêtre (ms). */
+const blockedUntil = new Map<string, number>();
+
 const memoryStore = new InMemoryStore();
-
-// ─── Client Redis ─────────────────────────────────────────────────────────────
-
-const hasUpstash = !!(
-    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-);
-
-if (!hasUpstash && !process.env.REDIS_URL && process.env.NODE_ENV === "production") {
-    // Sans magasin partagé, le repli mémoire n'est exact qu'avec UN processus.
-    // Les lanceurs (scripts/server/cluster.cjs, ecosystem.config.js) refusent
-    // d'en démarrer plusieurs sans REDIS_URL ; ce message couvre les autres.
-    const multiProcess = Boolean(process.env.NODE_APP_INSTANCE && process.env.NODE_APP_INSTANCE !== "0")
-        || Number(process.env.WEB_CONCURRENCY) > 1;
-    if (multiProcess) {
-        logger.error(
-            "[RateLimit] Plusieurs processus sans REDIS_URL : limites et compteurs d'échecs de connexion " +
-            "propres à chaque processus (protections multipliées). Configurer REDIS_URL."
-        );
-    } else {
-        logger.info("[RateLimit] Limites en mémoire (processus unique, sans REDIS_URL).");
-    }
-}
-
-let redisClient: Redis | null = null;
-function getRedis(): Redis | null {
-    // Client borné (H6) : sans tentatives automatiques, délai court.
-    if (!redisClient) redisClient = createUpstashRedis();
-    return redisClient;
-}
 
 // ─── Moteur ───────────────────────────────────────────────────────────────────
 
-/**
- * Redis auto-hébergé (`REDIS_URL`) : SET NX pose la fenêtre à la première
- * unité, INCR compte — un seul aller-retour, compatible avec toute version.
- */
-async function consumeTcp(client: TcpRedis, key: string, config: RateLimitConfig): Promise<RateLimitResult> {
-    const results = await client.multi().set(key, "0", "PX", config.windowMs, "NX").incr(key).pttl(key).exec();
-    const count = Number(results?.[1]?.[1] ?? 0);
-    const ttl = Number(results?.[2]?.[1] ?? config.windowMs);
-    return {
-        success: count <= config.maxAttempts,
-        remaining: Math.max(0, config.maxAttempts - count),
-        reset: new Date(Date.now() + (ttl > 0 ? ttl : config.windowMs)),
-    };
-}
-
-/** Les erreurs remontent au coupe-circuit, qui bascule sur le repli mémoire. */
-async function consumeRedis(
-    redis: Redis,
-    key: string,
-    config: RateLimitConfig
-): Promise<RateLimitResult> {
-    const windowSec = Math.ceil(config.windowMs / 1000);
-    const resetTime = Date.now() + config.windowMs;
-
-    const pipeline = redis.pipeline();
-    pipeline.incr(key);
-    pipeline.expire(key, windowSec, "NX"); // seulement si la clé vient d'être créée
-    const [count] = (await pipeline.exec()) as [number, number];
-
-    return {
-        success: count <= config.maxAttempts,
-        remaining: Math.max(0, config.maxAttempts - count),
-        reset: new Date(resetTime),
-    };
+/** Magasin partagé : une instruction atomique ; le refus est retenu localement. */
+async function consumeShared(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
+    const { count, ttlMs } = await windowAdd(key, config.windowMs);
+    const reset = new Date(Date.now() + (ttlMs > 0 ? ttlMs : config.windowMs));
+    const success = count <= config.maxAttempts;
+    if (!success) blockedUntil.set(key, reset.getTime());
+    return { success, remaining: Math.max(0, config.maxAttempts - count), reset };
 }
 
 function consumeMemory(key: string, config: RateLimitConfig): RateLimitResult {
@@ -193,17 +135,13 @@ export async function checkRateLimitKey(
     key: string,
     config: RateLimitConfig
 ): Promise<RateLimitResult> {
-    const tcp = getTcpRedis();
-    if (tcp) {
-        return tcpRedisCircuit.run(
-            () => consumeTcp(tcp, key, config),
-            () => consumeMemory(key, config)
-        );
+    if (!sharedStoreEnabled()) return consumeMemory(key, config);
+    const blocked = blockedUntil.get(key);
+    if (blocked !== undefined && blocked > Date.now()) {
+        return { success: false, remaining: 0, reset: new Date(blocked) };
     }
-    const redis = getRedis();
-    if (!redis) return consumeMemory(key, config);
-    return redisCircuit.run(
-        () => consumeRedis(redis, key, config),
+    return storeCircuit.run(
+        () => consumeShared(key, config),
         () => consumeMemory(key, config)
     );
 }
@@ -225,24 +163,9 @@ export async function checkRateLimit(
 /** Remet un compteur à zéro (ex. second facteur validé). */
 export async function resetRateLimit(key: string): Promise<void> {
     memoryStore.delete(key);
-    const tcp = getTcpRedis();
-    if (tcp) {
-        await tcpRedisCircuit.run(
-            async () => {
-                await tcp.del(key);
-            },
-            () => undefined
-        );
-        return;
-    }
-    const redis = getRedis();
-    if (!redis) return;
-    await redisCircuit.run(
-        async () => {
-            await redis.del(key);
-        },
-        () => undefined
-    );
+    blockedUntil.delete(key);
+    if (!sharedStoreEnabled()) return;
+    await storeCircuit.run(() => counterDelete(key), () => undefined);
 }
 
 /**
@@ -251,24 +174,11 @@ export async function resetRateLimit(key: string): Promise<void> {
  * parallèle dépasse la limite.
  */
 export async function releaseRateLimit(key: string): Promise<void> {
-    const tcp = getTcpRedis();
-    if (tcp) {
-        const released = await tcpRedisCircuit.run(
+    blockedUntil.delete(key);
+    if (sharedStoreEnabled()) {
+        const released = await storeCircuit.run(
             async () => {
-                const remaining = await tcp.decr(key);
-                if (remaining <= 0) await tcp.del(key);
-                return true;
-            },
-            () => false
-        );
-        if (released) return;
-    }
-    const redis = getRedis();
-    if (!tcp && redis) {
-        const released = await redisCircuit.run(
-            async () => {
-                const remaining = await redis.decr(key);
-                if (remaining <= 0) await redis.del(key);
+                await counterRelease(key);
                 return true;
             },
             () => false

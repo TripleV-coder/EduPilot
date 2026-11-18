@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 const CASH_PREFIXES = {
@@ -21,17 +21,10 @@ export const GET = createApiHandler(
         const session = context.session;
 
         const url = new URL(request.url);
-        const requestedSchoolId = url.searchParams.get("schoolId");
-        const accessError = ensureRequestedSchoolAccess(session, requestedSchoolId);
-        if (accessError) return accessError;
-
-        const schoolId = requestedSchoolId ?? getActiveSchoolId(session);
-        if (!schoolId) {
-            return NextResponse.json(
-                { error: "Aucun établissement actif associé au compte." },
-                { status: 400 },
-            );
-        }
+        // S6 : école explicite, vérifiée et dans le périmètre
+        const scope = await resolveFinanceSchool(session, url.searchParams.get("schoolId"), "accounting:overview");
+        if (!scope.ok) return scope.response;
+        const schoolId = scope.schoolId;
 
         const txLimit = Math.min(
             Math.max(Number(url.searchParams.get("txLimit")) || 20, 1),

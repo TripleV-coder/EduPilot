@@ -1,7 +1,7 @@
 import { Session } from "next-auth";
 /**
  * AI Unified API v2
- * Central API for chat and governance actions with explicit engine status.
+ * Actions de gouvernance IA, calculées localement (le chat passe par /api/ai/v2/chat).
  */
 
 import { NextResponse } from 'next/server';
@@ -28,14 +28,12 @@ export const POST = createApiHandler(async (request, context) => {
     }
 
     const body = await request.json();
-    const { endpoint = 'chat' } = body;
+    const { endpoint = 'governance' } = body;
 
     logger.info(`AI API v2 - ${endpoint} request from ${session.user.id}`);
 
     // Route to appropriate handler
     switch (endpoint) {
-      case 'chat':
-        return handleChat(session as Session, body);
       case 'governance':
         return handleGovernance(session as Session, body);
       default:
@@ -64,50 +62,10 @@ export const POST = createApiHandler(async (request, context) => {
 
 });
 
-interface ChatRequestBody {
-  message: string;
-  stream?: boolean;
-  options?: {
-    maxLength?: number;
-    temperature?: number;
-    useKnowledgeBase?: boolean;
-    useContext?: boolean;
-    language?: string;
-  };
-}
-
 interface GovernanceRequestBody {
   action: string;
   studentId?: string;
   data?: Record<string, unknown>;
-}
-
-async function handleChat(session: Session, body: ChatRequestBody) {
-  const { message, stream = false, options = {} } = body;
-
-  if (!message) {
-    return NextResponse.json(
-      { error: 'Message requis', code: 'MISSING_MESSAGE' },
-      { status: 400 }
-    );
-  }
-
-  const result = await aiService.processChat({
-    message,
-    userId: session.user.id,
-    userRole: session.user.role || 'user',
-    schoolId: getActiveSchoolId(session),
-    stream,
-    options: {
-      maxLength: options.maxLength || 1024,
-      temperature: options.temperature || 0.7,
-      useKnowledgeBase: options.useKnowledgeBase !== false,
-      useContext: options.useContext !== false,
-      language: (options.language as "fr" | "en") || 'fr',
-    },
-  });
-
-  return NextResponse.json(result);
 }
 
 async function handleGovernance(session: Session, body: GovernanceRequestBody) {
@@ -150,15 +108,7 @@ export const GET = createApiHandler(async (request, context) => {
           status: {
             operational: status.operational,
             version: '2.0.0',
-            model: {
-              loaded: status.modelLoaded,
-              loadTime: status.loadTime,
-            },
-            providers: {
-              externalConfigured: status.externalConfigured,
-              n8nConfigured: status.n8nConfigured,
-              runtimeMode: status.runtimeMode,
-            },
+            runtimeMode: status.runtimeMode,
           },
         });
 

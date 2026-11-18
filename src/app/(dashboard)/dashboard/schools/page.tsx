@@ -62,7 +62,7 @@ export default function SchoolsPage() {
 
                 {isLoading ? <PageLoading label="Chargement des établissements…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message={error.message || "Erreur de chargement des établissements"}
                         onRetry={() => void mutate()}
                     />
@@ -104,12 +104,12 @@ export default function SchoolsPage() {
                                             {school.siteType === "ANNEXE" ? "Annexe" : "Site principal"}
                                         </p>
                                         {school.organization?.name ? (
-                                            <p className="mt-1 truncate text-[11px]" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                                            <p className="mt-1 truncate text-xs" style={{ color: "var(--eduflow-text-tertiary)" }}>
                                                 Organisation {school.organization.name}
                                             </p>
                                         ) : null}
                                         {school.parentSchool?.name ? (
-                                            <p className="truncate text-[11px]" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                                            <p className="truncate text-xs" style={{ color: "var(--eduflow-text-tertiary)" }}>
                                                 Rattaché à {school.parentSchool.name}
                                             </p>
                                         ) : null}

@@ -35,10 +35,26 @@ describe("useFirstLogin", () => {
         vi.unstubAllGlobals();
     });
 
-    it("mode « token » quand l'écran est ouvert par un lien", () => {
+    it("mode « token » une fois le lien vérifié par le serveur", async () => {
         useSessionMock.mockReturnValue({ status: "unauthenticated", data: null });
+        const fetchMock = mockFetch(200, { success: true, requiresTempPassword: false, user: { firstName: "Awa" } });
         const { result } = renderHook(() => useFirstLogin({ token: "abc" }));
-        expect(result.current.mode).toBe("token");
+
+        expect(result.current.mode).toBe("loading");
+        await waitFor(() => expect(result.current.mode).toBe("token"));
+        expect(fetchMock.mock.calls[0][0]).toBe("/api/auth/first-login?token=abc");
+        // Lien émis par la direction : pas de mot de passe provisoire à saisir.
+        expect(result.current.requiresTempPassword).toBe(false);
+        expect(result.current.firstName).toBe("Awa");
+    });
+
+    it("lien refusé (expiré, utilisé, compte activé) : mode « invalid » avec le message du serveur", async () => {
+        useSessionMock.mockReturnValue({ status: "unauthenticated", data: null });
+        mockFetch(410, { error: "Ce lien a déjà été utilisé" });
+        const { result } = renderHook(() => useFirstLogin({ token: "abc" }));
+
+        await waitFor(() => expect(result.current.mode).toBe("invalid"));
+        expect(result.current.invalidMessage).toBe("Ce lien a déjà été utilisé");
     });
 
     it("mode « session » pour un compte tenu de changer son mot de passe provisoire", () => {
@@ -73,10 +89,13 @@ describe("useFirstLogin", () => {
         useSessionMock.mockReturnValue({ status: "unauthenticated", data: null });
         const fetchMock = mockFetch(200, { success: true });
         const { result } = renderHook(() => useFirstLogin({ token: "abc", redirectDelayMs: 0 }));
+        await waitFor(() => expect(result.current.mode).toBe("token"));
 
         await act(() => result.current.submit(VALUES));
 
-        expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ token: "abc" });
+        // 1er appel : vérification du lien (GET) ; 2e : changement du mot de passe.
+        expect(fetchMock.mock.calls[1][1].method).toBe("POST");
+        expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ token: "abc" });
         expect(signOutMock).not.toHaveBeenCalled();
     });
 

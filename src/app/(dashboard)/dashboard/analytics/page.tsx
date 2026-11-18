@@ -79,6 +79,7 @@ const PerformanceBarChart = dynamic(() => import("@/components/charts/Performanc
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
 import { RiskStudentsDrillDown } from "@/components/analytics/RiskStudentsDrillDown";
 import { AnalyticsBIBoard } from "@/components/analytics/AnalyticsBIBoard";
+import { FinanceSchoolGate } from "@/components/finance/finance-school-gate";
 import type { AcademicYear, Class, Period } from "@prisma/client";
 import type { PaginatedResponse } from "@/lib/types";
 
@@ -299,10 +300,17 @@ function AnalyticsContent() {
                     </TabsList>
 
                     <TabsContent value="bi" className="space-y-6">
-                        <AnalyticsBIBoard
-                            schoolId={activeSchoolId ?? undefined}
-                            academicYearId={academicYearId}
-                        />
+                        {/* Super-admin sans école : invitation à choisir, sans appel
+                            voué au refus (l'API exige toujours un établissement) */}
+                        <FinanceSchoolGate
+                            headingLevel="h2"
+                            description="Les indicateurs BI (recouvrement, assiduité, réussite) sont calculés pour une seule école. Sélectionnez celle que vous voulez consulter."
+                        >
+                            <AnalyticsBIBoard
+                                schoolId={activeSchoolId ?? undefined}
+                                academicYearId={academicYearId}
+                            />
+                        </FinanceSchoolGate>
                     </TabsContent>
 
                     <TabsContent value="overview" className="space-y-6">
@@ -326,7 +334,7 @@ function AnalyticsContent() {
                             ].map((kpi, i) => (
                                 <Card key={i} className="dashboard-block kpi-card border-border bg-card">
                                     <CardHeader className="pb-2">
-                                        <div className="text-[11px] font-bold text-muted-foreground">{kpi.label}</div>
+                                        <div className="text-xs font-bold text-muted-foreground">{kpi.label}</div>
                                     </CardHeader>
                                     <CardContent>
                                         <div className={cn("text-3xl metric-serif", kpi.color, overviewLoading && "opacity-60")}>{kpi.value}</div>
@@ -367,7 +375,7 @@ function AnalyticsContent() {
                             <CardHeader>
                                 <CardTitle className="text-sm font-medium flex items-center justify-between">
                                     Carte thermique des performances
-                                    <Badge variant="outline" className="text-[11px]">Par classe & matière</Badge>
+                                    <Badge variant="outline" className="text-xs">Par classe & matière</Badge>
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>

@@ -9,13 +9,22 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     $queryRaw: vi.fn(),
     auditLog: { findMany: vi.fn(), groupBy: vi.fn(), count: vi.fn() },
-    session: { count: vi.fn() },
+    user: { count: vi.fn() },
+    errorLog: { count: vi.fn(), findMany: vi.fn(), groupBy: vi.fn() },
     dataAccessRequest: { count: vi.fn() },
     systemSetting: { findUnique: vi.fn() },
   },
 }));
 
 const ROOT = makeSession("SUPER_ADMIN", { id: "root1", email: "root@edupilot.app" });
+const isLoginFilter = (action: unknown) =>
+  typeof action === "object" && action !== null && ((action as { in?: string[] }).in ?? []).includes("LOGIN_SUCCESS");
+
+beforeEach(() => {
+  vi.mocked(prisma.errorLog.count).mockResolvedValue(0);
+  vi.mocked(prisma.errorLog.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.errorLog.groupBy).mockResolvedValue([] as never);
+});
 
 describe("GET /api/root/monitoring", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -46,10 +55,10 @@ describe("GET /api/root/monitoring", () => {
     vi.mocked(prisma.auditLog.groupBy).mockResolvedValue([
       { action: "LOGIN_ERROR", _count: 3 },
     ] as never);
-    vi.mocked(prisma.session.count).mockResolvedValue(12);
-    // `count` sert deux fois : les connexions (action LOGIN) et les erreurs.
+    vi.mocked(prisma.user.count).mockResolvedValue(12);
+    // `count` sert deux fois : les connexions (LOGIN_SUCCESS) et les erreurs.
     vi.mocked(prisma.auditLog.count).mockImplementation((async (args: { where?: { action?: unknown } }) =>
-      args?.where?.action === "LOGIN" ? 8 : 0) as never);
+      isLoginFilter(args?.where?.action) ? 8 : 0) as never);
     vi.mocked(prisma.dataAccessRequest.count).mockResolvedValue(2);
     vi.mocked(prisma.systemSetting.findUnique).mockResolvedValue(null);
 
@@ -60,20 +69,25 @@ describe("GET /api/root/monitoring", () => {
     expect(body.database.connectionPool.status).toBe("active");
     expect(["excellent", "good", "warning", "critical"]).toContain(body.database.health.status);
 
-    expect(body.cache).toEqual({ connected: false, hitRate: 0, memory: null });
+    expect(body.cache).toMatchObject({ connected: true, hitRate: expect.any(Number) });
+    expect(body.cache.memory).toMatch(/entrée\(s\)/);
 
     expect(body.system).toEqual({
       maintenanceMode: false,
-      activeSessions: 12,
+      connectedAccounts24h: 12,
       recentLogins: 8,
       pendingDataRequests: 2,
+    });
+    // Comptes distincts ayant une connexion réussie au journal (pas la table sessions, jamais alimentée)
+    expect(vi.mocked(prisma.user.count).mock.calls[0][0]).toMatchObject({
+      where: { auditLogs: { some: { action: { in: expect.arrayContaining(["LOGIN_SUCCESS"]) } } } },
     });
 
     expect(body.errors.last24h).toBe(0);
     expect(body.errors.recent).toEqual([]);
     expect(body.errors.byType).toEqual([{ type: "LOGIN_ERROR", count: 3 }]);
+    expect(body.errors.journal).toEqual({ last24h: 0, recent: [], frequent: [] });
 
-    expect(body.alerts.map((a: { message: string }) => a.message)).toContain("Cache Redis non connecté");
     expect(body.alerts.map((a: { message: string }) => a.message)).toContain("2 requête(s) de données en attente");
   });
 
@@ -82,7 +96,7 @@ describe("GET /api/root/monitoring", () => {
     vi.mocked(prisma.$queryRaw).mockResolvedValue([{ "?column?": 1 }]);
     vi.mocked(prisma.auditLog.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.auditLog.groupBy).mockResolvedValue([] as never);
-    vi.mocked(prisma.session.count).mockResolvedValue(0);
+    vi.mocked(prisma.user.count).mockResolvedValue(0);
     vi.mocked(prisma.auditLog.count).mockResolvedValue(0);
     vi.mocked(prisma.dataAccessRequest.count).mockResolvedValue(0);
     vi.mocked(prisma.systemSetting.findUnique).mockResolvedValue({ value: "on" } as never);
@@ -108,10 +122,10 @@ describe("GET /api/root/monitoring", () => {
     })) as never;
     vi.mocked(prisma.auditLog.findMany).mockResolvedValue(errors);
     vi.mocked(prisma.auditLog.groupBy).mockResolvedValue([] as never);
-    vi.mocked(prisma.session.count).mockResolvedValue(0);
+    vi.mocked(prisma.user.count).mockResolvedValue(0);
     // 25 erreurs en base ; la liste affichée n'en montre que les 10 dernières.
     vi.mocked(prisma.auditLog.count).mockImplementation((async (args: { where?: { action?: unknown } }) =>
-      args?.where?.action === "LOGIN" ? 0 : 25) as never);
+      isLoginFilter(args?.where?.action) ? 0 : 25) as never);
     vi.mocked(prisma.dataAccessRequest.count).mockResolvedValue(0);
     vi.mocked(prisma.systemSetting.findUnique).mockResolvedValue(null);
     const res = await GET(makeRequest("http://localhost/api/root/monitoring"), { session: ROOT });
@@ -141,7 +155,7 @@ describe("GET /api/root/monitoring — état de la machine", () => {
     vi.mocked(prisma.$queryRaw).mockResolvedValue([{ "?column?": 1 }]);
     vi.mocked(prisma.auditLog.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.auditLog.groupBy).mockResolvedValue([] as never);
-    vi.mocked(prisma.session.count).mockResolvedValue(0);
+    vi.mocked(prisma.user.count).mockResolvedValue(0);
     vi.mocked(prisma.auditLog.count).mockResolvedValue(0);
     vi.mocked(prisma.dataAccessRequest.count).mockResolvedValue(0);
     vi.mocked(prisma.systemSetting.findUnique).mockResolvedValue(null);

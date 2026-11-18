@@ -9,7 +9,7 @@ import {
   type FinanceDateRange,
 } from "@/lib/finance/helpers";
 import { computePlanlessExpected } from "@/lib/finance/expected-fees";
-import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { memoizeAsync } from "@/lib/cache/memo";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
@@ -94,6 +94,7 @@ const financeDashboard = memoizeAsync(
         createdAt: true,
         status: true,
         method: true,
+        refundOfId: true,
         student: {
           select: {
             id: true,
@@ -291,22 +292,11 @@ export const GET = createApiHandler(
     const periodId = searchParams.get("periodId");
     
     // Un établissement demandé explicitement doit être dans le périmètre de la
-    // session (même contrôle que /api/analytics/school/overview) : sans lui,
-    // ?schoolId= d'une autre école était accepté.
-    const schoolAccess = ensureRequestedSchoolAccess(session, querySchoolId);
-    if (schoolAccess) return schoolAccess;
+    // session ; pour le super-admin, celui qu'il a sélectionné et qui existe (S6).
+    const scope = await resolveFinanceSchool(session, querySchoolId, "finance:dashboard");
+    if (!scope.ok) return scope.response;
 
-    const activeSchoolId = getActiveSchoolId(session);
-    const schoolId = querySchoolId || activeSchoolId;
-
-    if (!schoolId) {
-      return NextResponse.json(
-        { error: "ID d'établissement requis" },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(await financeDashboard(schoolId, academicYearId, periodId));
+    return NextResponse.json(await financeDashboard(scope.schoolId, academicYearId, periodId));
   },
   {
     allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"],

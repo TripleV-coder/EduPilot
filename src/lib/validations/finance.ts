@@ -52,7 +52,7 @@ export const paymentFilterSchema = z.object({
   studentId: z.string().cuid().optional(),
   feeId: z.string().cuid().optional(),
   method: z.enum(["CASH", "MOBILE_MONEY_MTN", "MOBILE_MONEY_MOOV", "BANK_TRANSFER", "CHECK", "OTHER"]).optional(),
-  status: z.enum(["PENDING", "VERIFIED", "RECONCILED", "CANCELLED"]).optional(),
+  status: z.enum(["PENDING", "VERIFIED", "RECONCILED", "CANCELLED", "EXPIRED"]).optional(),
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
   page: z.coerce.number().int().positive().default(1),

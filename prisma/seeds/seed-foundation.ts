@@ -174,9 +174,9 @@ export async function seedFoundation(ctx: SeedContext): Promise<void> {
         data: { schoolId: ctx.school1.id, periodType: "TRIMESTER", periodsCount: 3, maxGrade: 20, passingGrade: 10 },
     });
     ctx.periods = await Promise.all([
-        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "1er Trimestre", type: "TRIMESTER", startDate: new Date("2024-09-16"), endDate: new Date("2024-12-20"), sequence: 1 } }),
-        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "2ème Trimestre", type: "TRIMESTER", startDate: new Date("2025-01-06"), endDate: new Date("2025-03-28"), sequence: 2 } }),
-        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "3ème Trimestre", type: "TRIMESTER", startDate: new Date("2025-04-14"), endDate: new Date("2025-07-15"), sequence: 3 } }),
+        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "Trimestre 1", type: "TRIMESTER", startDate: new Date("2024-09-16"), endDate: new Date("2024-12-20"), sequence: 1 } }),
+        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "Trimestre 2", type: "TRIMESTER", startDate: new Date("2025-01-06"), endDate: new Date("2025-03-28"), sequence: 2 } }),
+        prisma.period.create({ data: { academicYearId: ctx.academicYear1.id, name: "Trimestre 3", type: "TRIMESTER", startDate: new Date("2025-04-14"), endDate: new Date("2025-07-15"), sequence: 3 } }),
     ]);
     // School 2 & 3 config
     await prisma.academicYear.create({ data: { schoolId: ctx.school2.id, name: "2024-2025", startDate: new Date("2024-09-16"), endDate: new Date("2025-07-15"), isCurrent: true } });
@@ -188,11 +188,11 @@ export async function seedFoundation(ctx: SeedContext): Promise<void> {
     // 6. Evaluation types
     console.log("📋 Création des types d'évaluations...\n");
     ctx.evalTypes = await Promise.all([
-        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Devoir surveillé", code: "DS", weight: 1, maxCount: 5 } }),
-        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Composition", code: "COMP", weight: 3, maxCount: 1 } }),
-        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Interrogation écrite", code: "IE", weight: 0.5, maxCount: 8 } }),
-        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Participation orale", code: "ORAL", weight: 0.5, maxCount: 4 } }),
-        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Travaux pratiques", code: "TP", weight: 1, maxCount: 3 } }),
+        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Devoir surveillé", code: "DS", category: "DEVOIR", weight: 1, maxCount: 5 } }),
+        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Composition", code: "COMP", category: "COMPOSITION", weight: 3, maxCount: 1 } }),
+        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Interrogation écrite", code: "IE", category: "INTERROGATION", weight: 0.5, maxCount: 8 } }),
+        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Participation orale", code: "ORAL", category: "INTERROGATION", weight: 0.5, maxCount: 4 } }),
+        prisma.evaluationType.create({ data: { schoolId: ctx.school1.id, name: "Travaux pratiques", code: "TP", category: "INTERROGATION", weight: 1, maxCount: 3 } }),
     ]);
     console.log("   ✅ Types d'évaluations créés\n");
 

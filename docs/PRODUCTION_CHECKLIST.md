@@ -23,19 +23,31 @@ NODE_ENV="production"
 # Sécurité 2FA
 TOTP_ENCRYPTION_KEY="[GÉNÉRER: openssl rand -hex 64]"
 
-# Email (OBLIGATOIRE pour reset password)
-EMAIL_PROVIDER="resend"  # ou "sendgrid"
-EMAIL_API_KEY="re_prod_xxxxxxxxxxxxxxxx"
-EMAIL_FROM="noreply@votredomaine.com"
-
-# Redis Cache & Rate Limiting (OBLIGATOIRE pour production multi-instance)
-UPSTASH_REDIS_REST_URL="https://xxx-xxx.upstash.io"
-UPSTASH_REDIS_REST_TOKEN="AYxxxx..."
+# Email (OBLIGATOIRE pour reset password) : plus de variable — console root
+# › Intégrations › E-mail, puis « Envoyer un e-mail d'essai » avant l'ouverture
 
 # Backup API : désactivée par défaut
 ALLOW_BACKUP_API="false"
 ALLOW_BACKUP_API_IN_PRODUCTION="false"
+
+# Notifications push web (recommandé : parents) — paire générée UNE fois :
+#   npx web-push generate-vapid-keys
+# Changer la paire oblige chaque appareil à se réabonner.
+# Notifications push : rien à définir (clés dérivées du secret maître, adresse publique en HTTPS)
+
+# WhatsApp Business (Meta Cloud API) — facultatif ; le modèle doit être
+# APPROUVÉ par Meta avec un paramètre {{1}} (le texte de l'école)
+WHATSAPP_PHONE_ID="..."
+WHATSAPP_ACCESS_TOKEN="..."
+WHATSAPP_TEMPLATE_NAME="annonce_ecole"
+WHATSAPP_TEMPLATE_LANG="fr"
+
+# Passerelle d'appels vocaux — facultative
+VOICE_WEBHOOK_URL="https://voix.fournisseur.example/call"
+VOICE_API_KEY="..."
 ```
+
+> Sans adresse publique HTTPS (push), `WHATSAPP_*` ou `VOICE_WEBHOOK_URL`, les écrans concernés le disent et refusent l'envoi (503 explicite) : rien n'est simulé.
 
 ---
 
@@ -134,9 +146,9 @@ const dbUrl = "postgresql://user:pass@..."
 
 #### B. Rate Limiting
 ```bash
-# Vérifier que Redis Upstash est configuré
-# Le fallback in-memory n'est acceptable qu'en dev/test
-echo $UPSTASH_REDIS_REST_URL
+# Limites partagées dans PostgreSQL (aucun Redis, ADR-0013) :
+# "sharedState": "connected" attendu
+curl -s https://votredomaine.com/api/health
 ```
 
 #### C. Headers de Sécurité
@@ -171,9 +183,8 @@ const logger = pino({
 ```
 
 #### B. Services de Monitoring Recommandés
-- **Sentry** : Error tracking (déjà intégré ?)
+- **Erreurs** : journal interne + alertes aux super-administrateurs (intégré, rien à configurer)
 - **Vercel Analytics** : Si déployé sur Vercel
-- **Upstash Redis Insights** : Monitoring cache/rate limiting
 - **PostgreSQL logs** : Activer slow query log
 
 #### C. Health Check Endpoint
@@ -201,8 +212,8 @@ module.exports = {
 
 #### B. Cache Strategy
 ```typescript
-// Vérifier que le cache Redis est actif
-// Dans /app/src/lib/cache/redis.ts
+// Cache mémoire borné du processus : src/lib/cache/service.ts
+// (taux de succès mesuré dans Pilotage root → Monitoring)
 - Cache finance/stats : 5 minutes
 - Cache utilisateurs : 1 minute
 - Cache écoles : 15 minutes
@@ -292,26 +303,26 @@ curl https://edupilot.com/api/health
 
 ### Infrastructure
 - [ ] PostgreSQL production configuré et accessible
-- [ ] Redis Upstash configuré (ou alternative)
 - [ ] DNS configuré (edupilot.votredomaine.com)
 - [ ] SSL/TLS certificat installé (Let's Encrypt/Cloudflare)
 - [ ] Firewall configuré (port 443 ouvert, 22 restreint)
 
 ### Configuration
 - [ ] Toutes les variables d'environnement production saisies
+- [ ] Clés VAPID générées (notifications push) ; notification d'essai reçue depuis *Paramètres › Notifications* sur un téléphone Android et un iPhone (application ajoutée à l'écran d'accueil)
+- [ ] WhatsApp : modèle approuvé par Meta, diffusion d'essai vers un numéro interne
 - [ ] `NEXTAUTH_SECRET` généré et unique (pas celui de dev)
 - [ ] `DATABASE_URL` pointe vers DB production
 - [ ] Email provider configuré et testé
-- [ ] Rate limiting Redis configuré
 
 ### Code
-- [ ] `yarn build` réussit sans erreur
-- [ ] `yarn test` : 240 tests passent
-- [ ] `yarn type-check` : pas d'erreur TypeScript
+- [ ] `npm run build` réussit sans erreur
+- [ ] `npm test` (unitaires) et `npm run test:integration` (PostgreSQL éphémère, jamais la base de dev) : tout passe
+- [ ] `npx tsc --noEmit` et `npm run lint` : zéro erreur
 - [ ] Version git taggée (ex: v1.1.0)
 
 ### Base de Données
-- [ ] Migrations appliquées (`prisma migrate deploy`)
+- [ ] Migrations appliquées (`prisma migrate deploy`) — dont, en novembre 2026 : badges par défaut, pulse climat (compteurs anonymes), retrait du module « benchmark », abonnements push
 - [ ] Backup automatique configuré (cron job)
 - [ ] Index DB créés pour performance
 - [ ] Données de référence (plans, etc.) insérées
@@ -325,7 +336,7 @@ curl https://edupilot.com/api/health
 
 ### Monitoring
 - [ ] Logs configurés et persistés
-- [ ] Sentry (ou équivalent) configuré
+- [ ] Un super-administrateur actif reçoit bien les alertes (e-mail configuré)
 - [ ] Health check endpoint testé
 - [ ] Alertes configurées (CPU, RAM, DB)
 
@@ -404,8 +415,7 @@ systemctl status nginx  # si utilisé
 # Test connectivité DB
 psql $DATABASE_URL -c "SELECT COUNT(*) FROM users;"
 
-# Clear cache Redis (si nécessaire)
-redis-cli -u $UPSTASH_REDIS_REST_URL FLUSHALL
+# Vider le cache : Pilotage root → Maintenance → « Vider le cache des réponses »
 ```
 
 ---

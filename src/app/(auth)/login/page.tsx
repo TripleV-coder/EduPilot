@@ -15,10 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { getLoginErrorMessage } from "@/lib/auth/login-errors";
+import { safeCallbackPath } from "@/lib/security/safe-redirect";
 
 const loginSchema = z.object({
   email: z.string().email("Email invalide"),
   password: z.string().min(1, "Mot de passe requis"),
+  remember: z.boolean().optional(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -43,7 +45,7 @@ function LoginForm() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/dashboard");
+      router.replace(safeCallbackPath(searchParams.get("callbackUrl")));
     }
   }, [status, router]);
 
@@ -88,13 +90,15 @@ function LoginForm() {
       const result = await signIn("credentials", {
         email: data.email,
         password: data.password,
+        remember: data.remember ? "true" : "false",
         redirect: false,
       });
 
       if (result?.error) {
         setError(getLoginErrorMessage(result.error, result.code));
       } else {
-        router.push("/dashboard");
+        // DEF-019 : retour à la page demandée (chemin interne seulement)
+        router.push(safeCallbackPath(searchParams.get("callbackUrl")));
         router.refresh();
       }
     } catch {
@@ -205,6 +209,25 @@ function LoginForm() {
               {errors.password.message}
             </p>
           )}
+        </div>
+
+        {/* Rester connecté : 30 jours au lieu de 24 h sans activité */}
+        <div className="flex items-start gap-3">
+          <input
+            id="remember"
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-[hsl(var(--primary))]"
+            aria-describedby="remember-hint"
+            {...register("remember")}
+          />
+          <div>
+            <Label htmlFor="remember" className="font-medium text-foreground">
+              Rester connecté sur cet appareil
+            </Label>
+            <p id="remember-hint" className="text-xs text-muted-foreground">
+              30 jours sans redemander le mot de passe. À ne pas cocher sur un ordinateur partagé.
+            </p>
+          </div>
         </div>
 
         {/* Submit */}

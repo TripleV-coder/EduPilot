@@ -6,6 +6,7 @@ import { z } from "zod";
 import { fcfaAmountSchema } from "@/lib/finance/money";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool, superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
@@ -58,6 +59,10 @@ export const GET = createApiHandler(async (request, context) => {
       }
       where.studentId = { in: parentProfile.parentStudents.map(c => c.student.id) };
     } else if (session.user.role === "SUPER_ADMIN") {
+      // S6 : les bourses d'une école sélectionnée, jamais de toutes
+      const scope = await resolveFinanceSchool(session, searchParams.get("schoolId"), "scholarships:list");
+      if (!scope.ok) return scope.response;
+      where.student = { schoolId: scope.schoolId };
       if (studentId) {
         where.studentId = studentId;
       }
@@ -152,6 +157,8 @@ export const POST = createApiHandler(
       if (session.user.role !== "SUPER_ADMIN" && student.schoolId !== getActiveSchoolId(session)) {
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }
+      const outOfScope = await superAdminTargetOutOfScope(session, student.schoolId, "scholarships:create");
+      if (outOfScope) return outOfScope;
 
       const scholarship = await prisma.scholarship.create({
         data: {

@@ -3,18 +3,22 @@
  *
  * Avant : l'appel ne prévenait personne (la fonction SMS d'absence existait
  * mais n'était jamais appelée). Règles :
- * - parent avec un compte → notification dans l'application et courriel ;
- * - responsable sans compte → SMS, seulement si un fournisseur est configuré ;
+ * - parent avec un compte → notification dans l'application, courriel et
+ *   WhatsApp (canal principal depuis le 2026-11-14) ;
+ * - responsable sans compte → WhatsApp, et SMS en secours si WhatsApp
+ *   n'aboutit pas (lib/notifications/family-channel.ts) ;
  * - seulement quand l'élève DEVIENT absent ou en retard (pas à chaque
  *   réenregistrement du même appel) — l'appelant fournit ces changements ;
  * - un échec d'envoi ne remet jamais en cause l'appel déjà enregistré.
  *
- * Courriels et SMS passent par la file d'envoi : l'enseignant n'attend plus
+ * Courriels, WhatsApp et SMS passent par la file d'envoi : l'enseignant n'attend plus
  * un aller-retour fournisseur par famille avant de voir son appel enregistré.
  */
 import prisma from "@/lib/prisma";
 import { createNotifications } from "@/lib/services/notification.service";
-import { attendanceSmsMessage, isSmsProviderConfigured } from "@/lib/notifications/sms-service";
+import { attendanceSmsMessage } from "@/lib/notifications/sms-service";
+import { queueFamilyMessages, type FamilyMessage } from "@/lib/notifications/family-channel";
+import { toInternationalDigits } from "@/lib/notifications/phone";
 import { enqueueJobs } from "@/lib/jobs/queue";
 import type { NewJob } from "@/lib/jobs/types";
 import { logger } from "@/lib/utils/logger";
@@ -33,8 +37,8 @@ export async function notifyParentsOfAbsences(input: {
     schoolId: string;
     date: Date;
     changes: AbsenceChange[];
-}): Promise<{ notified: number; sms: number }> {
-    if (input.changes.length === 0) return { notified: 0, sms: 0 };
+}): Promise<{ notified: number; whatsapp: number; sms: number }> {
+    if (input.changes.length === 0) return { notified: 0, whatsapp: 0, sms: 0 };
     const statusById = new Map(input.changes.map((change) => [change.studentId, change.status]));
 
     const students = await prisma.studentProfile.findMany({
@@ -50,10 +54,9 @@ export async function notifyParentsOfAbsences(input: {
     });
 
     const day = input.date.toLocaleDateString("fr-FR");
-    const smsEnabled = isSmsProviderConfigured();
     const notifications: Parameters<typeof createNotifications>[0] = [];
     const jobs: NewJob[] = [];
-    let sms = 0;
+    const family: FamilyMessage[] = [];
 
     for (const student of students) {
         const status = statusById.get(student.id);
@@ -85,24 +88,21 @@ export async function notifyParentsOfAbsences(input: {
             }
         }
 
-        // SMS : uniquement pour les responsables qui n'ont pas l'application.
-        if (!smsEnabled) continue;
-        const accountPhones = new Set(accountUsers.map((user) => user.phone).filter(Boolean));
-        const phones = [...new Set(student.guardians.map((guardian) => guardian.phone))].filter(
-            (phone) => !accountPhones.has(phone),
-        );
-        for (const phone of phones) {
-            jobs.push({
-                type: "sms.send",
-                schoolId: input.schoolId,
-                payload: {
-                    phoneNumber: phone,
-                    message: attendanceSmsMessage({ studentName: name, status: STATUS_LABEL[status], date: input.date }),
-                    smsType: "ATTENDANCE",
-                    schoolId: input.schoolId,
-                },
-            });
-            sms++;
+        // WhatsApp à chaque numéro de la famille ; SMS de secours seulement pour
+        // les responsables sans compte (les autres ont notification + courriel).
+        const text = attendanceSmsMessage({ studentName: name, status: STATUS_LABEL[status], date: input.date });
+        const seen = new Set<string>();
+        for (const parent of accountUsers) {
+            const key = toInternationalDigits(parent.phone);
+            if (!parent.phone || !key || seen.has(key)) continue;
+            seen.add(key);
+            family.push({ phone: parent.phone, message: text, kind: "ATTENDANCE", schoolId: input.schoolId, userId: parent.id, smsFallback: false });
+        }
+        for (const guardian of student.guardians) {
+            const key = toInternationalDigits(guardian.phone) ?? guardian.phone;
+            if (!guardian.phone || seen.has(key)) continue;
+            seen.add(key);
+            family.push({ phone: guardian.phone, message: text, kind: "ATTENDANCE", schoolId: input.schoolId, smsFallback: true });
         }
     }
 
@@ -115,9 +115,17 @@ export async function notifyParentsOfAbsences(input: {
     try {
         await enqueueJobs(jobs);
     } catch (error) {
-        sms = 0;
-        logger.error("[appel] courriels et SMS aux familles non programmés", error as Error);
+        logger.error("[appel] courriels aux familles non programmés", error as Error);
+    }
+    let whatsapp = 0;
+    let sms = 0;
+    try {
+        const queued = await queueFamilyMessages(family);
+        whatsapp = queued.whatsapp;
+        sms = queued.sms;
+    } catch (error) {
+        logger.error("[appel] WhatsApp et SMS aux familles non programmés", error as Error);
     }
 
-    return { notified, sms };
+    return { notified, whatsapp, sms };
 }

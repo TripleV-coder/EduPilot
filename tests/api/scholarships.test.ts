@@ -16,6 +16,8 @@ vi.mock("@/lib/prisma", () => ({
     scholarship: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     auditLog: { create: vi.fn() },
     notification: { create: vi.fn(), createMany: vi.fn() },
+    // S6 : école sélectionnée du super-admin vérifiée en base
+    school: { findUnique: vi.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id })) },
   },
 }));
 
@@ -120,7 +122,17 @@ describe("GET /api/scholarships", () => {
     vi.mocked(prisma.scholarship.findMany).mockResolvedValue([] as never);
 
     await GET(makeRequest(`http://localhost/api/scholarships?studentId=${FIXTURES.studentB}`));
-    expect(vi.mocked(prisma.scholarship.findMany).mock.calls[0][0].where.studentId).toBe(FIXTURES.studentB);
+    const where = vi.mocked(prisma.scholarship.findMany).mock.calls[0][0].where;
+    expect(where.studentId).toBe(FIXTURES.studentB);
+    // S6 : toujours limité à l'école sélectionnée
+    expect(where.student).toEqual({ schoolId: FIXTURES.schoolA });
+  });
+
+  it("SUPER_ADMIN sans école sélectionnée : 400, aucune bourse lue (S6)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("SUPER_ADMIN", { schoolId: null }));
+    const res = await GET(makeRequest("http://localhost/api/scholarships"));
+    expect(res.status).toBe(400);
+    expect(prisma.scholarship.findMany).not.toHaveBeenCalled();
   });
 
   it("retourne 500 sur erreur prisma", async () => {

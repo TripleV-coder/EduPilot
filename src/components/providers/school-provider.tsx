@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
 import type { AcademicYear, Period } from "@/lib/types";
 
@@ -16,6 +16,8 @@ interface AccessibleSchool {
 }
 
 interface SchoolContextData {
+    /** École à laquelle se rapportent ces données (renvoyée par /api/schools/context). */
+    activeSchoolId?: string | null;
     schools: AccessibleSchool[];
     /** Modules actifs de l'école active (Lot 6) ; absent = rien n'est masqué. */
     enabledModules?: string[];
@@ -69,6 +71,7 @@ const clearCookie = (name: string) => {
 export function SchoolProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const { data: session, status, update } = useSession();
+    const { mutate: mutateAll } = useSWRConfig();
     
     // Level 1: Hydrate from Cookies/LocalStorage for instant UI
     const [academicYearId, setAcademicYearId] = useState<string | null>(() => getCookie('edupilot_year_id'));
@@ -133,10 +136,18 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
         isGlobalMode ? `/api/academic-years` : null,
         fetcher
     );
-    const schoolYears = isGlobalMode ? null : schoolContextData?.academicYears;
+    // Uniquement les années de l'école ACTIVE (audit R-CA-05) : pendant un
+    // changement d'école, les données encore en cache sont celles de l'école
+    // précédente ; les lire réimposait son année courante à la nouvelle école.
+    const schoolYears =
+        isGlobalMode || !schoolContextData || (schoolContextData.activeSchoolId ?? null) !== (session?.user?.schoolId ?? null)
+            ? null
+            : schoolContextData.academicYears;
 
     useEffect(() => {
-        if (!schoolYears) return;
+        // Pendant un changement d'école, les données encore en cache sont celles
+        // de l'école quittée : aucune année n'est choisie avant la fin (R-CA-05).
+        if (!schoolYears || isSwitchingSchool) return;
         // Année mémorisée d'une autre école ou supprimée : on revient à l'année courante.
         if (academicYearId && schoolYears.some((y) => y.id === academicYearId)) return;
         const current = schoolYears.find((y) => y.isCurrent);
@@ -146,7 +157,7 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
         if (targetId) setCookie("edupilot_year_id", targetId);
         else clearCookie("edupilot_year_id");
         clearCookie("edupilot_period_id");
-    }, [schoolYears, academicYearId]);
+    }, [schoolYears, academicYearId, isSwitchingSchool]);
 
     // Fetch periods for the selected academic year
     const { data: periods, error: periodsError } = useSWR<Period[]>(
@@ -197,6 +208,10 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
             clearCookie("edupilot_year_id");
             clearCookie("edupilot_period_id");
             await update({ schoolId: id });
+            // Les clés SWR (« /api/classes »…) ne contiennent pas l'école : sans
+            // ce vidage, l'écran gardait les données de l'école précédente. Tout
+            // est oublié puis rechargé avec la nouvelle session.
+            await mutateAll(() => true, undefined, { revalidate: true });
             router.refresh();
         } finally {
             setIsSwitchingSchool(false);
@@ -252,7 +267,7 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
     return (
         <SchoolContext.Provider value={value}>
             {isOffline && (
-                <div className="fixed top-0 left-0 right-0 z-[9999] bg-orange-500 text-white text-[11px] font-bold py-1 text-center">
+                <div className="fixed top-0 left-0 right-0 z-[9999] bg-orange-500 text-white text-xs font-bold py-1 text-center">
                     Mode Hors-Ligne &middot; Affichage des données en cache
                 </div>
             )}

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireRoot } from "@/lib/security/require-root";
 import { logger } from "@/lib/utils/logger";
+import { createAuditLog } from "@/lib/security/audit-log";
 
 import { createApiHandler } from "@/lib/api/api-helpers";
 export const dynamic = "force-dynamic";
@@ -72,7 +73,18 @@ export const GET = createApiHandler(
     const totalPayments = paymentStats.reduce((sum, row) => sum + row._count, 0);
     const collectionRate = totalPayments > 0 ? (paidCount / totalPayments) * 100 : 0;
 
+    // S6 : vue globale de la plateforme, explicitement identifiée et tracée.
+    // Elle ne donne ni nom d'élève ni détail exploitable d'une école : les
+    // finances d'un établissement se consultent dans cet établissement.
+    await createAuditLog({
+      userId: session.user.id,
+      action: "FINANCE_GLOBAL_VIEW",
+      entity: "FINANCE",
+      newValues: { operation: "root:finance-summary", outcome: "GRANTED", scope: "PLATFORM" },
+    });
+
     return NextResponse.json({
+      scope: "PLATFORM",
       summary: {
         totalMonthlyRevenue,
         activeTenants: schools.length,

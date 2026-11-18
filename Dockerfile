@@ -11,8 +11,13 @@ RUN apk add --no-cache libc6-compat openssl
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm ci --frozen-lockfile
+# .npmrc (legacy-peer-deps) : sans lui, npm 11 exige les peer dependencies
+# absentes du lockfile (webpack…) et `npm ci` échoue dans l'image seulement.
+COPY package.json package-lock.json* .npmrc ./
+# Schéma requis par le postinstall (`prisma generate`) ; pas --ignore-scripts,
+# qui sauterait aussi la compilation native de bcrypt
+COPY prisma/schema.prisma ./prisma/schema.prisma
+RUN npm ci
 
 # -----------------------------------------------
 # Étape 2 : builder — compiler l'application
@@ -27,6 +32,13 @@ COPY . .
 
 # Générer le client Prisma
 RUN npx prisma generate
+
+# CLI Prisma autonome pour `migrate deploy` au démarrage, AVEC ses dépendances
+# (@prisma/config → effect, c12…) : copier le seul paquet `prisma` donnait
+# « Cannot find module 'effect' » et le conteneur s'arrêtait. Même version que
+# le projet ; moteurs téléchargés ici, donc pour Alpine (musl).
+RUN npm install --prefix /opt/prisma-cli --no-save --no-package-lock --omit=dev \
+      "prisma@$(node -p "require('./node_modules/prisma/package.json').version")"
 
 # Désactiver la télémétrie Next.js
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -71,18 +83,17 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/docker-entrypoint.
 # Lanceur multi-processus (WEB_CONCURRENCY), analyse de capacité 2026-10-01.
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/server/cluster.cjs ./cluster.cjs
 
-# Fichiers téléversés : à monter sur un volume (docker-compose : uploads_data),
-# sinon ils disparaissent à chaque recréation du conteneur.
-RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
+# Fichiers envoyés : stockés dans PostgreSQL (table stored_files), aucun
+# volume à monter.
 
 # Schéma et migrations, appliquées au démarrage par l'entrypoint.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 # Le CLI Prisma (`migrate deploy`) : il n'est pas dans la sortie standalone,
-# qui ne trace que ce que le code importe. Ses moteurs viennent de l'étape de
-# build, donc compilés pour Alpine (musl), comme le reste de l'image.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+# qui ne trace que ce que le code importe. Installé à part avec toutes ses
+# dépendances (étape builder, /opt/prisma-cli), moteurs pour Alpine (musl).
+COPY --from=builder --chown=nextjs:nodejs /opt/prisma-cli/node_modules ./prisma-cli/node_modules
 
 USER nextjs
 

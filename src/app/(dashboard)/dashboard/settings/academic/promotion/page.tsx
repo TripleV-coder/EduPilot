@@ -238,7 +238,7 @@ function PromotionEngineContent() {
         />
 
             {loadError ? (
-                <PageError message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
+                <PageError error={loadError} message="Impossible de charger la liste des classes." onRetry={() => void reloadPage()} />
             ) : null}
       </div>
 
@@ -269,7 +269,7 @@ function PromotionEngineContent() {
                 >
                   <div className="flex flex-col">
                     <span className="text-sm font-bold">{c.name}</span>
-                    <span className={cn("text-[11px] font-medium opacity-70", selectedClassId === c.id ? "text-white" : "text-muted-foreground")}>
+                    <span className={cn("text-xs font-medium opacity-70", selectedClassId === c.id ? "text-white" : "text-muted-foreground")}>
                       {c.classLevel?.level ? cycleLabel(c.classLevel.level as SchoolLevel) : ""}
                     </span>
                   </div>
@@ -288,7 +288,7 @@ function PromotionEngineContent() {
             </CardHeader>
             <CardContent className="p-4">
               {yearsError ? (
-                <PageError message="Impossible de charger les années académiques." onRetry={() => void reloadYears()} />
+                <PageError error={yearsError} message="Impossible de charger les années académiques." onRetry={() => void reloadYears()} />
               ) : !academicYears ? (
                 <p className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -328,22 +328,22 @@ function PromotionEngineContent() {
               <div className="flex gap-4 items-center">
                  <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-[hsl(var(--success))]" />
-                    <span className="text-[11px] font-bold text-muted-foreground">Admis: {students.filter(s => s.status === "PROMOTE").length}</span>
+                    <span className="text-xs font-bold text-muted-foreground">Admis: {students.filter(s => s.status === "PROMOTE").length}</span>
                  </div>
                  <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-warning" />
-                    <span className="text-[11px] font-bold text-muted-foreground">Redouble: {students.filter(s => s.status === "REPEAT").length}</span>
+                    <span className="text-xs font-bold text-muted-foreground">Redouble: {students.filter(s => s.status === "REPEAT").length}</span>
                  </div>
                  <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-muted-foreground/40" />
-                    <span className="text-[11px] font-bold text-muted-foreground">À décider: {undecidedCount}</span>
+                    <span className="text-xs font-bold text-muted-foreground">À décider: {undecidedCount}</span>
                  </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-[11px] font-bold text-muted-foreground border-b border-border/50">
+                  <thead className="bg-muted/50 text-xs font-bold text-muted-foreground border-b border-border/50">
                     <tr>
                       <th className="px-6 py-4 text-left">Élève</th>
                       <th className="px-6 py-4 text-center">Moyenne Générale</th>
@@ -356,7 +356,7 @@ function PromotionEngineContent() {
                         <td className="px-6 py-4">
                           <p className="font-bold">{s.name}</p>
                           {s.status === "PROMOTE" && s.average !== null && s.average < passingGrade ? (
-                            <p className="text-[11px] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               {rescueAllowed
                                 ? "Rachat : possible seulement après la validation du conseil de classe de fin d'année."
                                 : "Rachat non activé dans les règles de l'établissement : l'enregistrement sera refusé."}
@@ -381,7 +381,7 @@ function PromotionEngineContent() {
                             <button 
                               onClick={() => setStatus(s.id, "PROMOTE")}
                               className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
                                 s.status === "PROMOTE" ? "bg-[hsl(var(--success))] border-[hsl(var(--success))] text-white shadow-md shadow-[hsl(var(--success))]/20" : "bg-background border-border/50 text-muted-foreground hover:border-[hsl(var(--success))]/50"
                               )}
                             >
@@ -391,7 +391,7 @@ function PromotionEngineContent() {
                             <button 
                               onClick={() => setStatus(s.id, "REPEAT")}
                               className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
                                 s.status === "REPEAT" ? "bg-warning border-warning text-white shadow-md shadow-warning/20" : "bg-background border-border/50 text-muted-foreground hover:border-warning/50"
                               )}
                             >
@@ -400,7 +400,7 @@ function PromotionEngineContent() {
                             <button 
                               onClick={() => setStatus(s.id, "LEAVE")}
                               className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
                                 s.status === "LEAVE" ? "bg-destructive border-destructive text-white shadow-md shadow-destructive/20" : "bg-background border-border/50 text-muted-foreground hover:border-destructive/50"
                               )}
                             >

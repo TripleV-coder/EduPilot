@@ -6,6 +6,7 @@ import { studentOrientationSchema } from "@/lib/validations/orientation";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { getOwnStudentIds } from "@/lib/auth/family-scope";
 
 export const GET = createApiHandler(async (request, context) => {
     try {
@@ -15,7 +16,14 @@ export const GET = createApiHandler(async (request, context) => {
         const studentId = searchParams.get("studentId");
 
         const where: Prisma.StudentOrientationWhereInput = {};
-        if (studentId) where.studentId = studentId;
+        // Famille : ses propres dossiers seulement ; ?studentId s'y ajoute sans
+        // jamais l'élargir (tout compte de l'école listait ceux de tous les élèves)
+        const ownIds = await getOwnStudentIds(session.user.role, session.user.id);
+        if (ownIds) {
+            where.AND = [{ studentId: { in: ownIds } }, ...(studentId ? [{ studentId }] : [])];
+        } else if (studentId) {
+            where.studentId = studentId;
+        }
 
         // Limiter aux écoles de l'utilisateur
         if (session.user.role !== "SUPER_ADMIN" && getActiveSchoolId(session)) {
@@ -31,9 +39,11 @@ export const GET = createApiHandler(async (request, context) => {
         const orientations = await prisma.studentOrientation.findMany({
             where,
             include: {
+                // Nom de l'élève seulement, jamais sa fiche ni son e-mail
                 student: {
-                    include: {
-                        user: { select: { firstName: true, lastName: true, email: true } }
+                    select: {
+                        id: true,
+                        user: { select: { firstName: true, lastName: true } }
                     }
                 },
                 academicYear: true,
@@ -52,6 +62,9 @@ export const GET = createApiHandler(async (request, context) => {
         return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
     }
 
+}, {
+    // Mêmes rôles que la page Orientation (PageGuard) ; comptabilité et personnel exclus
+    allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT", "STUDENT"],
 });
 
 export const POST = createApiHandler(async (request, context) => {

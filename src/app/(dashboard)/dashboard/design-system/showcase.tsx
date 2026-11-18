@@ -44,7 +44,7 @@ function Section({
             <div style={{ marginBottom: 18 }}>
                 <div
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 700,
                         letterSpacing: "0.14em",
                         textTransform: "uppercase",
@@ -75,7 +75,7 @@ function SubLabel({ children }: { children: React.ReactNode }) {
     return (
         <div
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 600,
                 color: "var(--eduflow-text-tertiary)",
                 textTransform: "uppercase",
@@ -112,7 +112,7 @@ function ColorRamp({
                 </span>
                 <span
                     className="eduflow-mono"
-                    style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                    style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                 >
                     --{isBrandRamp ? "brand" : `eduflow-${varName}`}-*
                 </span>
@@ -136,7 +136,7 @@ function ColorRamp({
                             style={{
                                 marginTop: 3,
                                 textAlign: "center",
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: 600,
                                 color: "var(--eduflow-text-secondary)",
                                 fontVariantNumeric: "tabular-nums",
@@ -177,13 +177,13 @@ function TypeRow({
         >
             <span
                 className="eduflow-mono"
-                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
             >
                 {label}
             </span>
             <span
                 className="eduflow-mono"
-                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
             >
                 {size}
             </span>
@@ -225,12 +225,12 @@ function SpaceTile({ value, name }: { value: number; name: string }) {
                     }}
                 />
             </div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
                 {name}
             </div>
             <div
                 className="eduflow-mono"
-                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
             >
                 {value}px
             </div>
@@ -249,12 +249,12 @@ function RadiusTile({ name, value }: { name: string; value: number }) {
                     borderRadius: value,
                 }}
             />
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
                 {name}
             </div>
             <div
                 className="eduflow-mono"
-                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
             >
                 {value}px
             </div>
@@ -274,7 +274,7 @@ function ShadowTile({ name, value }: { name: string; value: string }) {
                     boxShadow: value,
                 }}
             />
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>
                 {name}
             </div>
         </div>
@@ -332,7 +332,7 @@ function TweaksPanel({
                         </div>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-tertiary)",
                             }}
                         >
@@ -601,7 +601,7 @@ function ErrorStateCard() {
                 className="eduflow-mono"
                 style={{
                     marginTop: 16,
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--eduflow-danger-800)",
                     letterSpacing: "0.04em",
                 }}
@@ -756,7 +756,7 @@ function CommandPalettePreview() {
                     <span
                         className="eduflow-mono"
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             padding: "2px 6px",
                             borderRadius: 4,
                             background: "var(--eduflow-surface-sunken)",
@@ -789,7 +789,7 @@ function CommandPalettePreview() {
                         borderTop: "1px solid var(--eduflow-border-subtle)",
                         display: "flex",
                         gap: 14,
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                     }}
                 >
@@ -811,7 +811,7 @@ function PaletteGroup({ label, children }: { label: string; children: React.Reac
             <div
                 style={{
                     padding: "10px 18px 4px",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     textTransform: "uppercase",
                     letterSpacing: "0.08em",
@@ -865,7 +865,7 @@ function PaletteRow({
             {kbd ? (
                 <span
                     className="eduflow-mono"
-                    style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                    style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                 >
                     {kbd}
                 </span>
@@ -924,7 +924,7 @@ function Phone({ children }: { children: React.ReactNode }) {
                     }}
                 />
                 <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                    <span style={{ fontSize: 11 }}>5G</span>
+                    <span style={{ fontSize: 12 }}>5G</span>
                     <span
                         aria-hidden
                         style={{
@@ -1000,7 +1000,7 @@ function PhoneBottomNav({ items, label = "Navigation onglets mobile" }: { items:
                                         borderRadius: 8,
                                         background: "var(--eduflow-danger-500)",
                                         color: "#fff",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         display: "grid",
                                         placeItems: "center",
@@ -1010,7 +1010,7 @@ function PhoneBottomNav({ items, label = "Navigation onglets mobile" }: { items:
                                 </span>
                             ) : null}
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: it.active ? 700 : 600 }}>
+                        <span style={{ fontSize: 12, fontWeight: it.active ? 700 : 600 }}>
                             {it.label}
                         </span>
                     </button>
@@ -1024,7 +1024,7 @@ function MobileEyebrow({ children }: { children: React.ReactNode }) {
     return (
         <div
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
@@ -1051,7 +1051,7 @@ function ParentMobilePreview() {
                 >
                     <Avatar name="M. Hounsou" size="md" />
                     <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             Bonjour
                         </div>
                         <div
@@ -1128,7 +1128,7 @@ function ParentMobilePreview() {
                         </div>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-warning-800)",
                                 marginTop: 2,
                             }}
@@ -1161,7 +1161,7 @@ function ParentMobilePreview() {
                                 <div style={{ fontSize: 14, fontWeight: 700 }}>{k.n}</div>
                                 <div
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
                                 >
@@ -1227,7 +1227,7 @@ function StudentMobilePreview() {
                 >
                     <Avatar name="Aïcha Hounsou" size="md" />
                     <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             Salut
                         </div>
                         <div
@@ -1254,7 +1254,7 @@ function StudentMobilePreview() {
                 >
                     <div
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 700,
                             letterSpacing: "0.1em",
                             textTransform: "uppercase",
@@ -1326,7 +1326,7 @@ function StudentMobilePreview() {
                         <div>
                             <div style={{ fontSize: 13, fontWeight: 700 }}>4 devoirs</div>
                             <div
-                                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                                style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                             >
                                 2 cette semaine
                             </div>
@@ -1352,7 +1352,7 @@ function StudentMobilePreview() {
                         <div>
                             <div style={{ fontSize: 13, fontWeight: 700 }}>Math 14h</div>
                             <div
-                                style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}
+                                style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}
                             >
                                 Salle 207
                             </div>
@@ -1382,7 +1382,7 @@ function StudentMobilePreview() {
                                 <div style={{ fontSize: 13, fontWeight: 600 }}>{g.sub}</div>
                                 <div
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
                                 >
@@ -1466,7 +1466,7 @@ function TeacherMobilePreview() {
                         />
                     </button>
                     <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                        <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                             Appel · 10h15
                         </div>
                         <div
@@ -1515,7 +1515,7 @@ function TeacherMobilePreview() {
                             </div>
                             <div
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 600,
                                     color: `var(--eduflow-${s.c}-800)`,
                                 }}
@@ -1661,7 +1661,7 @@ export function DesignSystemShowcase() {
                             <Logo size={36} />
                             <div
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 700,
                                     letterSpacing: "0.14em",
                                     textTransform: "uppercase",
@@ -1703,7 +1703,7 @@ export function DesignSystemShowcase() {
                             display: "flex",
                             flexDirection: "column",
                             gap: 6,
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--eduflow-text-tertiary)",
                             textAlign: "right",
                         }}
@@ -1774,7 +1774,7 @@ export function DesignSystemShowcase() {
                                 >
                                     14,75
                                 </div>
-                                <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 4 }}>
+                                <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", marginTop: 4 }}>
                                     Moyenne classe
                                 </div>
                             </div>
@@ -1785,7 +1785,7 @@ export function DesignSystemShowcase() {
                                 >
                                     248 500
                                 </div>
-                                <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 4 }}>
+                                <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", marginTop: 4 }}>
                                     FCFA encaissés
                                 </div>
                             </div>
@@ -1797,7 +1797,7 @@ export function DesignSystemShowcase() {
                                     92,4
                                     <span style={{ fontSize: "0.55em", color: "var(--eduflow-text-tertiary)" }}>%</span>
                                 </div>
-                                <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)", marginTop: 4 }}>
+                                <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)", marginTop: 4 }}>
                                     Présence semaine
                                 </div>
                             </div>
@@ -1979,7 +1979,7 @@ export function DesignSystemShowcase() {
                                             "0 0 0 2px var(--eduflow-surface-card), inset 0 0 0 1px var(--eduflow-border-default)",
                                         display: "grid",
                                         placeItems: "center",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 600,
                                         color: "var(--eduflow-text-secondary)",
                                     }}
@@ -2231,7 +2231,7 @@ export function DesignSystemShowcase() {
                         justifyContent: "space-between",
                         flexWrap: "wrap",
                         gap: 12,
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                     }}
                 >

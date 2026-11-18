@@ -103,6 +103,15 @@ const FR_EVENT_DATE = (iso: string): string => {
 };
 
 export default function CouncilsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.EVALUATION_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]} >
+            <CouncilsPageContent />
+        </PageGuard>
+    );
+}
+
+function CouncilsPageContent() {
     const thresholds = useSchoolThresholds();
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [periods, setPeriods] = useState<PeriodOption[]>([]);
@@ -220,10 +229,7 @@ export default function CouncilsPage() {
           ];
 
     return (
-        <PageGuard
-            permission={Permission.EVALUATION_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-        >
+        <>
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/grades">
@@ -481,7 +487,7 @@ export default function CouncilsPage() {
                                                             style={{
                                                                 padding: "8px 14px",
                                                                 textAlign: "left",
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 fontWeight: 700,
                                                                 color:
                                                                     "var(--eduflow-text-tertiary)",
@@ -649,7 +655,7 @@ export default function CouncilsPage() {
                                         {council.participants.length === 0 ? (
                                             <p
                                                 style={{
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                     margin: 0,
                                                 }}
@@ -676,7 +682,7 @@ export default function CouncilsPage() {
                                     {council.participants.length > 12 ? (
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 10,
                                             }}
@@ -767,7 +773,7 @@ export default function CouncilsPage() {
                                             <div
                                                 style={{
                                                     marginTop: 6,
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color: "var(--eduflow-text-tertiary)",
                                                 }}
                                             >
@@ -790,7 +796,7 @@ export default function CouncilsPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 
@@ -807,7 +813,7 @@ function StatTile({
     const fg = `var(--eduflow-${tone}-800)`;
     return (
         <div style={{ padding: 10, background: bg, borderRadius: 10 }}>
-            <div style={{ fontSize: 11, color: fg, fontWeight: 600 }}>{label}</div>
+            <div style={{ fontSize: 12, color: fg, fontWeight: 600 }}>{label}</div>
             <div
                 className="eduflow-display tabular"
                 style={{
@@ -844,7 +850,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

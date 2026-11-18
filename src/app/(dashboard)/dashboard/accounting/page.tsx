@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import * as React from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -124,7 +125,7 @@ function AccountingPageContent() {
             if (!res.ok) throw new Error(body.error || "Impossible d'ouvrir l'exercice");
             await mutate();
         } catch (err) {
-            window.alert(err instanceof Error ? err.message : "Impossible d'ouvrir l'exercice");
+            toast.error(err instanceof Error ? err.message : "Impossible d'ouvrir l'exercice");
         } finally {
             setOpening(false);
         }
@@ -317,7 +318,7 @@ function Kpi({
         >
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 700,
                     color: `var(--${tone}-700)`,
                 }}
@@ -352,7 +353,7 @@ function Kpi({
             {hint ? (
                 <div
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: `var(--${tone}-800)`,
                         marginTop: 6,
                         lineHeight: 1.5,
@@ -418,7 +419,7 @@ function JournalCard({
                     </h2>
                     <p
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--text-tertiary)",
                             margin: "2px 0 0",
                         }}
@@ -467,7 +468,7 @@ function JournalCard({
                                             padding: "10px 14px",
                                             textAlign:
                                                 h === "Débit" || h === "Crédit" ? "right" : "left",
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             fontWeight: 700,
                                             color: "var(--text-tertiary)",
                                         }}
@@ -492,7 +493,7 @@ function JournalCard({
                                                 padding: "10px 14px",
                                                 fontFamily:
                                                     "var(--eduflow-font-mono, monospace)",
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--text-tertiary)",
                                             }}
                                         >
@@ -503,14 +504,14 @@ function JournalCard({
                                                 padding: "10px 14px",
                                                 fontFamily:
                                                     "var(--eduflow-font-mono, monospace)",
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--brand-700)",
                                                 fontWeight: 600,
                                             }}
                                         >
                                             {entry.pieceRef}
                                         </td>
-                                        <td style={{ padding: "10px 14px", fontSize: 11 }}>
+                                        <td style={{ padding: "10px 14px", fontSize: 12 }}>
                                             {account ? (
                                                 <>
                                                     <span
@@ -599,7 +600,7 @@ function JournalCard({
                                     style={{
                                         padding: "12px 14px",
                                         fontWeight: 700,
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--text-secondary)",
                                     }}
                                 >
@@ -670,7 +671,7 @@ function ExpensesCard({
                 </h2>
                 <p
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--text-tertiary)",
                         margin: "2px 0 0",
                     }}
@@ -709,7 +710,7 @@ function ExpensesCard({
                                     <span
                                         style={{
                                             width: 40,
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             fontWeight: 700,
                                             color: "var(--text-tertiary)",
                                             fontFamily:
@@ -819,7 +820,7 @@ function DeadlinesCard() {
                     </div>
                 ))}
             </div>
-            <p style={{ fontSize: 11.5, color: "var(--brand-700)", margin: "10px 0 0", lineHeight: 1.45 }}>
+            <p style={{ fontSize: 12, color: "var(--brand-700)", margin: "10px 0 0", lineHeight: 1.45 }}>
                 Échéances récurrentes standard — à confirmer auprès de la DGI et
                 de la CNSS selon votre régime.
             </p>

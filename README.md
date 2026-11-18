@@ -8,7 +8,6 @@
   [![Prisma](https://img.shields.io/badge/Prisma-6.19-2D3748?style=for-the-badge&logo=prisma)](https://www.prisma.io/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
   [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
-  [![Redis](https://img.shields.io/badge/Redis-Upstash-DC382D?style=for-the-badge&logo=redis)](https://upstash.com/)
 </div>
 
 <br />
@@ -28,7 +27,7 @@ EduPilot est construit sur les standards les plus récents et exigeants de l'ind
 - **Framework Core :** Next.js 16 (App Router, Server Actions, Middleware Edge)
 - **Langage :** TypeScript (End-to-end type safety)
 - **Base de données relationnelle :** PostgreSQL managée via **Prisma ORM**
-- **Mise en cache & Rate Limiting :** Redis (Upstash)
+- **Mise en cache & Rate Limiting :** cache mémoire borné + état partagé dans PostgreSQL (aucun Redis)
 - **Styling & UI :** Tailwind CSS + Radix UI + Framer Motion (Animations fluides)
 - **Validation & Sécurité :** Zod (Validation stricte des schémas), NextAuth.js v5 (Authentification & Sessions)
 - **Infrastructure :** Docker / Docker-compose / Déploiement PM2
@@ -64,7 +63,7 @@ L'expérience académique augmentée.
 * **Dashboard Premium :** Vue d'ensemble sur l'emploi du temps, les devoirs à venir, le classement et les performances.
 * **Learning Hub :** Accès aux cours en ligne, passage d'examens dématérialisés avec timer et auto-correction.
 * **Tickets Cantine & Emprunts :** Suivi des QR Codes de restauration et de la bibliothèque.
-* **IA Buddy :** Chatbot IA (Cloud LLMs Multi-providers / n8n) pour aider aux révisions et réexpliquer les concepts complexes en temps réel.
+* **Assistant IA 100 % local :** questions en français sur les données de l'établissement (élèves à risque, prévisions, orientation, appel, emploi du temps, devoirs, paiements), sans modèle externe ni clé à configurer.
 
 ### 5. 👨‍👩‍👧‍👦 Parents
 Implication totale sans friction.
@@ -95,7 +94,7 @@ EduPilot ne transige JAMAIS sur la sécurité de la donnée.
 - **Portabilité (Art 15 & 20) :** Extraction "One-Click" d'absolument TOUTES les données d'un utilisateur au format JSON.
 - **Droit à l'Oubli (Art 17) :** Module d'anonymisation interactif de la base de données (hashing réversible, destruction des traces, maintien de l'intégrité comptable).
 - **Politiques de Rétention :** Jobs de nettoyage stricts (ex: suppression des logs serveur ou des brouillons de messages après *X* années).
-- **Surveillance :** Rate Limiting drastique (Redis) au niveau Endpoint, protections CSRF, et Content-Security-Policy strictes via le Edge Middleware. **Tout est loggé** de manière inaltérable (Audit Logs).
+- **Surveillance :** Rate Limiting au niveau Endpoint (état partagé PostgreSQL), protections CSRF, et Content-Security-Policy strictes via le Edge Middleware. **Tout est loggé** de manière inaltérable (Audit Logs).
 
 ---
 
@@ -107,9 +106,6 @@ L'environnement de développement a été pensé pour être lancé en un minimum
 - Node.js `22.x` (LTS)
 - PostgreSQL `15+`
 - Docker (recommandé : l'image de production fait tout le reste)
-- Redis (**facultatif**) : sans lui, le cache et les limites de débit
-  fonctionnent en mémoire, ce qui est exact tant que l'application tourne en
-  un seul processus — le déploiement retenu.
 
 ### 2. Installation Locale
 
@@ -271,7 +267,7 @@ Documentation complète disponible dans le dossier `/docs` :
   les schémas Zod (`npm run docs:openapi`), servie par `/api/docs`. 287 chemins.
 - 🔧 **[Exploitation](docs/EXPLOITATION.md)** — variables de production, démarrage,
   migrations, sauvegarde et restauration, tâches planifiées, rotation des secrets,
-  conduite à tenir si la base ou Redis tombe.
+  conduite à tenir si la base tombe.
 - 🗄️ **[Migrations](docs/MIGRATIONS.md)** — procédure, et reprise d'une base créée par `db push`.
 - 🚀 **[Deployment Guide](docs/DEPLOYMENT.md)** — Docker, PM2, cloud.
 - 🏗️ **[Architecture](docs/ARCHITECTURE.md)** — stack technique, modèle de données.
@@ -351,7 +347,7 @@ JS gzip dashboards ~345–459 Ko. Ces chiffres ne sont **pas** des garanties SLA
 ### Optimisations implémentées
 
 - ✅ **Server-Side Rendering** avec React Server Components
-- ✅ **Caching multi-niveau** (Redis + In-memory)
+- ✅ **Cache mémoire borné** (LRU, taux de succès mesuré)
 - ✅ **Image optimization** avec next/image
 - ✅ **Code splitting** automatique
 - ✅ **Lazy loading** des composants
@@ -361,7 +357,7 @@ JS gzip dashboards ~345–459 Ko. Ces chiffres ne sont **pas** des garanties SLA
 
 ### Monitoring
 
-- 📊 **Sentry** : Tracking d'erreurs en temps réel
+- 📊 **Journal des erreurs** : erreurs serveur et navigateur, alertes instantanées aux super-administrateurs
 - 📈 **Performance Metrics** : API intégrée de monitoring
 - 🔍 **Logs structurés** : Winston logger
 - ⚠️ **Alertes** : Email & Slack webhooks

@@ -4,24 +4,25 @@ import path from "node:path";
 
 /**
  * scripts/server/cluster.cjs (capacité 2026-10-01) : plusieurs processus
- * uniquement avec un magasin partagé, sinon limites et compteurs d'échecs de
- * connexion seraient multipliés par le nombre de processus.
+ * partagent le port. Depuis le 2026-11-07, limites et compteurs d'échecs de
+ * connexion sont communs à tous via PostgreSQL : aucun magasin à exiger.
  */
 const launcher = path.resolve(__dirname, "../../../scripts/server/cluster.cjs");
 
-function run(env: Record<string, string>) {
+function run(env: Record<string, string>, timeout = 10_000) {
     return spawnSync(process.execPath, [launcher, "/nonexistent/server.js"], {
         env: { PATH: process.env.PATH ?? "", ...env },
         encoding: "utf8",
-        timeout: 10_000,
+        timeout,
     });
 }
 
 describe("lanceur multi-processus", () => {
-    it("refuse WEB_CONCURRENCY > 1 sans REDIS_URL", () => {
-        const result = run({ WEB_CONCURRENCY: "4" });
-        expect(result.status).toBe(1);
-        expect(result.stderr).toContain("REDIS_URL");
+    it("WEB_CONCURRENCY > 1 sans aucun service supplémentaire : démarre les processus, sans refus", () => {
+        // Les processus échouent (serveur factice) et sont relancés : on arrête au bout de 3 s.
+        const result = run({ WEB_CONCURRENCY: "2" }, 3_000);
+        expect(`${result.stdout}${result.stderr}`).not.toContain("REFUS");
+        expect(result.stdout).toContain("[cluster]");
     });
 
     it("WEB_CONCURRENCY=1 : charge directement le serveur dans le processus (pas de refus)", () => {

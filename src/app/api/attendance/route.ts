@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { Permission } from "@/lib/rbac/permissions";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { taughtClassIds, teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 
 /**
  * GET /api/attendance
@@ -59,6 +60,17 @@ export const GET = createApiHandler(
             const childIds = parentProfile?.parentStudents.map((s: { studentId: string }) => s.studentId) || [];
             if (!childIds.includes(studentId)) {
                 return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+            }
+        }
+
+        // Enseignant (MS-02) : présences de ses classes seulement
+        if (session.user.role === "TEACHER") {
+            const taught = await taughtClassIds(session.user.id);
+            if (classId && !taught.includes(classId)) {
+                return NextResponse.json({ error: "Accès refusé : cette classe n'est pas l'une des vôtres" }, { status: 403 });
+            }
+            if (studentId && !(await teacherTeachesStudent(session.user.id, studentId))) {
+                return NextResponse.json({ error: "Accès refusé : cet élève n'est pas dans vos classes" }, { status: 403 });
             }
         }
 

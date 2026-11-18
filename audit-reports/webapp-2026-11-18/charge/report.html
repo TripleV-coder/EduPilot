@@ -1,0 +1,54 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Audit — http://localhost:3100/</title><style>
+body{font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f6f7f9;color:#1a202c}
+main{max-width:1200px;margin:auto;padding:24px}h1{margin:0 0 4px}h2{margin-top:36px;border-bottom:1px solid #e2e8f0;padding-bottom:6px}
+.muted{color:#718096;font-size:13px}.hero{display:flex;gap:24px;align-items:center;background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px #0001}
+.big{font-size:56px;font-weight:700}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-top:16px}
+.card{background:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 3px #0001}.score{font-size:30px;font-weight:700}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px #0001}
+td,th{padding:8px 10px;border-bottom:1px solid #edf2f7;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:13px}
+pre{white-space:pre-wrap;word-break:break-all;font-size:12px;color:#4a5568;margin:6px 0 0}
+.sev{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;color:#fff;white-space:nowrap}
+.critical{background:#9b2c2c}.high{background:#e53e3e}.medium{background:#dd6b20}.low{background:#3182ce}.info{background:#a0aec0}
+.f{border:1px solid #cbd5e0;background:#fff;border-radius:8px;padding:6px 10px;margin:0 6px 8px 0;cursor:pointer}.f.off{opacity:.35}
+.shots{display:flex;gap:16px;flex-wrap:wrap}.shots img{max-width:360px;border:1px solid #e2e8f0;border-radius:8px}figcaption{font-size:12px;color:#718096}
+</style></head><body><main>
+<div class="hero"><div class="big" style="color:#0c8a4f">94</div>
+<div><h1>Audit de http://localhost:3100/</h1><div class="muted">2026-11-18T14:54:44.862Z · webapp-audit 1.0.0 · durée 118s · modules : connectivity, security, exposure, perf, assets, seo, crawl, load</div></div></div>
+<div class="grid"><div class="card"><div class="score" style="color:#0c8a4f">100</div><div>Disponibilité &amp; TLS</div>
+     <div class="muted">0 problème(s)</div></div><div class="card"><div class="score" style="color:#0c8a4f">100</div><div>Sécurité</div>
+     <div class="muted">0 problème(s)</div></div><div class="card"><div class="score" style="color:#0c8a4f">98</div><div>Performance serveur</div>
+     <div class="muted">1 problème(s)</div></div><div class="card"><div class="score" style="color:#b7791f">77</div><div>Ressources front-end</div>
+     <div class="muted">3 problème(s)</div></div><div class="card"><div class="score" style="color:#0c8a4f">94</div><div>SEO &amp; contenu</div>
+     <div class="muted">3 problème(s)</div></div><div class="card"><div class="score" style="color:#0c8a4f">100</div><div>Intégrité (liens &amp; pages)</div>
+     <div class="muted">0 problème(s)</div></div><div class="card"><div class="score" style="color:#b7791f">88</div><div>Charge &amp; scalabilité</div>
+     <div class="muted">2 problème(s)</div></div></div>
+
+<h2>Problèmes détectés (14)</h2><div><button class="f" data-s="critical"><span class="sev critical">Critique</span> 0</button><button class="f" data-s="high"><span class="sev high">Élevé</span> 1</button><button class="f" data-s="medium"><span class="sev medium">Moyen</span> 3</button><button class="f" data-s="low"><span class="sev low">Faible</span> 5</button><button class="f" data-s="info"><span class="sev info">Info</span> 5</button></div>
+<table id="t"><tr><th>Gravité</th><th>Catégorie</th><th>Constat</th><th>Correctif conseillé</th></tr><tr data-s="high"><td><span class="sev high">Élevé</span></td><td>Ressources front-end</td>
+     <td><b>JavaScript initial : 789 Ko (décompressé)</b><pre>Budget : 350 Ko</pre></td><td>Code splitting par route, lazy-loading des composants lourds, tree-shaking, retirer les dépendances inutiles (analyser avec un bundle analyzer).</td></tr><tr data-s="medium"><td><span class="sev medium">Moyen</span></td><td>Ressources front-end</td>
+     <td><b>CSS initial : 124 Ko</b><pre>Budget : 100 Ko</pre></td><td>Purger le CSS inutilisé, CSS critique inline, reste différé.</td></tr><tr data-s="medium"><td><span class="sev medium">Moyen</span></td><td>Charge &amp; scalabilité</td>
+     <td><b>Capacité saine jusqu’à 10 requêtes simultanées</b><pre>1 conc. → 26.5 req/s, p95 69 ms, 0.0 % err, codes {&quot;200&quot;:530}
+10 conc. → 30.5 req/s, p95 557 ms, 0.0 % err, codes {&quot;200&quot;:613}
+25 conc. → 32.1 req/s, p95 1365 ms, 0.0 % err, codes {&quot;200&quot;:649}
+50 conc. → 34.4 req/s, p95 2343 ms, 0.0 % err, codes {&quot;200&quot;:700}
+100 conc. → 38.9 req/s, p95 4039 ms, 0.0 % err, codes {&quot;200&quot;:815}</pre></td><td>Comparer au pic attendu (×3 de marge). Leviers : cache, index DB, pool de connexions, scaling horizontal, file d’attente pour les tâches lourdes, CDN.</td></tr><tr data-s="medium"><td><span class="sev medium">Moyen</span></td><td>Charge &amp; scalabilité</td>
+     <td><b>Latence p95 ×58.6 entre 1 et 100 utilisateurs</b></td><td>Contention : verrous DB, pool trop petit, CPU saturé, traitement synchrone.</td></tr><tr data-s="low"><td><span class="sev low">Faible</span></td><td>Ressources front-end</td>
+     <td><b>1 script(s) bloquant(s) le rendu dans &lt;head&gt;</b></td><td>Ajouter defer (ou type=&quot;module&quot;), ou déplacer en fin de &lt;body&gt;.</td></tr><tr data-s="low"><td><span class="sev low">Faible</span></td><td>Performance serveur</td>
+     <td><b>Pas de validateur de cache (ETag / Last-Modified)</b></td><td>Activer ETag pour permettre les réponses 304.</td></tr><tr data-s="low"><td><span class="sev low">Faible</span></td><td>SEO &amp; contenu</td>
+     <td><b>Longueur du titre : 8 caractères</b><pre>EduPilot</pre></td><td>Viser 30–60 caractères.</td></tr><tr data-s="low"><td><span class="sev low">Faible</span></td><td>SEO &amp; contenu</td>
+     <td><b>Lien canonical absent</b></td><td>&lt;link rel=&quot;canonical&quot; href=&quot;…&quot;&gt; pour éviter le contenu dupliqué.</td></tr><tr data-s="low"><td><span class="sev low">Faible</span></td><td>SEO &amp; contenu</td>
+     <td><b>1 titre(s) dupliqué(s) entre pages</b><pre>« EduPilot » × 37</pre></td><td>Un titre unique par page.</td></tr><tr data-s="info"><td><span class="sev info">Info</span></td><td>Ressources front-end</td>
+     <td><b>Analyse statique du HTML initial</b><pre>Les ressources injectées par JavaScript (SPA) ne sont visibles qu’avec --browser.</pre></td><td></td></tr><tr data-s="info"><td><span class="sev info">Info</span></td><td>Charge &amp; scalabilité</td>
+     <td><b>Limites de ce test de charge</b></td><td>Un seul client Node, même réseau : pour &gt;500 utilisateurs virtuels, scénarios réalistes (login → parcours) et tests d’endurance, utiliser k6, Gatling ou Artillery.</td></tr><tr data-s="info"><td><span class="sev info">Info</span></td><td>Performance serveur</td>
+     <td><b>Compression gzip (Brotli serait ~15–20 % plus efficace)</b></td><td></td></tr><tr data-s="info"><td><span class="sev info">Info</span></td><td>Sécurité</td>
+     <td><b>Cross-Origin-Opener-Policy absente</b></td><td>Envisager COOP: same-origin (isolation contre les attaques cross-window).</td></tr><tr data-s="info"><td><span class="sev info">Info</span></td><td>SEO &amp; contenu</td>
+     <td><b>Pas de données structurées JSON-LD</b></td><td>schema.org (Organization, Product, BreadcrumbList…) pour les résultats enrichis.</td></tr></table>
+<h2>Test de charge</h2><table><tr><th>Concurrence</th><th>Requêtes</th><th>Req/s</th><th>p50</th><th>p95</th><th>p99</th><th>Erreurs</th><th>Codes</th></tr>
+     <tr><td>1</td><td>530</td><td>26.5</td><td>34 ms</td><td>69 ms</td><td>84 ms</td><td>0.0 %</td><td><code>{&quot;200&quot;:530}</code></td></tr><tr><td>10</td><td>613</td><td>30.5</td><td>307 ms</td><td>557 ms</td><td>973 ms</td><td>0.0 %</td><td><code>{&quot;200&quot;:613}</code></td></tr><tr><td>25</td><td>649</td><td>32.1</td><td>753 ms</td><td>1365 ms</td><td>1638 ms</td><td>0.0 %</td><td><code>{&quot;200&quot;:649}</code></td></tr><tr><td>50</td><td>700</td><td>34.4</td><td>1338 ms</td><td>2343 ms</td><td>2782 ms</td><td>0.0 %</td><td><code>{&quot;200&quot;:700}</code></td></tr><tr><td>100</td><td>815</td><td>38.9</td><td>2197 ms</td><td>4039 ms</td><td>7633 ms</td><td>0.0 %</td><td><code>{&quot;200&quot;:815}</code></td></tr></table>
+<h2>Métriques brutes</h2><table><tr><td><code>dnsMs</code></td><td>12.73</td></tr><tr><td><code>ipAddresses</code></td><td>127.0.0.1</td></tr><tr><td><code>redirectHops</code></td><td>0</td></tr><tr><td><code>homeStatus</code></td><td>200</td></tr><tr><td><code>htmlKB</code></td><td>78.51</td></tr><tr><td><code>exposedFiles</code></td><td>0</td></tr><tr><td><code>notFoundStatus</code></td><td>404</td></tr><tr><td><code>ttfbFirstMs</code></td><td>34.86</td></tr><tr><td><code>ttfbP50Ms</code></td><td>23.48</td></tr><tr><td><code>ttfbP95Ms</code></td><td>38.6</td></tr><tr><td><code>ttfbMaxMs</code></td><td>38.6</td></tr><tr><td><code>htmlDownloadP50Ms</code></td><td>34.62</td></tr><tr><td><code>htmlEncoding</code></td><td>gzip</td></tr><tr><td><code>htmlCacheControl</code></td><td>private, no-cache, no-store, max-age=0, must-revalidate</td></tr><tr><td><code>renderBlockingScripts</code></td><td>1</td></tr><tr><td><code>inlineJsKB</code></td><td>13.71</td></tr><tr><td><code>imagesInHtml</code></td><td>0</td></tr><tr><td><code>jsKB</code></td><td>788.9</td></tr><tr><td><code>cssKB</code></td><td>123.81</td></tr><tr><td><code>imgKB</code></td><td>0</td></tr><tr><td><code>fontKB</code></td><td>0</td></tr><tr><td><code>pageWeightKB</code></td><td>991.22</td></tr><tr><td><code>initialRequests</code></td><td>19</td></tr><tr><td><code>thirdPartyDomains</code></td><td>0</td></tr><tr><td><code>h1Count</code></td><td>1</td></tr><tr><td><code>pagesCrawled</code></td><td>40</td></tr><tr><td><code>brokenLinks</code></td><td>0</td></tr><tr><td><code>crawlTtfbP95Ms</code></td><td>245</td></tr><tr><td><code>loadMaxHealthyConcurrency</code></td><td>10</td></tr><tr><td><code>loadPeakRps</code></td><td>38.87</td></tr></table>
+<p class="muted">Scores : 100 − pénalités (critique 30, élevé 15, moyen 6, faible 2). Mesures prises depuis la machine d’audit : relancer depuis la région de vos utilisateurs pour des chiffres représentatifs.</p>
+</main><script>
+document.querySelectorAll('.f').forEach(b=>b.onclick=()=>{b.classList.toggle('off');const off=[...document.querySelectorAll('.f.off')].map(x=>x.dataset.s);
+document.querySelectorAll('#t tr[data-s]').forEach(r=>r.style.display=off.includes(r.dataset.s)?'none':'')});
+</script></body></html>

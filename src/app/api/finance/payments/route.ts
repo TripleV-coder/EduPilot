@@ -5,11 +5,10 @@ import { Prisma, PaymentMethod, PaymentStatus } from "@prisma/client";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
 import { invalidateByPath, CACHE_PATHS } from "@/lib/api/cache-helpers";
-import {
-    buildPaymentDateWhere,
-    syncPaymentPlanLedger,
-} from "@/lib/finance/helpers";
+import { buildPaymentDateWhere } from "@/lib/finance/helpers";
+import { assertReferenceFree, assertWithinAvailable, runFeeMutation } from "@/lib/finance/collection";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { parseDateRangeParams } from "@/lib/validations/date-range";
 
 
@@ -40,16 +39,14 @@ export const GET = createApiHandler(
         // Improve: Filter by school (via Student or Fee)
         // Account for accountant only seeing their school's payments
         // This requires cross-relation filtering which Prisma supports
-        const user = await prisma.user.findUnique({
-            where: { id: session.user.id },
-            select: { schoolId: true }
-        });
-
-        if (user?.schoolId) {
-            // Filter payments where the Student belongs to the School OR the Fee belongs to the School
-            // Usually Fee is bound to school
-            where.fee = { schoolId: user.schoolId };
-        }
+        // École ACTIVE de la session (et non l'école principale relue en base) :
+        // un comptable ou un directeur de plusieurs établissements voit les
+        // paiements de celui où il travaille.
+        // S6 : toujours une seule école, choisie explicitement (le super-admin
+        // sans sélection recevait les paiements de tous les établissements).
+        const scope = await resolveFinanceSchool(session, searchParams.get("schoolId"), "finance-payments:list");
+        if (!scope.ok) return scope.response;
+        where.fee = { schoolId: scope.schoolId };
 
         const [payments, total] = await Promise.all([
             prisma.payment.findMany({
@@ -80,33 +77,43 @@ export const POST = createApiHandler(
         const validatedData = paymentSchema.parse(body);
 
         const receivedByUserId = authSession.user.id;
-        const actorSchoolId = getActiveSchoolId(authSession);
-
-        // Vérification multi-tenant : le student ET la fee doivent appartenir
-        // à l'école de l'utilisateur connecté (sauf SUPER_ADMIN).
-        if (actorSchoolId) {
-            const [student, fee] = await Promise.all([
-                prisma.studentProfile.findUnique({
-                    where: { id: validatedData.studentId },
-                    select: { user: { select: { schoolId: true } } },
-                }),
-                prisma.fee.findUnique({
-                    where: { id: validatedData.feeId },
-                    select: { schoolId: true },
-                }),
-            ]);
-
-            if (!student || student.user.schoolId !== actorSchoolId) {
-                return NextResponse.json({ error: "Étudiant introuvable ou hors périmètre" }, { status: 403 });
-            }
-            if (!fee || fee.schoolId !== actorSchoolId) {
-                return NextResponse.json({ error: "Frais introuvable ou hors périmètre" }, { status: 403 });
-            }
+        let actorSchoolId = getActiveSchoolId(authSession);
+        // S6 : le super-admin n'encaisse que dans l'école sélectionnée
+        if (authSession.user.role === "SUPER_ADMIN") {
+            const scope = await resolveFinanceSchool(authSession, null, "finance-payments:create");
+            if (!scope.ok) return scope.response;
+            actorSchoolId = scope.schoolId;
         }
 
-        const payment = await prisma.$transaction(async (tx) => {
-            // 1. Create Payment
-            const newPayment = await tx.payment.create({
+        // Vérification multi-tenant : l'élève (école de sa FICHE, pas de son
+        // compte) ET le frais doivent appartenir à l'école active de
+        // l'utilisateur (sauf SUPER_ADMIN), et toujours à la même école (lot 3f).
+        const [student, fee] = await Promise.all([
+            prisma.studentProfile.findUnique({
+                where: { id: validatedData.studentId },
+                select: { schoolId: true },
+            }),
+            prisma.fee.findUnique({
+                where: { id: validatedData.feeId },
+                select: { schoolId: true },
+            }),
+        ]);
+
+        if (!student || (actorSchoolId && student.schoolId !== actorSchoolId)) {
+            return NextResponse.json({ error: "Étudiant introuvable ou hors périmètre" }, { status: 403 });
+        }
+        if (!fee || (actorSchoolId && fee.schoolId !== actorSchoolId)) {
+            return NextResponse.json({ error: "Frais introuvable ou hors périmètre" }, { status: 403 });
+        }
+        if (fee.schoolId !== student.schoolId) {
+            return NextResponse.json({ error: "Les frais n'appartiennent pas à l'établissement de l'élève." }, { status: 403 });
+        }
+
+        // Plafond relu sous verrou, avec ou sans échéancier (lot 3b)
+        const result = await runFeeMutation(validatedData.studentId, validatedData.feeId, async (tx, balance) => {
+            assertWithinAvailable(balance.available, validatedData.amount);
+            await assertReferenceFree(tx, validatedData.reference);
+            return tx.payment.create({
                 data: {
                     studentId: validatedData.studentId,
                     feeId: validatedData.feeId,
@@ -120,15 +127,9 @@ export const POST = createApiHandler(
                     paidAt: validatedData.paidAt || new Date(),
                 },
             });
-
-            await syncPaymentPlanLedger(
-                tx,
-                validatedData.studentId,
-                validatedData.feeId
-            );
-
-            return newPayment;
         });
+        if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
+        const payment = result.value;
 
         await Promise.all([
             invalidateByPath(CACHE_PATHS.payments),

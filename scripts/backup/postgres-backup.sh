@@ -25,6 +25,11 @@
 #                             que soit leur âge (une machine arrêtée un mois
 #                             ne doit pas se réveiller sans aucune sauvegarde)
 set -euo pipefail
+# Archives, empreintes et métadonnées (nom de la base, effectif de chaque table)
+# lisibles par le seul compte de sauvegarde : 600 pour les fichiers, 700 pour
+# un répertoire créé ici. Sans cela, le umask par défaut les rendait lisibles
+# par tous les comptes de l'hôte.
+umask 077
 
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/edupilot/postgres}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"

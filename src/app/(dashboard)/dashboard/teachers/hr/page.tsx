@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { roleSatisfies } from "@/lib/rbac/permissions";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
@@ -81,6 +83,15 @@ function subjectsList(t: Teacher): string {
 }
 
 export default function TeachersHRPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]} >
+            <TeachersHRPageContent />
+        </PageGuard>
+    );
+}
+
+function TeachersHRPageContent() {
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -108,6 +119,10 @@ export default function TeachersHRPage() {
         load();
     }, []);
 
+    const { data: session } = useSession();
+    // Paie : personnel de l'école (le super-admin n'y a pas accès, souveraineté).
+    const canOpenPayroll = roleSatisfies(session?.user?.role, ["SCHOOL_ADMIN", "DIRECTOR"]);
+
     const partitioned = useMemo(() => {
         const titulaires: Teacher[] = [];
         const vacataires: Teacher[] = [];
@@ -132,10 +147,7 @@ export default function TeachersHRPage() {
     }, [filter, partitioned, teachers]);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_UPDATE}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}
-        >
+        <>
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/teachers" style={{ textDecoration: "none" }}>
@@ -161,9 +173,13 @@ export default function TeachersHRPage() {
                     ]}
                     actions={
                         <>
-                            <Button variant="secondary" icon="download" disabled>
-                                Fiche de paie
-                            </Button>
+                            {canOpenPayroll ? (
+                                <Link href="/dashboard/staff/payroll" style={{ textDecoration: "none" }}>
+                                    <Button variant="secondary" icon="download">
+                                        Fiches de paie
+                                    </Button>
+                                </Link>
+                            ) : null}
                             <Link
                                 href="/dashboard/teachers/new"
                                 style={{ textDecoration: "none" }}
@@ -322,7 +338,7 @@ export default function TeachersHRPage() {
                                                     style={{
                                                         padding: "10px 14px",
                                                         textAlign: "left",
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 700,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
@@ -398,7 +414,7 @@ export default function TeachersHRPage() {
                                                                     </div>
                                                                     <div
                                                                         style={{
-                                                                            fontSize: 11,
+                                                                            fontSize: 12,
                                                                             color:
                                                                                 "var(--eduflow-text-tertiary)",
                                                                         }}
@@ -429,7 +445,7 @@ export default function TeachersHRPage() {
                                                             </div>
                                                             <div
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color:
                                                                         "var(--eduflow-text-tertiary)",
                                                                     marginTop: 2,
@@ -609,6 +625,6 @@ export default function TeachersHRPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

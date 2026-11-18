@@ -11,12 +11,22 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/utils/error-message";
 
 export default function RootMaintenancePage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <RootMaintenancePageContent />
+        </PageGuard>
+    );
+}
+
+function RootMaintenancePageContent() {
     const [isMaintenance, setIsMaintenance] = useState(false);
     const [loading, setLoading] = useState(true);
     const [toggling, setToggling] = useState(false);
     const [message, setMessage] = useState("");
     const [defaultMessage, setDefaultMessage] = useState("");
     const [savingMessage, setSavingMessage] = useState(false);
+    const [clearingCache, setClearingCache] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -93,6 +103,24 @@ export default function RootMaintenancePage() {
         }
     };
 
+    const handleClearCache = async () => {
+        setClearingCache(true);
+        try {
+            const res = await fetch("/api/admin/system/info", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "clear-cache" }),
+            });
+            const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+            if (!res.ok) throw new Error(body.error || "Le cache n'a pas pu être vidé.");
+            toast({ title: "Cache vidé", description: body.message });
+        } catch (error) {
+            toast({ title: "Échec", description: getErrorMessage(error), variant: "destructive" });
+        } finally {
+            setClearingCache(false);
+        }
+    };
+
     const handleTechnicalAction = (actionName: string) => {
         toast({
             title: "Action Technique",
@@ -101,7 +129,7 @@ export default function RootMaintenancePage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <div className="space-y-6 max-w-4xl mx-auto">
                 <PageHeader
                     title="Mode maintenance globale"
@@ -207,10 +235,12 @@ export default function RootMaintenancePage() {
                         <CardContent className="pt-6 space-y-4">
                             <div className="flex justify-between items-center p-4 border border-border rounded-lg bg-card hover:bg-muted/30 transition-colors">
                                 <div>
-                                    <h4 className="font-semibold text-foreground">Purger le Cache Redis</h4>
-                                    <p className="text-xs text-muted-foreground mt-1">Déclenche une invalidation complète de la base Redis (Sessions, requêtes).</p>
+                                    <h4 className="font-semibold text-foreground">Vider le cache des réponses</h4>
+                                    <p className="text-xs text-muted-foreground mt-1">Retire les réponses gardées en mémoire par cette instance ; les suivantes sont recalculées. Les sessions ne sont pas touchées.</p>
                                 </div>
-                                <Button type="button" onClick={() => handleTechnicalAction("Purger Redis")} variant="outline" size="sm">Exécuter</Button>
+                                <Button type="button" onClick={handleClearCache} disabled={clearingCache} variant="outline" size="sm">
+                                    {clearingCache ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : "Exécuter"}
+                                </Button>
                             </div>
                             <div className="flex justify-between items-center p-4 border border-border rounded-lg bg-card hover:bg-muted/30 transition-colors">
                                 <div>
@@ -223,6 +253,6 @@ export default function RootMaintenancePage() {
                     </Card>
                 </div>
             </div>
-        </PageGuard>
+        </>
     );
 }

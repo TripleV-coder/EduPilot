@@ -29,16 +29,3 @@ declare module "swagger-jsdoc" {
   function swaggerJsdoc(options: swaggerJsdoc.Options): unknown[];
   export = swaggerJsdoc;
 }
-
-declare module "@sentry/nextjs" {
-  export type SeverityLevel = "fatal" | "error" | "warning" | "log" | "info" | "debug";
-  export function init(options: Record<string, unknown>): void;
-  export const browserTracingIntegration: () => unknown;
-  export const replayIntegration: (options?: Record<string, unknown>) => unknown;
-  export function captureException(error: unknown, captureContext?: Record<string, unknown>): string | undefined;
-  export function captureMessage(message: string, captureContext?: Record<string, unknown>): string | undefined;
-  export function setUser(user: { id?: string; email?: string; role?: string } | null): void;
-  export function addBreadcrumb(breadcrumb: Record<string, unknown>): void;
-  export function startSpan(options: Record<string, unknown>): unknown;
-  export const metrics: { distribution: (name: string, value: number, opts?: Record<string, unknown>) => void };
-}

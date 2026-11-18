@@ -15,7 +15,7 @@ const PLANS = [
   { id: "c", code: "ENT", name: "Entreprise", description: null, maxStudents: 5000, maxTeachers: 400, maxStorageGB: 200, features: [], priceMonthly: null, priceYearly: null, isFeatured: false, priceOnRequest: true },
 ];
 
-// framer-motion (whileInView) s'appuie sur IntersectionObserver, absent de jsdom.
+// Les apparitions au défilement (landing/Reveal) s'appuient sur IntersectionObserver, absent de jsdom.
 class NoopObserver {
   observe() {}
   unobserve() {}

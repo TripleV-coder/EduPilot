@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MemoryCache } from "@/lib/cache/redis";
+import { MemoryCache } from "@/lib/cache/service";
 
 /**
  * N28 — le cache mémoire (cache de production : instance unique sans Upstash,

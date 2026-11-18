@@ -65,6 +65,15 @@ type Student = {
 const className = (student: Student) => student.enrollments?.[0]?.class?.name ?? null;
 
 export default function MedicalRecordsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "STUDENT"]}>
+            <MedicalRecordsPageContent />
+        </PageGuard>
+    );
+}
+
+function MedicalRecordsPageContent() {
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -187,7 +196,7 @@ export default function MedicalRecordsPage() {
     );
 
     return (
-        <PageGuard permission={[Permission.STUDENT_READ, Permission.STUDENT_READ_OWN]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "PARENT", "STUDENT"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Infirmerie & dossiers médicaux"
@@ -240,7 +249,7 @@ export default function MedicalRecordsPage() {
                                             <div className="text-xs text-muted-foreground truncate flex items-center gap-2 mt-0.5">
                                                 <span>{student.matricule ?? "—"}</span>
                                                 {className(student) && (
-                                                    <span className="bg-secondary/10 text-secondary px-1.5 py-0.5 rounded text-[11px] font-bold">
+                                                    <span className="bg-secondary/10 text-secondary px-1.5 py-0.5 rounded text-xs font-bold">
                                                         {className(student)}
                                                     </span>
                                                 )}
@@ -325,7 +334,7 @@ export default function MedicalRecordsPage() {
                                                                 onChange={(e) => setFormData({ ...formData, conditions: e.target.value })}
                                                                 className="border-warning/30 focus-visible:ring-warning/30"
                                                             />
-                                                            <p className="text-[11px] text-muted-foreground">Séparez les différentes conditions par des virgules.</p>
+                                                            <p className="text-xs text-muted-foreground">Séparez les différentes conditions par des virgules.</p>
                                                         </div>
 
                                                         <div className="space-y-2">
@@ -459,7 +468,7 @@ export default function MedicalRecordsPage() {
                                                                                 <p className="font-medium text-sm text-foreground">
                                                                                     {contact.name}
                                                                                     {contact.isPrimary && (
-                                                                                        <span className="ml-2 text-[11px] font-bold bg-success/10 text-success px-1.5 py-0.5 rounded">Principal</span>
+                                                                                        <span className="ml-2 text-xs font-bold bg-success/10 text-success px-1.5 py-0.5 rounded">Principal</span>
                                                                                     )}
                                                                                 </p>
                                                                                 <p className="text-xs text-muted-foreground">{contact.relationship}</p>
@@ -519,6 +528,6 @@ export default function MedicalRecordsPage() {
                     </Card>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

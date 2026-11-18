@@ -33,6 +33,7 @@ Chaque chapitre correspond à un grand domaine de l'école. Les règles sont mar
 | 14 | [Tableaux de bord, analyses et alertes](14-pilotage.md) | Direction |
 | 15 | [Protection des données et confidentialité](15-confidentialite.md) | Direction, familles |
 | 16 | [Lexique : les mots de l'école et de l'application](16-lexique.md) | Tout le monde |
+| 17 | [Le parcours complet de chaque rôle](17-parcours-par-role.md) | Tout le monde |
 
 ## Les choix propres à chaque école
 

@@ -158,7 +158,7 @@ export default function ResourcesPage() {
 
                 {isLoading ? <PageLoading label="Chargement des ressources…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message={error.message || "Impossible de charger les ressources"}
                         onRetry={() => void mutate()}
                     />

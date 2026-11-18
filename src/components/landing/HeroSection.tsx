@@ -1,89 +1,66 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { t } from "@/lib/i18n";
+import { enterStyle } from "./Reveal";
+import { useExplorerOverview } from "./use-explorer-overview";
 
 export function HeroSection() {
-    const [trainedStudents, setTrainedStudents] = useState<number>(0);
     const { status } = useSession();
     const isAuthenticated = status === "authenticated";
-
-     
-
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const res = await fetch("/api/explorer/overview", { cache: "no-store" });
-                if (!res.ok) return;
-                const data = await res.json().catch(() => null);
-                if (cancelled) return;
-                setTrainedStudents(Number(data?.students || 0));
-            } catch {
-                // silent fail: home page remains usable
-            }
-        })();
-        return () => { cancelled = true; };
-    }, []);
+    // Même requête que la section chiffres (SWR la partage) ; le bandeau
+    // n'apparaît qu'avec un vrai nombre, jamais « 0 élève » par défaut.
+    const { data: overview } = useExplorerOverview();
+    const trainedStudents = Number(overview?.students ?? 0);
 
     return (
         <section className="relative min-h-screen pt-32 pb-20 overflow-hidden flex items-center bg-background">
             <div className="container mx-auto px-6 relative z-10">
                 <div className="max-w-4xl mx-auto text-center">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.5 }}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border/50 text-sm font-medium mb-8 shadow-sm backdrop-blur-sm"
+                    <div
+                        className="edu-enter-up inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border/50 text-sm font-medium mb-8 shadow-sm backdrop-blur-sm"
+                        style={enterStyle(0, 0, 500, 0.95)}
                     >
                         <span className="relative flex h-2.5 w-2.5">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
                         </span>
                         {t("landing.hero.badge")}
-                    </motion.div>
+                    </div>
 
-                    <motion.div
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.45, delay: 0.05 }}
-                        className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-4 py-1.5 text-xs font-semibold text-primary"
-                    >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        {t("landing.hero.trainedStudents", { count: trainedStudents.toLocaleString("fr-FR") })}
-                    </motion.div>
+                    {trainedStudents > 0 ? (
+                        <div
+                            className="edu-enter-up mb-6 ml-2 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-4 py-1.5 text-xs font-semibold text-primary"
+                            style={enterStyle(12, 0, 450)}
+                        >
+                            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                            {t("landing.hero.trainedStudents", { count: trainedStudents.toLocaleString("fr-FR") })}
+                        </div>
+                    ) : null}
 
-                    <motion.h1
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.1 }}
-                        className="text-5xl md:text-7xl font-display font-bold tracking-tight mb-6 leading-tight"
+                    <h1
+                        className="edu-enter-up text-5xl md:text-7xl font-display font-bold tracking-tight mb-6 leading-tight"
+                        style={enterStyle(20, 100)}
                     >
                         {t("landing.hero.title").split(" ").slice(0, -1).join(" ")} <br />
                         <span className="text-primary">
                             {t("landing.hero.title").split(" ").slice(-1)}
                         </span>
-                    </motion.h1>
+                    </h1>
 
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
-                        className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed"
+                    <p
+                        className="edu-enter-up text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed"
+                        style={enterStyle(20, 200)}
                     >
                         {t("landing.hero.description")}
-                    </motion.p>
+                    </p>
 
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.3 }}
-                        className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20"
+                    <div
+                        className="edu-enter-up flex flex-col sm:flex-row items-center justify-center gap-4 mb-20"
+                        style={enterStyle(20, 300)}
                     >
                         <Button
                             size="lg"
@@ -105,7 +82,7 @@ export function HeroSection() {
                                 {t("landing.cta.explorer")}
                             </Link>
                         </Button>
-                    </motion.div>
+                    </div>
 
                     {/* La rangée « Ils nous font confiance » affichait trois sigles
                         inventés (CESM, LNB, EPEB) : fausse preuve sociale. Les

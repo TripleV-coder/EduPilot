@@ -9,20 +9,30 @@
  * Demi-ouvert : à l'expiration, UN seul appel d'essai (tous pods confondus)
  * est autorisé. Succès → fermé ; échec → ouvert à nouveau pour 30 s.
  *
- * L'état vit dans Redis quand `REDIS_URL` est configuré : un fournisseur coupé
- * l'est pour tous les pods. Sans Redis, ou s'il ne répond pas, l'état est local.
+ * L'état vit dans PostgreSQL (`lib/shared-state/pg`, table UNLOGGED) : un
+ * fournisseur coupé l'est pour toutes les instances. Base lente ou injoignable :
+ * état local du processus, sans attente (coupe-circuit du magasin).
  * Chaque transition est journalisée et comptée (métriques Prometheus).
  */
-import type Redis from "ioredis";
 import { circuitSettings, type CircuitSettings } from "@/lib/resilience/config";
 import { CircuitOpenError } from "@/lib/resilience/errors";
 import { recordCircuitTransition, recordRejection, type CircuitStateName } from "@/lib/resilience/metrics";
-import { getTcpRedis, tcpRedisCircuit } from "@/lib/redis/tcp";
+import {
+    counterDelete,
+    counterGet,
+    counterIncrRefresh,
+    counterSet,
+    counterSetIfAbsent,
+    sharedStoreEnabled,
+    storeCircuit,
+} from "@/lib/shared-state/pg";
 import { logger } from "@/lib/utils/logger";
 
 /** Services en aval protégés. Les métriques exposent l'état de chacun. */
 export const CIRCUITS = {
     sms: "sms",
+    whatsapp: "whatsapp",
+    voice: "voice",
     email: "email",
     momo: "payment-momo",
     flutterwave: "payment-flutterwave",
@@ -37,7 +47,7 @@ const FAILURE_STREAK_TTL_MS = 10 * 60_000;
 
 // ─── Magasin d'état ───────────────────────────────────────────────────────────
 
-/** Opérations minimales sur des clés à durée de vie, communes à Redis et à la mémoire. */
+/** Opérations minimales sur des clés à durée de vie, communes à PostgreSQL et à la mémoire. */
 export interface BreakerKV {
     /** Durée de vie restante en ms ; 0 ou moins si la clé n'existe pas. */
     ttlMs(key: string): Promise<number>;
@@ -93,32 +103,30 @@ export class MemoryBreakerKV implements BreakerKV {
     }
 }
 
-export class RedisBreakerKV implements BreakerKV {
-    constructor(private readonly client: Redis) {}
-
+/** Clés à durée de vie dans `rate_limit_counters` (une instruction atomique par opération). */
+export class PgBreakerKV implements BreakerKV {
     async ttlMs(key: string) {
-        return this.client.pttl(key);
+        return (await counterGet(key)).ttlMs;
     }
 
     async getInt(key: string) {
-        return Number(await this.client.get(key)) || 0;
+        return (await counterGet(key)).count;
     }
 
-    async setIfAbsent(key: string, ttlMs: number) {
-        return (await this.client.set(key, "1", "PX", ttlMs, "NX")) === "OK";
+    setIfAbsent(key: string, ttlMs: number) {
+        return counterSetIfAbsent(key, ttlMs);
     }
 
-    async set(key: string, ttlMs: number) {
-        await this.client.set(key, "1", "PX", ttlMs);
+    set(key: string, ttlMs: number) {
+        return counterSet(key, ttlMs);
     }
 
-    async incr(key: string, ttlMs: number) {
-        const results = await this.client.multi().incr(key).pexpire(key, ttlMs).exec();
-        return Number(results?.[0]?.[1] ?? 0);
+    incr(key: string, ttlMs: number) {
+        return counterIncrRefresh(key, ttlMs);
     }
 
-    async del(...keys: string[]) {
-        await this.client.del(...keys);
+    del(...keys: string[]) {
+        return counterDelete(...keys);
     }
 }
 
@@ -128,12 +136,13 @@ const globalForBreakers = globalThis as unknown as {
 };
 const memoryKV = (globalForBreakers.__edupilotBreakerMemoryKV ??= new MemoryBreakerKV());
 
-/** Redis si configuré et joignable (borné par son propre coupe-circuit), mémoire sinon. */
+const pgKV = new PgBreakerKV();
+
+/** PostgreSQL (borné par le coupe-circuit du magasin), mémoire du processus sinon. */
 class SharedBreakerKV implements BreakerKV {
     private via<T>(operation: (kv: BreakerKV) => Promise<T>): Promise<T> {
-        const client = getTcpRedis();
-        if (!client) return operation(memoryKV);
-        return tcpRedisCircuit.run(() => operation(new RedisBreakerKV(client)), () => operation(memoryKV));
+        if (!sharedStoreEnabled()) return operation(memoryKV);
+        return storeCircuit.run(() => operation(pgKV), () => operation(memoryKV));
     }
 
     ttlMs(key: string) { return this.via((kv) => kv.ttlMs(key)); }

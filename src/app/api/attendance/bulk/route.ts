@@ -174,7 +174,9 @@ const parsed = bulkAttendanceSchema.safeParse(await request.json().catch(() => n
   }
 
   },
-  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"] }
+  // Vie scolaire (STAFF) : ATTENDANCE_CREATE dans la matrice, dans son école
+  // (contrôle canAccessSchool ci-dessus) ; l'enseignant reste limité à ses classes
+  { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"] }
 );
 
 // GET endpoint to fetch bulk attendance data for a class

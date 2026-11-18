@@ -21,7 +21,7 @@ import {
     type User,
     type UserRole,
 } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import { CONSENT_TERMS, LEGAL_TERMS_VERSION } from "../../src/lib/security/consent-defaults";
 
 const prisma = new PrismaClient();
@@ -256,4 +256,9 @@ export function createEmptyContext(): SeedContext {
         events: [],
         announcements: [],
     };
+}
+
+/** Partie locale d'e-mail sans accents ni espaces : « Thérèse » → « therese » (sinon refusée à la connexion). */
+export function emailPart(name: string): string {
+    return name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9-]/g, "");
 }

@@ -157,6 +157,15 @@ const FR_NUM = (v: number | null, digits = 1): string =>
     v === null ? "—" : v.toFixed(digits).replace(".", ",");
 
 export default function OrientationPostBepcPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]} >
+            <OrientationPostBepcPageContent />
+        </PageGuard>
+    );
+}
+
+function OrientationPostBepcPageContent() {
     const thresholds = useSchoolThresholds();
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [years, setYears] = useState<YearOption[]>([]);
@@ -248,10 +257,7 @@ export default function OrientationPostBepcPage() {
     }, [data, filter]);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-        >
+        <>
             <CycleGuard requires="SECONDARY_COLLEGE">
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
@@ -536,7 +542,7 @@ export default function OrientationPostBepcPage() {
                                                         style={{
                                                             padding: "10px 14px",
                                                             textAlign: "left",
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             fontWeight: 700,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
@@ -753,14 +759,14 @@ export default function OrientationPostBepcPage() {
                                                     }}
                                                 >
                                                     <span
-                                                        style={{ fontSize: 11, fontWeight: 500 }}
+                                                        style={{ fontSize: 12, fontWeight: 500 }}
                                                     >
                                                         {d.label}
                                                     </span>
                                                     <span
                                                         className="tabular"
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             fontWeight: 700,
                                                             color: `var(--eduflow-${d.color}-700)`,
                                                             fontVariantNumeric: "tabular-nums",
@@ -807,7 +813,7 @@ export default function OrientationPostBepcPage() {
                                                 display: "flex",
                                                 alignItems: "center",
                                                 gap: 8,
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 fontWeight: 700,
                                                 opacity: 0.85,
                                                 marginBottom: 8,
@@ -915,7 +921,7 @@ export default function OrientationPostBepcPage() {
                 }
             `}</style>
             </CycleGuard>
-        </PageGuard>
+        </>
     );
 }
 
@@ -932,7 +938,7 @@ function Kpi({
         <Card padding={14}>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--eduflow-text-tertiary)",
                 }}
             >
@@ -988,7 +994,7 @@ function SeriesLegend() {
                         3 bacs · 11 séries + DT (Diplôme de Technicien) — source DOB / MEMP
                     </p>
                 </div>
-                <div style={{ display: "flex", gap: 12, fontSize: 11, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 12, fontSize: 12, flexWrap: "wrap" }}>
                     {[
                         { l: "Littéraire", c: "brand" },
                         { l: "Scientifique", c: "info" },
@@ -1045,7 +1051,7 @@ function SeriesLegend() {
                             </span>
                             <span
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 600,
                                     color: `var(--eduflow-${s.c}-800)`,
                                 }}
@@ -1055,7 +1061,7 @@ function SeriesLegend() {
                         </div>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-secondary)",
                                 marginTop: 6,
                                 lineHeight: 1.5,
@@ -1065,7 +1071,7 @@ function SeriesLegend() {
                         </div>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-tertiary)",
                                 marginTop: 6,
                                 fontWeight: 600,
@@ -1111,7 +1117,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

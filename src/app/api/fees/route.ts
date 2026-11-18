@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { feeSchema } from "@/lib/validations/finance";
 import { isZodError } from "@/lib/is-zod-error";
-import { createApiHandler, translateError } from "@/lib/api/api-helpers";
-import { API_ERRORS } from "@/lib/constants/api-messages";
-import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { createApiHandler } from "@/lib/api/api-helpers";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 
 /**
@@ -12,7 +11,7 @@ import { roleSatisfies } from "@/lib/rbac/permissions";
  * Lister les frais scolaires
  */
 export const GET = createApiHandler(
-  async (request, { session }, t) => {
+  async (request, { session }) => {
     // RBAC: fees are sensitive financial data — restricted to finance/admin roles.
     // NETWORK_ADMIN hérite des droits de SCHOOL_ADMIN via roleSatisfies.
     const callerRole = session.user.role;
@@ -23,13 +22,10 @@ export const GET = createApiHandler(
 
     const { searchParams } = new URL(request.url);
     const requestedSchoolId = searchParams.get("schoolId");
-    const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
-    if (schoolAccess) return schoolAccess;
-    const schoolId = requestedSchoolId || getActiveSchoolId(session);
-
-    if (!schoolId) {
-      return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
-    }
+    // S6 : école explicite, vérifiée et dans le périmètre
+    const scope = await resolveFinanceSchool(session, requestedSchoolId, "fees:list");
+    if (!scope.ok) return scope.response;
+    const schoolId = scope.schoolId;
 
     // C3 : les paiements de chaque frais (avec le nom de l'élève) étaient
     // inclus — 2,8 Mo sur la base de l'audit — alors qu'aucun écran ne les lit.
@@ -54,22 +50,18 @@ export const GET = createApiHandler(
  * Créer un frais scolaire
  */
 export const POST = createApiHandler(
-  async (request, { session }, t) => {
+  async (request, { session }) => {
     try {
       const body = await request.json() as Record<string, unknown>;
       const data = feeSchema.parse(body);
       const requestedSchoolId = body.schoolId as string | undefined;
-      const schoolAccess = ensureRequestedSchoolAccess(session, requestedSchoolId);
-      if (schoolAccess) return schoolAccess;
-
-      // Determine schoolId
-      let schoolId = getActiveSchoolId(session);
-      if (requestedSchoolId) {
-        schoolId = requestedSchoolId;
-      }
-
-      if (!schoolId) {
-        return NextResponse.json(translateError(API_ERRORS.INVALID_DATA, t), { status: 400 });
+      // S6 : école explicite, vérifiée et dans le périmètre
+      const scope = await resolveFinanceSchool(session, requestedSchoolId, "fees:create");
+      if (!scope.ok) return scope.response;
+      const schoolId = scope.schoolId;
+      // Année du frais dans la même école (lot S2, doublé en base)
+      if (data.academicYearId && !(await prisma.academicYear.findFirst({ where: { id: data.academicYearId, schoolId }, select: { id: true } }))) {
+        return NextResponse.json({ error: "Cette année scolaire n'appartient pas à l'établissement concerné." }, { status: 400 });
       }
 
       const fee = await prisma.fee.create({

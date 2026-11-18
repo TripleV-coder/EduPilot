@@ -200,7 +200,20 @@ const MENTIONS = [
 const FR_NUM = (v: number | null, digits = 1): string =>
     v === null ? "—" : v.toFixed(digits).replace(".", ",");
 
+// Garde AVANT le chargement : le contenu (et son appel à /api/orientation/me)
+// n'est monté que pour un élève ; un autre rôle voit le refus, sans 403 en console.
 export default function OrientationMePage() {
+    return (
+        <PageGuard
+            permission={Permission.SCHOOL_READ}
+            roles={["STUDENT"]}
+        >
+            <OrientationMeContent />
+        </PageGuard>
+    );
+}
+
+function OrientationMeContent() {
     const thresholds = useSchoolThresholds();
     const [data, setData] = useState<MeData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -233,10 +246,7 @@ export default function OrientationMePage() {
     }, [data]);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["STUDENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     greeting="Mon orientation post-BEPC"
@@ -353,7 +363,7 @@ export default function OrientationMePage() {
                                                     {rec.strengths[0] ? (
                                                         <p
                                                             style={{
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 color: "var(--eduflow-success-700, #047857)",
                                                                 margin: "6px 0 0",
                                                             }}
@@ -364,7 +374,7 @@ export default function OrientationMePage() {
                                                     {rec.warnings[0] ? (
                                                         <p
                                                             style={{
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 color: "var(--eduflow-warning-700, #b45309)",
                                                                 margin: "2px 0 0",
                                                             }}
@@ -410,7 +420,7 @@ export default function OrientationMePage() {
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 8,
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                         opacity: 0.85,
                                         marginBottom: 12,
@@ -484,7 +494,7 @@ export default function OrientationMePage() {
                                     </h2>
                                     <p
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             margin: "2px 0 0",
                                         }}
@@ -572,7 +582,7 @@ export default function OrientationMePage() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                         }}
@@ -638,7 +648,7 @@ export default function OrientationMePage() {
                                     {strongSubjects.length === 0 ? (
                                         <p
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color:
                                                     "var(--eduflow-text-tertiary)",
                                                 margin: 0,
@@ -750,7 +760,7 @@ export default function OrientationMePage() {
                                                 <span
                                                     className="tabular"
                                                     style={{
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         color:
                                                             "var(--eduflow-text-secondary)",
                                                         fontVariantNumeric: "tabular-nums",
@@ -762,7 +772,7 @@ export default function OrientationMePage() {
                                                     <span
                                                         style={{
                                                             marginLeft: "auto",
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             fontWeight: 700,
                                                             color:
                                                                 "var(--eduflow-success-700)",
@@ -792,7 +802,7 @@ export default function OrientationMePage() {
                                     {careers.length === 0 ? (
                                         <span
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                             }}
                                         >
@@ -808,7 +818,7 @@ export default function OrientationMePage() {
                                 </div>
                                 <p
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginTop: 12,
                                         lineHeight: 1.55,
@@ -851,7 +861,7 @@ export default function OrientationMePage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }
 
@@ -860,7 +870,7 @@ function HeroStat({ label, value }: { label: string; value: string }) {
         <div>
             <div
                 style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     opacity: 0.7,
                 }}
             >

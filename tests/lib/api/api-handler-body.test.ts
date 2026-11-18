@@ -70,6 +70,31 @@ describe("createApiHandler — corps de requête", () => {
         expect(handler).not.toHaveBeenCalled();
     });
 
+    // Campagne de tests du 2026-11-16 : 29 routes répondaient 500 à ces corps
+    it.each([
+        ["null", "null"],
+        ["un nombre seul", "12345"],
+        ["une chaîne seule", '"x"'],
+        ["un caractère nul dans une valeur", JSON.stringify({ name: "a\u0000b" })],
+        ["un caractère nul dans une clé", JSON.stringify({ ["a\u0000"]: 1 })],
+        ["un caractère nul au fond d'un tableau", JSON.stringify({ items: [{ tags: ["ok", "\u0000"] }] })],
+        ["une imbrication de 20 000 niveaux", `${'{"a":'.repeat(20000)}1${"}".repeat(20000)}`],
+    ])("renvoie 400 INVALID_BODY pour %s, sans appeler le handler", async (_label, raw) => {
+        const handler = vi.fn();
+        const res = await createApiHandler(handler)(post(raw));
+
+        expect(res.status).toBe(400);
+        expect((await res.json()).code).toBe("INVALID_BODY");
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("accepte un tableau, un objet vide et une imbrication ordinaire", async () => {
+        for (const raw of ["[]", "{}", JSON.stringify({ a: { b: { c: [{ d: "texte accentué é😀" }] } } })]) {
+            const res = await createApiHandler(async () => Response.json({ ok: true }))(post(raw));
+            expect(res.status, raw).toBe(200);
+        }
+    });
+
     it("renvoie 400 VALIDATION_ERROR détaillé quand le handler laisse remonter une ZodError", async () => {
         const res = await createApiHandler(async (request) => {
             schema.parse(await request.json());

@@ -75,7 +75,7 @@ function formatDate(value: string) {
 
 function NodeStats({ school }: { school: SchoolNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
       <span>{school.stats.users} utilisateurs</span>
       <span className="text-border">•</span>
       <span>{school.stats.students} élèves</span>
@@ -137,7 +137,7 @@ export default function RootSystemMapPage() {
           <Card className="border-border/70 bg-card">
             <CardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-[11px] font-bold text-muted-foreground">Organisations</p>
+                <p className="text-xs font-bold text-muted-foreground">Organisations</p>
                 <p className="mt-1 text-2xl font-bold">{data?.totals.organizations ?? 0}</p>
               </div>
               <Network className="h-5 w-5 text-primary" />
@@ -146,7 +146,7 @@ export default function RootSystemMapPage() {
           <Card className="border-border/70 bg-card">
             <CardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-[11px] font-bold text-muted-foreground">Écoles</p>
+                <p className="text-xs font-bold text-muted-foreground">Écoles</p>
                 <p className="mt-1 text-2xl font-bold">{data?.totals.schools ?? 0}</p>
               </div>
               <School className="h-5 w-5 text-primary" />
@@ -155,7 +155,7 @@ export default function RootSystemMapPage() {
           <Card className="border-border/70 bg-card">
             <CardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-[11px] font-bold text-muted-foreground">Indépendantes</p>
+                <p className="text-xs font-bold text-muted-foreground">Indépendantes</p>
                 <p className="mt-1 text-2xl font-bold">{data?.totals.independentSchools ?? 0}</p>
               </div>
               <Building2 className="h-5 w-5 text-warning" />
@@ -164,7 +164,7 @@ export default function RootSystemMapPage() {
           <Card className="border-border/70 bg-card">
             <CardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-[11px] font-bold text-muted-foreground">Liens d'organisation</p>
+                <p className="text-xs font-bold text-muted-foreground">Liens d'organisation</p>
                 <p className="mt-1 text-2xl font-bold">{data?.totals.organizationLinks ?? 0}</p>
               </div>
               <Link2 className="h-5 w-5 text-success" />
@@ -173,7 +173,7 @@ export default function RootSystemMapPage() {
           <Card className="border-border/70 bg-card">
             <CardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-[11px] font-bold text-muted-foreground">Liens hiérarchie</p>
+                <p className="text-xs font-bold text-muted-foreground">Liens hiérarchie</p>
                 <p className="mt-1 text-2xl font-bold">{data?.totals.hierarchyLinks ?? 0}</p>
               </div>
               <GitBranch className="h-5 w-5 text-primary" />
@@ -237,7 +237,7 @@ export default function RootSystemMapPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <h2 className="text-base font-bold">{organization.name}</h2>
-                            <Badge variant="outline" className="font-mono text-[11px]">{organization.code}</Badge>
+                            <Badge variant="outline" className="font-mono text-xs">{organization.code}</Badge>
                             <Badge
                               variant="outline"
                               className={organization.isActive ? "border-success/30 bg-success/10 text-success" : "border-destructive/30 bg-destructive/10 text-destructive"}
@@ -261,8 +261,8 @@ export default function RootSystemMapPage() {
                           <div key={school.id} className="rounded-lg border border-border/60 bg-card p-3">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="font-semibold text-foreground">{school.name}</p>
-                              <Badge variant="outline" className="text-[11px]">{school.siteType === "MAIN" ? "Site principal" : "Annexe"}</Badge>
-                              <Badge variant="secondary" className="font-mono text-[11px]">{school.code}</Badge>
+                              <Badge variant="outline" className="text-xs">{school.siteType === "MAIN" ? "Site principal" : "Annexe"}</Badge>
+                              <Badge variant="secondary" className="font-mono text-xs">{school.code}</Badge>
                               {school.city ? <span className="text-xs text-muted-foreground">{school.city}</span> : null}
                             </div>
                             {school.parentSchoolName ? (
@@ -303,8 +303,8 @@ export default function RootSystemMapPage() {
                       <div key={school.id} className="rounded-lg border border-border/60 bg-background/30 p-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold">{school.name}</p>
-                          <Badge variant="secondary" className="font-mono text-[11px]">{school.code}</Badge>
-                          <Badge variant="outline" className="text-[11px]">{school.siteType === "MAIN" ? "Site principal" : "Annexe"}</Badge>
+                          <Badge variant="secondary" className="font-mono text-xs">{school.code}</Badge>
+                          <Badge variant="outline" className="text-xs">{school.siteType === "MAIN" ? "Site principal" : "Annexe"}</Badge>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {school.city || "Ville non renseignée"}

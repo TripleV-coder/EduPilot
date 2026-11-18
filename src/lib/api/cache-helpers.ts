@@ -3,7 +3,7 @@
  * Provides caching layer for frequently accessed data
  */
 
-import { getCacheService } from "@/lib/cache/redis";
+import { getCacheService } from "@/lib/cache/service";
 const cache = getCacheService();
 import { NextResponse } from "next/server";
 
@@ -31,6 +31,16 @@ export function generateCacheKey(
 }
 
 /**
+ * Portée d'une entrée de cache : l'utilisateur ET son établissement actif. Un
+ * même compte peut changer d'établissement (enseignant de plusieurs écoles,
+ * administration réseau) : sans l'école dans la clé, il recevait les données
+ * de l'école précédente jusqu'à expiration du cache.
+ */
+export function cacheScope(session: { user: { id: string; schoolId?: string | null } }): string {
+  return `${session.user.id}:${session.user.schoolId ?? "sans-ecole"}`;
+}
+
+/**
  * Get cached response or execute handler
  */
 export async function withCache<T>(
@@ -52,8 +62,9 @@ export async function withCache<T>(
         headers: {
           ...cached.headers,
           "X-Cache": "HIT",
-          // Réponses propres à un utilisateur ou une école : jamais en cache partagé (N29).
-          "Cache-Control": `private, max-age=${ttl}`,
+          // Réponses propres à un utilisateur ou une école : jamais conservées
+          // par le navigateur (N29, audit MS-03) ; le cache reste côté serveur.
+          "Cache-Control": "private, no-store",
         },
       });
     }
@@ -83,7 +94,7 @@ export async function withCache<T>(
       headers: {
         ...Object.fromEntries(response.headers.entries()),
         "X-Cache": "MISS",
-        "Cache-Control": `private, max-age=${ttl}`,
+        "Cache-Control": "private, no-store",
       },
     });
   } catch (_err) {

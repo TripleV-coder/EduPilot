@@ -67,15 +67,15 @@ export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
                     <CardHeader>
                         <CardTitle className="text-sm font-bold tracking-tight flex items-center justify-between">
                             Encaissements mensuels
-                            <Badge variant="outline" className="text-[11px]">Mensuel</Badge>
+                            <Badge variant="outline" className="text-xs">Mensuel</Badge>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="h-[350px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={composedData}>
-                                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                                <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
-                                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
+                                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                                <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
                                 <Tooltip {...FR_TOOLTIP_STYLE} />
                                 <Legend />
                                 <Bar yAxisId="left" name="Reçu" dataKey="received" fill="hsl(var(--primary))" />
@@ -89,7 +89,7 @@ export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
                     <CardHeader>
                         <CardTitle className="text-sm font-bold tracking-tight flex items-center justify-between">
                             Ancienneté des Créances
-                            <Badge variant={totalPending > 0 ? "destructive" : "outline"} className="text-[11px]">
+                            <Badge variant={totalPending > 0 ? "destructive" : "outline"} className="text-xs">
                                 {new Intl.NumberFormat("fr-FR").format(totalPending)} FCFA en retard
                             </Badge>
                         </CardTitle>
@@ -113,7 +113,7 @@ export function FinanceAnalyticsTab({ data }: FinanceAnalyticsTabProps) {
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader>
-                            <TableRow className="bg-muted/30 font-bold text-[11px]">
+                            <TableRow className="bg-muted/30 font-bold text-xs">
                                 <TableHead className="px-6">Niveau / Cycle</TableHead>
                                 <TableHead className="text-right">Encaissé</TableHead>
                                 <TableHead className="text-right">Part du total</TableHead>

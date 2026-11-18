@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkPeriodPlan, checkPeriodsCount, periodsCountFor } from "@/lib/academic/period-rules";
+import { checkPeriodPlan, checkPeriodsCount, periodsCountFor, defaultPeriodName } from "@/lib/academic/period-rules";
 
 const year = { startDate: new Date("2025-09-15"), endDate: new Date("2026-07-15") };
 const T = (sequence: number, start: string, end: string, id?: string) => ({
@@ -40,4 +40,12 @@ describe("découpage de l'année", () => {
     const self = T(1, "2025-09-15", "2025-12-20", "t1");
     expect(checkPeriodPlan({ ...self, endDate: new Date("2025-12-22") }, [self], year)).toBeNull();
   });
+});
+
+describe("defaultPeriodName — même nom chaque année, partout", () => {
+    it("trimestres, semestres, système libre", () => {
+        expect([1, 2, 3].map((n) => defaultPeriodName("TRIMESTER", n))).toEqual(["Trimestre 1", "Trimestre 2", "Trimestre 3"]);
+        expect([1, 2].map((n) => defaultPeriodName("SEMESTER", n))).toEqual(["Semestre 1", "Semestre 2"]);
+        expect(defaultPeriodName("HYBRID", 4)).toBe("Période 4");
+    });
 });

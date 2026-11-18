@@ -34,12 +34,16 @@ async function handleMaintenance(req: NextRequest) {
     const cronAuth = verifyCronSecret(req.headers.get("Authorization"));
 
     if (cronAuth === "not-configured") {
+        // DEF-010 : même réponse que /api/system/retention (401) ; la cause
+        // reste visible de l'exploitant dans les journaux.
         logger.error("CRON_SECRET is not defined in environment variables");
-        return NextResponse.json({ error: "Configuration Error" }, { status: 500 });
+        return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
     if (cronAuth !== "ok") {
-        return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+        // Même message que /api/system/retention : un secret refusé n'est pas
+        // une session absente (distinct du 401 du middleware).
+        return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
     // Secret vérifié : la maintenance porte sur tous les établissements,

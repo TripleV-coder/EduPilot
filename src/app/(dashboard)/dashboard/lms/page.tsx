@@ -186,7 +186,7 @@ export default function LMSPage() {
                 {/* Sans ce cas, une panne affichait « aucun devoir » à un
                     élève qui en avait. */}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les devoirs."
                         onRetry={() => void mutate()}
                     />
@@ -308,7 +308,7 @@ export default function LMSPage() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                             marginTop: 2,
@@ -389,7 +389,7 @@ export default function LMSPage() {
                             }}
                         >
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Activité élèves · 7 jours</p>
+                                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Activité élèves · 7 jours</p>
                                 <div
                                     style={{
                                         display: "flex",
@@ -430,7 +430,7 @@ export default function LMSPage() {
                             </Card>
 
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Devoirs les plus rendus</p>
+                                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Devoirs les plus rendus</p>
                                 {topResources.length === 0 ? (
                                     <div
                                         style={{

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { gamificationService } from "@/lib/gamification/service";
-import { generateCacheKey, withCache, CACHE_TTL_MEDIUM } from "@/lib/api/cache-helpers";
+import { generateCacheKey, withCache, CACHE_TTL_MEDIUM, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
@@ -8,7 +8,7 @@ import { createApiHandler } from "@/lib/api/api-helpers";
 export const GET = createApiHandler(async (request, context) => {
         const session = context.session;
 const url = new URL(request.url);
-    const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
+    const cacheKey = generateCacheKey(url.pathname, url.searchParams, cacheScope(session));
 
     try {
         const response = await withCache(

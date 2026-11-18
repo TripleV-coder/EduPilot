@@ -5,7 +5,7 @@ import { subjectSchema } from "@/lib/validations/subject";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { Permission } from "@/lib/rbac/permissions";
-import { invalidateByPath, CACHE_TTL_LONG, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
+import { invalidateByPath, CACHE_TTL_LONG, generateCacheKey, withCache, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 
@@ -39,7 +39,7 @@ export const GET = createApiHandler(
         }
 
         const url = new URL(request.url);
-        const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
+        const cacheKey = generateCacheKey(url.pathname, url.searchParams, cacheScope(session));
 
         const handler = async () => {
             const subjects = await prisma.subject.findMany({

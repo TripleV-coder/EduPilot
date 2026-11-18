@@ -24,7 +24,8 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     class: { findFirst: vi.fn(), findMany: vi.fn() },
     studentAnalytics: { findMany: vi.fn() },
-    period: { findUnique: vi.fn() },
+    period: { findUnique: vi.fn(), findMany: vi.fn() },
+    academicYear: { findFirst: vi.fn() },
     enrollment: { count: vi.fn() },
   },
 }));
@@ -35,7 +36,9 @@ const P1 = cuid("p1");
 const P2 = cuid("p2");
 
 describe("GET /api/analytics/period-comparison", () => {
-  beforeEach(() => vi.clearAllMocks());
+  // resetAllMocks : une file mockResolvedValueOnce non consommée ne doit pas
+  // passer au test suivant (elle faussait class-comparison)
+  beforeEach(() => vi.resetAllMocks());
 
   it("should return 401 when unauthenticated", async () => {
     vi.mocked(auth).mockResolvedValue(null);
@@ -85,9 +88,11 @@ describe("GET /api/analytics/period-comparison", () => {
         { generalAverage: 16, performanceLevel: "EXCELLENT" },
         { generalAverage: 10, performanceLevel: "AVERAGE" },
       ] as never);
-    vi.mocked(prisma.period.findUnique)
-      .mockResolvedValueOnce({ name: "Semestre 1" } as never)
-      .mockResolvedValueOnce({ name: "Semestre 2" } as never);
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: AY } as never);
+    vi.mocked(prisma.period.findMany).mockResolvedValue([
+      { id: P1, name: "Semestre 1" },
+      { id: P2, name: "Semestre 2" },
+    ] as never);
 
     const res = await GET_PERIOD_COMPARISON(makeRequest(`http://localhost/api/analytics/period-comparison?academicYearId=${AY}&classId=${CLASS_ID}&periodIds=${P1}&periodIds=${P2}`), { session: makeSession("DIRECTOR") });
     expect(res.status).toBe(200);
@@ -112,6 +117,13 @@ describe("GET /api/analytics/period-comparison", () => {
       passRate: 100,
       performanceDistribution: { excellent: 1, average: 1 },
     });
+    // Périodes vérifiées dans l'année ET l'école de la classe (audit du 2026-10-16)
+    expect(prisma.period.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: { in: [P1, P2] }, academicYearId: AY, academicYear: { schoolId: FIXTURES.schoolA } },
+    }));
+    expect(prisma.academicYear.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: AY, schoolId: FIXTURES.schoolA },
+    }));
     expect(prisma.studentAnalytics.findMany).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -127,21 +139,32 @@ describe("GET /api/analytics/period-comparison", () => {
     );
   });
 
-  it("should default to 'Unknown' period name", async () => {
+  it("période inexistante ou d'une autre école : 404, aucun nom renvoyé", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(prisma.class.findFirst).mockResolvedValue({
       id: CLASS_ID,
       schoolId: FIXTURES.schoolA,
       name: "6A",
     } as never);
-    vi.mocked(prisma.studentAnalytics.findMany).mockResolvedValue([] as never);
-    vi.mocked(prisma.period.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue({ id: AY } as never);
+    vi.mocked(prisma.period.findMany).mockResolvedValue([] as never);
     const res = await GET_PERIOD_COMPARISON(makeRequest(`http://localhost/api/analytics/period-comparison?academicYearId=${AY}&classId=${CLASS_ID}&periodIds=${P1}`), { session: makeSession("DIRECTOR") });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body[0].periodName).toBe("Unknown");
-    expect(body[0].averageGrade).toBe(0);
-    expect(body[0].passRate).toBe(0);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Période introuvable" });
+    expect(prisma.studentAnalytics.findMany).not.toHaveBeenCalled();
+  });
+
+  it("année d'une autre école : 404", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(prisma.class.findFirst).mockResolvedValue({
+      id: CLASS_ID,
+      schoolId: FIXTURES.schoolA,
+      name: "6A",
+    } as never);
+    vi.mocked(prisma.academicYear.findFirst).mockResolvedValue(null);
+    const res = await GET_PERIOD_COMPARISON(makeRequest(`http://localhost/api/analytics/period-comparison?academicYearId=${AY}&classId=${CLASS_ID}&periodIds=${P1}`), { session: makeSession("DIRECTOR") });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Année scolaire introuvable" });
   });
 
   it("should return 500 when a query fails", async () => {

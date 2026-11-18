@@ -148,7 +148,7 @@ export function TrendCell({
 }) {
     if (value == null) {
         return (
-            <span style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+            <span style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                 —
             </span>
         );
@@ -160,7 +160,7 @@ export function TrendCell({
     return (
         <span
             className="eduflow-tabular inline-flex items-center gap-1"
-            style={{ fontSize: 11, fontWeight: 600, color: variantColor }}
+            style={{ fontSize: 12, fontWeight: 600, color: variantColor }}
         >
             <Icon name={passing ? "arrowUp" : "arrowDown"} size={11} />
             {value.toFixed(1).replace(".", ",")}
@@ -171,15 +171,19 @@ export function TrendCell({
 export function ToggleAbsent({
     checked,
     onChange,
+    label = "Absent",
 }: {
     checked: boolean;
     onChange: (c: boolean) => void;
+    /** Nom accessible (axe button-name) : « Absent : <élève> » dans une liste. */
+    label?: string;
 }) {
     return (
         <button
             type="button"
             role="switch"
             aria-checked={checked}
+            aria-label={label}
             onClick={() => onChange(!checked)}
             className="grid place-items-center"
             style={{
@@ -236,7 +240,7 @@ export function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -303,7 +307,7 @@ export function FieldText({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -342,7 +346,7 @@ export function Th({ children, width }: { children: React.ReactNode; width?: num
         <th
             style={{
                 padding: "10px 16px",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--eduflow-text-tertiary)",
                 width,

@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import { beforeAll, describe, expect, it } from "vitest";
 import { POST as firstLogin } from "@/app/api/auth/first-login/route";
 import ownerDb from "./owner-db";

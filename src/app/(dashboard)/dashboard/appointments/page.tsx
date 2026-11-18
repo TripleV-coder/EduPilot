@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
+import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -46,6 +47,15 @@ const getStatusLabel = (status: string) => {
 };
 
 export default function AppointmentsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT"]}>
+            <AppointmentsPageContent />
+        </PageGuard>
+    );
+}
+
+function AppointmentsPageContent() {
     const { data: session } = useSession();
     const role = session?.user?.role || "";
     const [statusFilter, setStatusFilter] = useState("ALL");
@@ -78,9 +88,15 @@ export default function AppointmentsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: newStatus }),
             });
-            if (res.ok) void mutate();
+            if (!res.ok) {
+                const body = (await res.json().catch(() => ({}))) as { error?: string };
+                toast.error(body.error || "Le rendez-vous n'a pas été mis à jour. Réessayez.");
+                return;
+            }
+            toast.success("Rendez-vous mis à jour.");
+            void mutate();
         } catch {
-            // silencieux — l'état SWR reste inchangé
+            toast.error("Connexion impossible : le rendez-vous n'a pas été mis à jour.");
         }
     };
 
@@ -110,7 +126,7 @@ export default function AppointmentsPage() {
     const [requesting, setRequesting] = useState(false);
 
     return (
-        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Agenda des rendez-vous"
@@ -171,7 +187,7 @@ export default function AppointmentsPage() {
 
                     {isLoading ? <PageLoading label="Chargement des rendez-vous…" /> : null}
                     {error ? (
-                        <PageError
+                        <PageError error={error}
                             message={error.message || "Erreur de récupération des rendez-vous"}
                             onRetry={() => void mutate()}
                         />
@@ -306,6 +322,6 @@ export default function AppointmentsPage() {
                     ) : null}
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

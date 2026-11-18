@@ -50,3 +50,20 @@ export function serviceUnavailableResponse(error: ServiceUnavailableError): Next
         { status: 503, headers: { "Retry-After": retryAfterSeconds(error.retryAfterMs) } },
     );
 }
+
+/**
+ * Paiement en ligne momentanément indisponible (circuit ouvert, file saturée) :
+ * la demande n'a PAS été transmise au fournisseur, rien n'a été prélevé. Message
+ * pour les familles, sans nom de service interne (audit 100 profils).
+ */
+export function onlinePaymentPausedResponse(error: ServiceUnavailableError) {
+    const seconds = Math.max(1, Math.ceil(error.retryAfterMs / 1000));
+    return NextResponse.json(
+        {
+            error:
+                "Le paiement en ligne est momentanément indisponible. Aucun montant n'a été prélevé pour cette tentative. Réessayez dans quelques minutes, vérifiez vos paiements dans l'historique, ou réglez à l'économat.",
+            code: "ONLINE_PAYMENT_PAUSED",
+        },
+        { status: 503, headers: { "Retry-After": String(seconds) } },
+    );
+}

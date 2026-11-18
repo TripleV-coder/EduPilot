@@ -6,6 +6,7 @@ import { syncAnalyticsAfterStudentActivityChange } from "@/lib/services/analytic
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
+import { incidentVisibilityWhere } from "@/lib/security/incident-visibility";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 const updateIncidentSchema = z.object({
@@ -21,11 +22,18 @@ export const GET = createApiHandler(
       const guard = await assertModelAccess(session, "incident", id, "Incident non trouvé");
       if (guard) return guard;
 
-      const incident = await prisma.behaviorIncident.findUnique({
-        where: { id: id },
+      // Même visibilité que la liste : un parent ou un élève ne lit que les
+      // incidents de son enfant ou les siens, un enseignant ceux qu'il a signalés
+      const visibility = await incidentVisibilityWhere(session);
+      if (!visibility) return NextResponse.json({ error: "Incident non trouvé" }, { status: 404 });
+
+      const incident = await prisma.behaviorIncident.findFirst({
+        where: { AND: [{ id }, visibility] },
         include: {
+          // Nom de l'élève seulement, jamais sa fiche complète
           student: {
-            include: {
+            select: {
+              id: true,
               user: {
                 select: {
                   firstName: true,
@@ -72,6 +80,11 @@ export const PATCH = createApiHandler(
       const { id } = await params;
       const guard = await assertModelAccess(session, "incident", id, "Incident non trouvé");
       if (guard) return guard;
+      // Un enseignant ne modifie que les incidents qu'il voit (ceux qu'il a signalés)
+      const visibility = await incidentVisibilityWhere(session);
+      if (!visibility || !(await prisma.behaviorIncident.count({ where: { AND: [{ id }, visibility] } }))) {
+        return NextResponse.json({ error: "Incident non trouvé" }, { status: 404 });
+      }
 
       const body = await request.json();
       const validatedData = updateIncidentSchema.parse(body);

@@ -57,8 +57,17 @@ function mobileItemsForRole(role: string | undefined | null): Omit<MobileNavItem
                 { key: "users", label: "Utilisateurs", icon: "users", href: "/dashboard/users", matchPrefix: true },
                 { key: "ai", label: "IA", icon: AI_ASSISTANT_NAV_LINK.icon, href: AI_ASSISTANT_NAV_LINK.href, matchPrefix: true },
             ];
+        case "STAFF":
+            return [
+                // Comme la barre latérale : appel et incidents (ATTENDANCE_CREATE, INCIDENT_CREATE)
+                { key: "home", label: "Accueil", icon: "home", href: "/dashboard" },
+                { key: "attend", label: "Appel", icon: "check", href: "/dashboard/attendance", matchPrefix: true },
+                { key: "incidents", label: "Incidents", icon: "warning", href: "/dashboard/incidents", matchPrefix: true },
+                { key: "account", label: "Compte", icon: "settings", href: "/dashboard/settings", matchPrefix: true },
+            ];
         case "DIRECTOR":
         case "SCHOOL_ADMIN":
+        case "NETWORK_ADMIN":
         default:
             return [
                 { key: "home", label: "Accueil", icon: "home", href: "/dashboard" },
@@ -84,7 +93,7 @@ export function EduMobileNav() {
     const { enabledModules } = useSchool();
 
     const role = session?.user?.role ?? null;
-
+    // Rôle principal seulement, comme la garde serveur et la barre latérale (cumul désactivé)
     const items: MobileNavItem[] = React.useMemo(() => {
         const base = mobileItemsForRole(role).filter(
             (item) =>
@@ -112,7 +121,8 @@ export function EduMobileNav() {
                 position: "fixed",
                 left: 0,
                 right: 0,
-                bottom: 0,
+                // Au-dessus du bandeau cookies tant qu'il est affiché
+                bottom: "var(--consent-banner-h, 0px)",
                 zIndex: 35,
                 background: "var(--eduflow-surface-card)",
                 borderTop: "1px solid var(--eduflow-border-subtle)",
@@ -150,7 +160,7 @@ export function EduMobileNav() {
                             <Icon name={item.icon} size={20} color={color} />
                             <span
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: active ? 700 : 600,
                                     letterSpacing: "-0.005em",
                                 }}

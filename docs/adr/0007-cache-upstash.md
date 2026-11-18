@@ -1,6 +1,6 @@
 # ADR-0007 : Upstash Redis pour cache et rate-limiter
 
-**Statut** : Accepté
+**Statut** : Supersedé par [ADR-0013](0013-etat-partage-postgresql.md) (2026-11-07)
 **Date** : 2025-03-05
 
 ## Contexte

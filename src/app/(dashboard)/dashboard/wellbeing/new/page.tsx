@@ -92,7 +92,7 @@ function NewWellbeingReportContent() {
     }
 
     const fieldLabel: React.CSSProperties = {
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: 600,
         color: "var(--eduflow-text-tertiary)",
         marginBottom: 6,
@@ -178,7 +178,7 @@ function NewWellbeingReportContent() {
                                     </div>
                                     <div
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             marginTop: 2,
                                         }}
@@ -267,7 +267,7 @@ function NewWellbeingReportContent() {
                                     </Badge>
                                     <div
                                         style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             color: "var(--eduflow-text-tertiary)",
                                             marginTop: 6,
                                         }}

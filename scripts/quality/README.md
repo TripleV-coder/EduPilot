@@ -10,7 +10,6 @@ branché sur une **base jetable** remplie par le seed de démonstration. Ils ne 
 | `latency.mjs [ROLE] [N]` | p50/p95 séquentiels, RSS serveur (`QUALITY_SERVER_PID`) | C3, M4 |
 | `load.mjs [chemins]` | autocannon 10 connexions × 15 s | perf |
 | `security.mjs [checks]` | XFF, force brute, IDOR, isolation, health, cron, JSON invalide — PASS/FAIL | H1–H5, M3 |
-| `redis-outage.mjs` | latence `/api/auth/csrf` avec Redis injoignable | H6 |
 | `db-counts.mjs` | nombre de lignes des tables principales | seed, restauration |
 | `lighthouse.sh <dir> [pages]` | scores Lighthouse mobile/desktop, poids des pages | C3, perf front, a11y |
 | `pg-seq-scans.mjs reset\|report` | tables lues séquentiellement entre `reset` et `report` (ex. autour du smoke) : candidates à un `EXPLAIN ANALYZE`, preuve pour ou contre un index | M5, index (Lot 3) |

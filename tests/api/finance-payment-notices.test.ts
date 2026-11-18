@@ -111,7 +111,7 @@ describe("POST /api/finance/payment-notices", () => {
     );
     expect(vi.mocked(prisma.payment.groupBy).mock.calls[0][0]).toEqual(
       expect.objectContaining({
-        where: expect.objectContaining({ feeId: "fee-1", deletedAt: null, status: { not: "CANCELLED" } }),
+        where: expect.objectContaining({ feeId: "fee-1", deletedAt: null, status: { in: ["PENDING", "VERIFIED", "RECONCILED"] } }),
       })
     );
   });

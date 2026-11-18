@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createApiHandler } from "@/lib/api/api-helpers";
-import { getRedisClient } from "@/lib/cache/redis";
+import { storeCircuit } from "@/lib/shared-state/pg";
 import { inflightRequests, isShuttingDown } from "@/lib/system/shutdown";
 
 /**
@@ -26,25 +26,19 @@ export const GET = createApiHandler(
         try {
             // Verify database connectivity
             await prisma.$queryRaw`SELECT 1`;
-            const redis = getRedisClient();
-            let cache: "connected" | "degraded" | "disabled" = "disabled";
-            if (redis) {
-                try {
-                    await redis.ping();
-                    cache = "connected";
-                } catch {
-                    cache = "degraded";
-                }
-            }
+            // État partagé (limites, coupe-circuits) dans PostgreSQL : dégradé
+            // tant que son coupe-circuit est ouvert (repli mémoire local).
+            const sharedState: "connected" | "degraded" = storeCircuit.isOpen() ? "degraded" : "connected";
 
             return NextResponse.json({
                 status: "ok",
                 timestamp,
                 database: "connected",
-                cache,
+                cache: "memory",
+                sharedState,
                 checks: {
                     database: "healthy",
-                    cache: cache === "connected" ? "healthy" : cache === "degraded" ? "warning" : "disabled",
+                    sharedState: sharedState === "connected" ? "healthy" : "warning",
                 },
                 version: process.env.npm_package_version || "1.0.0",
             });

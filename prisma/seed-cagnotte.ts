@@ -98,6 +98,9 @@ async function main() {
                     amountFcfa: BigInt(12_500),
                     paymentRef: `TRX-MTN-${100000 + i}`,
                     paidAt,
+                    // Données de démonstration : contributions déjà vérifiées par l'école (TD-019)
+                    status: "CONFIRMED",
+                    reviewedAt: paidAt,
                 },
             });
             await prisma.cagnotteJournalEntry.create({
@@ -147,6 +150,9 @@ async function main() {
                     amountFcfa: BigInt(2_000),
                     paymentRef: `TRX-MOV-${200000 + i}`,
                     paidAt,
+                    // Données de démonstration : contributions déjà vérifiées par l'école (TD-019)
+                    status: "CONFIRMED",
+                    reviewedAt: paidAt,
                 },
             });
             await prisma.cagnotteJournalEntry.create({

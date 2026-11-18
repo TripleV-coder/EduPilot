@@ -6,7 +6,7 @@ import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {
-    performanceMetric: { create: vi.fn(), findMany: vi.fn() },
+    performanceMetric: { createMany: vi.fn(), findMany: vi.fn() },
     telemetryEvent: { create: vi.fn() },
     transportLine: { findMany: vi.fn(), count: vi.fn() },
     bus: { count: vi.fn() },
@@ -26,7 +26,7 @@ beforeEach(() => {
 
 describe("POST /api/analytics/web-vitals", () => {
   it("persiste une métrique valide avec le pathname du referer (201)", async () => {
-    vi.mocked(prisma.performanceMetric.create).mockResolvedValue({} as unknown as PerformanceMetric);
+    vi.mocked(prisma.performanceMetric.createMany).mockResolvedValue({ count: 1 });
 
     const response = await POST_VITALS(
       makeRequest("http://localhost:3000/api/analytics/web-vitals", {
@@ -37,12 +37,28 @@ describe("POST /api/analytics/web-vitals", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(vi.mocked(prisma.performanceMetric.create).mock.calls[0][0].data).toEqual({
+    expect(vi.mocked(prisma.performanceMetric.createMany).mock.calls[0][0]!.data).toEqual([{
       metric: "LCP",
       value: 2100.5,
       rating: "good",
       pathname: "/dashboard/grades",
-    });
+    }]);
+  });
+
+  it("accepte le lot d'une page (un seul envoi, une seule insertion)", async () => {
+    vi.mocked(prisma.performanceMetric.createMany).mockResolvedValue({ count: 2 });
+    const response = await POST_VITALS(
+      makeRequest("http://localhost:3000/api/analytics/web-vitals", {
+        method: "POST",
+        body: { path: "/dashboard/messages", metrics: [{ name: "LCP", value: 900, rating: "good" }, { name: "CLS", value: 0.05 }] },
+      })
+    );
+    expect(response.status).toBe(201);
+    expect(vi.mocked(prisma.performanceMetric.createMany)).toHaveBeenCalledOnce();
+    expect(vi.mocked(prisma.performanceMetric.createMany).mock.calls[0][0]!.data).toEqual([
+      { metric: "LCP", value: 900, rating: "good", pathname: "/dashboard/messages" },
+      { metric: "CLS", value: 0.05, rating: null, pathname: "/dashboard/messages" },
+    ]);
   });
 
   it("rejette une métrique inconnue ou une valeur invalide (400)", async () => {
@@ -61,11 +77,11 @@ describe("POST /api/analytics/web-vitals", () => {
       })
     );
     expect(negative.status).toBe(400);
-    expect(prisma.performanceMetric.create).not.toHaveBeenCalled();
+    expect(prisma.performanceMetric.createMany).not.toHaveBeenCalled();
   });
 
   it("ne fait jamais échouer le client si la persistance échoue (202)", async () => {
-    vi.mocked(prisma.performanceMetric.create).mockRejectedValue(new Error("db down"));
+    vi.mocked(prisma.performanceMetric.createMany).mockRejectedValue(new Error("db down"));
 
     const response = await POST_VITALS(
       makeRequest("http://localhost:3000/api/analytics/web-vitals", {

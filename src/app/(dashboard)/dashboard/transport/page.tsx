@@ -1,5 +1,7 @@
 "use client";
 
+import { ResourceActions } from "@/components/shared/resource-actions";
+import { LineStudentsDialog } from "@/components/transport/line-students-dialog";
 import { useEffect, useState } from "react";
 
 import { PageGuard } from "@/components/guard/page-guard";
@@ -27,6 +29,9 @@ type TransportLine = {
     statusVariant: Variant;
     note: string | null;
     studentCount: number;
+    statusCode?: string;
+    direction?: string;
+    isActive?: boolean;
 };
 
 type TransportData = {
@@ -45,6 +50,15 @@ type TransportData = {
 type DirectionFilter = "all" | "outbound" | "return";
 
 export default function TransportPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]} >
+            <TransportPageContent />
+        </PageGuard>
+    );
+}
+
+function TransportPageContent() {
     const [data, setData] = useState<TransportData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -53,6 +67,13 @@ export default function TransportPage() {
     const [lineNumber, setLineNumber] = useState("");
     const [lineLabel, setLineLabel] = useState("");
     const [savingLine, setSavingLine] = useState(false);
+
+    const [studentsLine, setStudentsLine] = useState<{ id: string; number: string } | null>(null);
+    // Rechargement après modification ou suppression d'une ligne
+    const reloadLines = async () => {
+        const res = await fetch("/api/transport/lines");
+        if (res.ok) setData(await res.json());
+    };
 
     useEffect(() => {
         const load = async () => {
@@ -71,10 +92,7 @@ export default function TransportPage() {
     }, []);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Transport scolaire"
@@ -165,7 +183,7 @@ export default function TransportPage() {
                     <PageLoading label="Chargement du module transport…" />
                 ) : null}
 
-                {error ? <PageError message={error} /> : null}
+                {error ? <PageError error={error} message={error} /> : null}
 
                 {data ? (
                     <>
@@ -402,7 +420,7 @@ export default function TransportPage() {
                                                     </div>
                                                     <div
                                                         style={{
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             color:
                                                                 "var(--eduflow-text-tertiary)",
                                                         }}
@@ -414,6 +432,31 @@ export default function TransportPage() {
                                                 <Badge variant={l.statusVariant} size="sm" dot>
                                                     {l.status}
                                                 </Badge>
+                                                <Button variant="secondary" size="sm" onClick={() => setStudentsLine({ id: l.id, number: l.number })}>
+                                                    Élèves ({l.studentCount})
+                                                </Button>
+                                                <ResourceActions
+                                                    endpoint={`/api/transport/lines/${l.id}`}
+                                                    resourceLabel={`La ligne ${l.number}`}
+                                                    fields={[
+                                                        { name: "number", label: "Numéro", type: "text", required: true, maxLength: 20 },
+                                                        { name: "label", label: "Trajet", type: "text", required: true, maxLength: 120 },
+                                                        {
+                                                            name: "status", label: "État", type: "select",
+                                                            options: [
+                                                                { value: "ON_TIME", label: "À l'heure" },
+                                                                { value: "DELAYED", label: "En retard" },
+                                                                { value: "INCIDENT", label: "Incident" },
+                                                                { value: "INACTIVE", label: "Hors service" },
+                                                            ],
+                                                        },
+                                                        { name: "note", label: "Message aux familles (facultatif)", type: "textarea", maxLength: 500 },
+                                                        { name: "isActive", label: "Ligne active", type: "checkbox" },
+                                                    ]}
+                                                    initial={{ number: l.number, label: l.label, status: l.statusCode ?? "ON_TIME", note: l.note, isActive: l.isActive ?? true }}
+                                                    onChanged={() => void reloadLines()}
+                                                    deleteDescription={`La ligne ${l.number} sera supprimée. Si des élèves y sont inscrits, la suppression sera refusée : désactivez-la plutôt.`}
+                                                />
                                             </div>
                                         ))
                                     )}
@@ -438,7 +481,7 @@ export default function TransportPage() {
                                         />
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--brand-800)",
                                                 lineHeight: 1.55,
                                             }}
@@ -453,6 +496,15 @@ export default function TransportPage() {
                         </div>
                     </>
                 ) : null}
+                {studentsLine ? (
+                    <LineStudentsDialog
+                        lineId={studentsLine.id}
+                        lineNumber={studentsLine.number}
+                        open={studentsLine !== null}
+                        onOpenChange={(open) => (open ? null : setStudentsLine(null))}
+                        onChanged={() => void reloadLines()}
+                    />
+                ) : null}
             </PageShell>
 
             <style jsx global>{`
@@ -465,6 +517,6 @@ export default function TransportPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

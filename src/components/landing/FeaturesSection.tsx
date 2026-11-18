@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { Reveal } from "./Reveal";
 import Link from "next/link";
 import { t } from "@/lib/i18n";
 import { Button, Icon, type IconName } from "@/components/edu";
@@ -43,23 +43,6 @@ const onboardingSteps = [
     },
 ];
 
-const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-        opacity: 1,
-        transition: { staggerChildren: 0.1, delayChildren: 0.15 },
-    },
-};
-
-const itemVariants = {
-    hidden: { y: 24, opacity: 0 },
-    visible: {
-        y: 0,
-        opacity: 1,
-        transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as const },
-    },
-};
-
 export function FeaturesSection() {
     return (
         <section
@@ -73,7 +56,7 @@ export function FeaturesSection() {
             <div className="container mx-auto px-4">
                 <div className="mb-20">
                     <p
-                        className="mb-4 text-[11px] font-black uppercase tracking-[0.3em]"
+                        className="mb-4 text-xs font-black uppercase tracking-[0.3em]"
                         style={{ color: "var(--brand-600)" }}
                     >
                         Fonctionnalités
@@ -87,21 +70,17 @@ export function FeaturesSection() {
                     </h2>
                 </div>
 
-                <motion.div
+                <Reveal
+                    stagger
                     className="mx-auto grid max-w-7xl grid-cols-1 gap-px border md:grid-cols-2 lg:grid-cols-3"
                     style={{
                         background: "var(--eduflow-border-subtle)",
                         borderColor: "var(--eduflow-border-subtle)",
                     }}
-                    variants={containerVariants}
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: "-80px" }}
                 >
                     {features.map((feature) => (
-                        <motion.div
+                        <div
                             key={feature.key}
-                            variants={itemVariants}
                             className="group cursor-crosshair p-10 transition-colors hover:bg-[var(--eduflow-surface-sunken)]"
                             style={{ background: "var(--eduflow-surface-card)" }}
                         >
@@ -123,15 +102,13 @@ export function FeaturesSection() {
                             >
                                 {t(`landing.features.${feature.key}.description`)}
                             </p>
-                        </motion.div>
+                        </div>
                     ))}
-                </motion.div>
+                </Reveal>
 
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true, margin: "-80px" }}
-                    transition={{ duration: 0.6 }}
+                <Reveal
+                    dy={0}
+                    duration={600}
                     className="mx-auto mt-24 max-w-7xl border p-8 md:p-12"
                     style={{ borderColor: "var(--eduflow-border-subtle)" }}
                 >
@@ -139,7 +116,7 @@ export function FeaturesSection() {
                         {onboardingSteps.map((step) => (
                             <div key={step.id} className="group">
                                 <div
-                                    className="mb-6 text-[11px] font-black uppercase tracking-widest"
+                                    className="mb-6 text-xs font-black uppercase tracking-widest"
                                     style={{ color: "var(--eduflow-text-tertiary)" }}
                                 >
                                     Phase {step.id}
@@ -160,7 +137,7 @@ export function FeaturesSection() {
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-auto p-0 text-[11px] font-black uppercase tracking-widest group-hover:translate-x-1"
+                                        className="h-auto p-0 text-xs font-black uppercase tracking-widest group-hover:translate-x-1"
                                     >
                                         {step.cta}
                                     </Button>
@@ -168,7 +145,7 @@ export function FeaturesSection() {
                             </div>
                         ))}
                     </div>
-                </motion.div>
+                </Reveal>
             </div>
         </section>
     );

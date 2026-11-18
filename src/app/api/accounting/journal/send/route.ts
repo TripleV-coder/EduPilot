@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
-import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
+import { resolveFinanceSchool } from "@/lib/finance/finance-scope";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { checkRateLimit, strictLimiter } from "@/lib/rate-limit";
 import { createBulkNotifications } from "@/lib/services/notification.service";
@@ -29,13 +29,10 @@ export const POST = createApiHandler(
         try {
             const session = context.session;
 
-            const schoolId = getActiveSchoolId(session);
-            if (!schoolId) {
-                return NextResponse.json(
-                    { error: "Aucun établissement actif associé au compte." },
-                    { status: 400 }
-                );
-            }
+            // S6 : école active vérifiée (existence, périmètre) et accès audité
+            const scope = await resolveFinanceSchool(session, null, "accounting:journal-send");
+            if (!scope.ok) return scope.response;
+            const schoolId = scope.schoolId;
 
             const rate = await checkRateLimit(strictLimiter, `journal-send:${session.user.id}`);
             if (!rate.success) {

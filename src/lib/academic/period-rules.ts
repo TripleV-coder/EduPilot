@@ -14,6 +14,19 @@ export function periodsCountFor(type: PeriodType): number | null {
     return null;
 }
 
+/**
+ * Nom par défaut d'une période, le même chaque année et partout où des
+ * périodes sont générées (déploiement d'une école, création d'une année) :
+ * « Trimestre 1…3 », « Semestre 1…2 », « Période N » en système libre.
+ * Numéroté plutôt qu'ordinal (« 1er », « 2e ») : se trie et se lit sans
+ * ambiguïté sur les bulletins.
+ */
+export function defaultPeriodName(type: PeriodType, sequence: number): string {
+    if (type === "SEMESTER") return `Semestre ${sequence}`;
+    if (type === "TRIMESTER") return `Trimestre ${sequence}`;
+    return `Période ${sequence}`;
+}
+
 /** Erreur si le nombre de périodes ne correspond pas au système, sinon null. */
 export function checkPeriodsCount(type: PeriodType, count: number): string | null {
     const expected = periodsCountFor(type);

@@ -29,7 +29,7 @@ describe("catalogue des modules (Lot 6)", () => {
   });
 
   it("le socle par défaut ne contient aucun module sensible", () => {
-    for (const sensitive of ["health", "discipline", "ai", "access-control", "hr", "wellbeing", "benchmark", "voice-notifications"]) {
+    for (const sensitive of ["health", "discipline", "ai", "access-control", "hr", "wellbeing", "voice-notifications"]) {
       expect(DEFAULT_ENABLED_MODULES).not.toContain(sensitive);
     }
     expect(DEFAULT_ENABLED_MODULES).toContain("grades");
@@ -51,7 +51,6 @@ describe("catalogue des modules (Lot 6)", () => {
       ["/api/appointments", "appointments"],
       ["/api/certificates", "documents"],
       ["/api/wellbeing/reports", "wellbeing"],
-      ["/api/benchmark", "benchmark"],
       ["/api/voice-notifs/campaigns", "voice-notifications"],
     ] as const) {
       expect(moduleForApiPath(path)?.id, path).toBe(expected);

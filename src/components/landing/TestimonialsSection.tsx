@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { Reveal } from "./Reveal";
 import { Building2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { t } from "@/lib/i18n";
@@ -16,28 +16,6 @@ type ExplorerSchool = {
     classesCount: number;
 };
 
-const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-        opacity: 1,
-        transition: {
-            staggerChildren: 0.15,
-            delayChildren: 0.2,
-        },
-    },
-};
-
-const itemVariants = {
-    hidden: { y: 30, opacity: 0 },
-    visible: {
-        y: 0,
-        opacity: 1,
-        transition: {
-            duration: 0.5,
-            ease: [0.4, 0, 0.2, 1] as const,
-        },
-    },
-};
 
 export function TestimonialsSection() {
     const [schools, setSchools] = useState<ExplorerSchool[]>([]);
@@ -77,16 +55,9 @@ export function TestimonialsSection() {
                     subtitle={t("landing.testimonials.subtitle")}
                 />
 
-                <motion.div
-                    className="mx-auto grid max-w-6xl grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3"
-                    variants={containerVariants}
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: "-100px" }}
-                >
+                <Reveal stagger className="mx-auto grid max-w-6xl grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
                     {loading ? (
-                        <motion.div
-                            variants={itemVariants}
+                        <div
                             className="col-span-full flex items-center justify-center rounded-[2.5rem] border p-20 backdrop-blur-xl"
                             style={{
                                 borderColor: "var(--eduflow-border-subtle)",
@@ -94,10 +65,9 @@ export function TestimonialsSection() {
                             }}
                         >
                             <Spinner size={32} />
-                        </motion.div>
+                        </div>
                     ) : featuredSchools.length === 0 ? (
-                        <motion.div
-                            variants={itemVariants}
+                        <div
                             className="col-span-full rounded-[2.5rem] border p-20 text-center backdrop-blur-xl"
                             style={{
                                 borderColor: "var(--eduflow-border-subtle)",
@@ -122,10 +92,10 @@ export function TestimonialsSection() {
                             >
                                 Les indicateurs apparaissent dès qu'un établissement est configuré.
                             </p>
-                        </motion.div>
+                        </div>
                     ) : (
                         featuredSchools.map((school) => (
-                            <motion.div key={school.id} variants={itemVariants} className="group">
+                            <div key={school.id} className="group">
                                 <div
                                     className="relative h-full cursor-pointer overflow-hidden rounded-[2rem] border p-8 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl"
                                     style={{
@@ -143,7 +113,7 @@ export function TestimonialsSection() {
                                                 {school.name}
                                             </h3>
                                             <div
-                                                className="shrink-0 rounded-lg px-3 py-1 text-[11px] font-bold uppercase tracking-widest"
+                                                className="shrink-0 rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-widest"
                                                 style={{
                                                     background: "var(--brand-50)",
                                                     color: "var(--brand-700)",
@@ -156,7 +126,7 @@ export function TestimonialsSection() {
                                         <div className="mt-auto grid grid-cols-3 gap-4">
                                             <div className="flex flex-col">
                                                 <span
-                                                    className="mb-1 text-[11px] font-black uppercase tracking-widest"
+                                                    className="mb-1 text-xs font-black uppercase tracking-widest"
                                                     style={{ color: "var(--eduflow-text-tertiary)" }}
                                                 >
                                                     Élèves
@@ -170,7 +140,7 @@ export function TestimonialsSection() {
                                             </div>
                                             <div className="flex flex-col">
                                                 <span
-                                                    className="mb-1 text-[11px] font-black uppercase tracking-widest"
+                                                    className="mb-1 text-xs font-black uppercase tracking-widest"
                                                     style={{ color: "var(--eduflow-text-tertiary)" }}
                                                 >
                                                     Profs
@@ -184,7 +154,7 @@ export function TestimonialsSection() {
                                             </div>
                                             <div className="flex flex-col">
                                                 <span
-                                                    className="mb-1 text-[11px] font-black uppercase tracking-widest"
+                                                    className="mb-1 text-xs font-black uppercase tracking-widest"
                                                     style={{ color: "var(--eduflow-text-tertiary)" }}
                                                 >
                                                     Classes
@@ -204,10 +174,10 @@ export function TestimonialsSection() {
                                         style={{ background: "var(--brand-100)" }}
                                     />
                                 </div>
-                            </motion.div>
+                            </div>
                         ))
                     )}
-                </motion.div>
+                </Reveal>
             </div>
         </section>
     );

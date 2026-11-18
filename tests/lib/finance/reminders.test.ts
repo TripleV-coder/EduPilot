@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   default: {
+    // Plans incohérents tenus à l'écart (lot 3d) : aucun ici
+    $queryRaw: vi.fn(async () => []),
     installmentPayment: {
       updateMany: vi.fn(),
       findMany: vi.fn(),

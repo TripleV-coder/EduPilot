@@ -1,16 +1,14 @@
-import { generateSecret as generateTotpSecret, verify as verifyTotp } from 'otplib';
+import { generateTotpSecret, verifyTotpCode } from './totp';
 import QRCode from 'qrcode';
 import { randomInt } from 'crypto';
 import { logger } from '@/lib/utils/logger';
 export { encryptSecret, decryptSecret, isEncrypted } from './crypto';
 
 /**
- * API fonctionnelle d'otplib 13 (greffons crypto Noble et Base32 Scure par défaut).
- * La classe `TOTP` construite sans greffon levait CryptoPluginMissingError :
- * la 2FA ne pouvait pas être activée (recette 2026-09-28). Période 30 s,
- * tolérance d'une période de part et d'autre (dérive d'horloge du téléphone).
+ * TOTP standard (RFC 6238, `./totp`, node:crypto — otplib retiré le
+ * 2026-11-08) : SHA-1, 6 chiffres, période 30 s, tolérance d'une période de
+ * part et d'autre (dérive d'horloge du téléphone).
  */
-const TOTP_PERIOD_SECONDS = 30;
 
 /**
  * Generate a new TOTP secret
@@ -39,10 +37,7 @@ export async function verifyToken(token: string, storedSecret: string): Promise<
         const secret = isEncrypted(storedSecret)
             ? (decryptSecret(storedSecret) ?? storedSecret)
             : storedSecret;
-        // `verify` renvoie un objet { valid } : le traiter comme un booléen
-        // accepterait n'importe quel code (un objet est toujours « vrai »).
-        const result = await verifyTotp({ token, secret, period: TOTP_PERIOD_SECONDS, epochTolerance: TOTP_PERIOD_SECONDS });
-        return result.valid === true;
+        return verifyTotpCode(token.trim(), secret, { window: 1 });
     } catch (err) {
         logger.error('Token verification error', err instanceof Error ? err : new Error(String(err)), { module: 'auth/two-factor' });
         return false;

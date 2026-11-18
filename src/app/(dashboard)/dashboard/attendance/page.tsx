@@ -11,7 +11,6 @@ import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
 import { useSidebar } from "@/components/dashboard/DashboardLayoutClient";
 import { toast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast";
 import { t } from "@/lib/i18n";
 
 import { Avatar, Button, Card, Icon, Spinner } from "@/components/edu";
@@ -118,7 +117,11 @@ function RollCallPage() {
     >({});
     const [orderedStudentIds, setOrderedStudentIds] = useState<string[]>([]);
 
-    const { data: classesData, error: loadError, mutate: reloadPage } = useSWR("/api/classes", fetcher);
+    // Enseignant : ses classes seulement (la seule est alors ouverte d'office)
+    const { data: classesData, error: loadError, mutate: reloadPage } = useSWR(
+        session ? (session.user?.role === "TEACHER" ? "/api/classes?mine=1" : "/api/classes") : null,
+        fetcher,
+    );
     useEffect(() => {
         if (classesData)
             setClasses(
@@ -220,14 +223,10 @@ function RollCallPage() {
             toast({
                 title: t("attendance.toasts.savedTitle"),
                 description: t("attendance.toasts.savedDescription"),
-                action: (
-                    <ToastAction
-                        altText={t("attendance.toasts.viewAnalytics")}
-                        onClick={() => router.push("/dashboard/analytics")}
-                    >
-                        {t("attendance.toasts.viewAnalytics")}
-                    </ToastAction>
-                ),
+                action: {
+                    label: t("attendance.toasts.viewAnalytics"),
+                    onClick: () => router.push("/dashboard/analytics"),
+                },
             });
         } catch {
             toast({
@@ -296,7 +295,7 @@ function RollCallPage() {
         >
             <PageShell className="pb-32">
                 {loadError ? (
-                    <PageError message="Impossible de charger les présences." onRetry={() => void reloadPage()} />
+                    <PageError error={loadError} message="Impossible de charger les présences." onRetry={() => void reloadPage()} />
                 ) : null}
 
                 <PageHeader
@@ -419,7 +418,7 @@ function RollCallPage() {
                                     background: "var(--brand-50)",
                                     borderColor: "var(--brand-100)",
                                     color: "var(--brand-800)",
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: 600,
                                 }}
                             >
@@ -491,7 +490,7 @@ function RollCallPage() {
                                                                 className="eduflow-mono"
                                                                 style={{
                                                                     width: 24,
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color: "var(--eduflow-text-tertiary)",
                                                                     fontWeight: 600,
                                                                 }}
@@ -512,7 +511,7 @@ function RollCallPage() {
                                                                 <div
                                                                     className="eduflow-mono"
                                                                     style={{
-                                                                        fontSize: 11,
+                                                                        fontSize: 12,
                                                                         color: "var(--eduflow-text-tertiary)",
                                                                     }}
                                                                 >
@@ -583,8 +582,8 @@ function RollCallPage() {
                 {/* Sticky save bar — full-width pill, brand-tinted shadow */}
                 {selectedClassId && filteredIds.length > 0 ? (
                     <div
-                        className="fixed bottom-6 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4"
-                        style={{ pointerEvents: saving ? "none" : "auto" }}
+                        className="fixed left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4"
+                        style={{ bottom: "calc(1.5rem + var(--consent-banner-h, 0px))", pointerEvents: saving ? "none" : "auto" }}
                     >
                         <button
                             type="button"
@@ -711,7 +710,7 @@ function StatsStrip({
                     <div key={item.key} className="px-2 text-center">
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: 700,
                                 color: `var(--eduflow-${item.tone}-700)`,
                             }}
@@ -731,7 +730,7 @@ function StatsStrip({
                         </div>
                         <div
                             style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "var(--eduflow-text-tertiary)",
                             }}
                         >
@@ -762,7 +761,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -815,7 +814,7 @@ function FieldDate({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -863,7 +862,7 @@ function Th({
         <th
             style={{
                 padding: "10px 20px",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--eduflow-text-tertiary)",
                 textAlign: center ? "center" : "left",

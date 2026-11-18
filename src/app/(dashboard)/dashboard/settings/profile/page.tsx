@@ -13,6 +13,8 @@ import { Avatar, Button, Card, Icon, Input, SaveStatus } from "@/components/edu"
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
 import { PageLoading, PageError } from "@/components/layout/page-states";
 import { useAutoSave } from "@/hooks/use-autosave";
+import { signOutAndPurge } from "@/lib/pwa/sign-out";
+import { MySchoolsCard } from "@/components/teachers/my-schools-card";
 
 interface ProfileData {
     firstName?: string;
@@ -23,7 +25,16 @@ interface ProfileData {
 }
 
 export default function ProfileSettingsPage() {
-    const { status, update: updateSession } = useSession();
+    // Garde avant chargement (TD-024) : une seule garde, aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <ProfileSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function ProfileSettingsPageContent() {
+    const { data: session, status, update: updateSession } = useSession();
     const {
         data: profileData,
         error: profileError,
@@ -95,7 +106,7 @@ export default function ProfileSettingsPage() {
 
     if (status === "loading" || profileLoading) {
         return (
-            <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <>
                 <PageShell className="max-w-4xl pb-12">
                     <PageHeader
                         title="Mon profil"
@@ -107,13 +118,13 @@ export default function ProfileSettingsPage() {
                     />
                     <PageLoading label="Chargement du profil…" />
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     if (profileError) {
         return (
-            <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+            <>
                 <PageShell className="max-w-4xl pb-12">
                     <PageHeader
                         title="Mon profil"
@@ -124,12 +135,12 @@ export default function ProfileSettingsPage() {
                     />
                     <PageError message="Impossible de charger ton profil. Réessaie plus tard." />
                 </PageShell>
-            </PageGuard>
+            </>
         );
     }
 
     return (
-        <PageGuard roles={AUTHENTICATED_DASHBOARD_ROLES}>
+        <>
             <PageShell className="max-w-4xl pb-12">
                 <PageHeader
                     title="Mon profil"
@@ -259,7 +270,7 @@ export default function ProfileSettingsPage() {
                             <p
                                 style={{
                                     margin: "2px 0 0",
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: "var(--eduflow-text-tertiary)",
                                 }}
                             >
@@ -297,7 +308,7 @@ export default function ProfileSettingsPage() {
                                 <div
                                     className="mt-1.5 flex items-center gap-1.5"
                                     style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         color: "var(--eduflow-text-tertiary)",
                                     }}
                                 >
@@ -339,7 +350,26 @@ export default function ProfileSettingsPage() {
                         </Button>
                     </div>
                 </Card>
+
+                {/* Enseignant : écoles supplémentaires par code d'invitation */}
+                {session?.user?.role === "TEACHER" ? <MySchoolsCard /> : null}
+
+                {/* Déconnexion visible : elle n'était offerte que par la palette de
+                    commandes (Ctrl+K), introuvable sur téléphone ou poste partagé */}
+                <Card padding={0}>
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                        <div className="min-w-0">
+                            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--eduflow-text-primary)" }}>Session</div>
+                            <div style={{ fontSize: 13, color: "var(--eduflow-text-secondary)" }}>
+                                Sur un appareil partagé, déconnectez-vous en partant.
+                            </div>
+                        </div>
+                        <Button variant="secondary" onClick={() => void signOutAndPurge({ callbackUrl: "/login" })}>
+                            Se déconnecter
+                        </Button>
+                    </div>
+                </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

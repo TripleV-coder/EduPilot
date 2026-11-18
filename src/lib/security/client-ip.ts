@@ -19,6 +19,12 @@
  * Sans jeton valide (préchargement absent : `next dev`, test), AUCUN en-tête
  * n'est cru : l'IP vaut `unknown` (défaut sûr — un seul compartiment partagé,
  * jamais un compartiment choisi par le client).
+ *
+ * Plateformes sans serveur (pas de préchargement possible) : l'adresse est lue
+ * dans l'en-tête que la PLATEFORME pose et écrase à chaque requête — Vercel
+ * `x-real-ip` (repli `x-vercel-forwarded-for`), Netlify
+ * `x-nf-client-connection-ip`. La plateforme est reconnue à ses propres
+ * variables (VERCEL=1, NETLIFY), qu'un client ne peut pas définir.
  */
 
 export const PEER_TOKEN_HEADER = "x-edupilot-peer-token";
@@ -52,7 +58,20 @@ function normalizeIp(ip: string): string {
   return value;
 }
 
+function platformClientIp(headers: HeaderReader, env: Env): string | null {
+  if (env.VERCEL === "1") {
+    const ip = headers.get("x-real-ip") || headers.get("x-vercel-forwarded-for")?.split(",")[0];
+    return ip?.trim() ? normalizeIp(ip) : null;
+  }
+  if (env.NETLIFY) {
+    const ip = headers.get("x-nf-client-connection-ip");
+    return ip?.trim() ? normalizeIp(ip) : null;
+  }
+  return null;
+}
+
 export function getClientIp(headers: HeaderReader, env: Env = process.env): string {
+  if (env.VERCEL === "1" || env.NETLIFY) return platformClientIp(headers, env) ?? UNKNOWN_IP;
   const expected = env.EDUPILOT_PEER_TOKEN;
   const presented = headers.get(PEER_TOKEN_HEADER);
   if (!expected || !presented || !safeEqual(presented, expected)) return UNKNOWN_IP;

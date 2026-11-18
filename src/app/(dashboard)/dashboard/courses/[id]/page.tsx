@@ -71,7 +71,7 @@ export default function CourseDetailPage() {
     if (error) {
         return (
             <PageShell>
-                <PageError
+                <PageError error={error}
                     message="Impossible de charger ce cours."
                     onRetry={() => void mutate()}
                 />

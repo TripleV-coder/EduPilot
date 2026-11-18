@@ -200,7 +200,7 @@ export function logPerformanceAlerts(alerts: Alert[]): void {
 }
 
 /**
- * Send performance alerts (log + email si PERFORMANCE_ALERT_EMAIL + Slack si SLACK_WEBHOOK_URL)
+ * Alertes de performance : journal + super-administrateurs (application et e-mail)
  */
 export async function sendPerformanceAlerts(alerts: Alert[]): Promise<void> {
   if (alerts.length === 0) return;
@@ -208,7 +208,7 @@ export async function sendPerformanceAlerts(alerts: Alert[]): Promise<void> {
   // Log alerts
   logPerformanceAlerts(alerts);
 
-  // Notifications externes (email + Slack)
+  // Super-administrateurs : notification instantanée + e-mail
   try {
     const { dispatchPerformanceAlertNotifications } = await import("./alert-notifications");
     await dispatchPerformanceAlertNotifications(alerts);

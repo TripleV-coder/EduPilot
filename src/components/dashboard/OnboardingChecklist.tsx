@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { ChevronDown, ChevronUp, X, Sparkles, CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import type { UserRole } from "@prisma/client";
@@ -83,6 +84,7 @@ const roleChecklists: Partial<Record<UserRole, ChecklistItem[]>> = {
 export function OnboardingChecklist() {
     const { data: session } = useSession();
     const role = session?.user?.role as UserRole | undefined;
+    const pathname = usePathname();
     const userId = session?.user?.id;
     const storageScope = `${STORAGE_PREFIX}:${userId || "anonymous"}:${role || "unknown"}`;
     const dismissKey = `${storageScope}:dismissed`;
@@ -194,7 +196,9 @@ export function OnboardingChecklist() {
         return () => window.clearTimeout(timeoutId);
     }, [allDone, dismissed, handleDismiss, trackEvent]);
 
-    if (!showChecklist || dismissed) return null;
+    // Accueil seulement : flottant sur toutes les pages, il recouvrait les
+    // boutons d'envoi en bas des formulaires (« Valider l'Encaissement »)
+    if (!showChecklist || dismissed || pathname !== "/dashboard") return null;
 
     /*
      * Perf (2026-09-18) : entrée et repli passent au CSS. L'animation de
@@ -205,8 +209,8 @@ export function OnboardingChecklist() {
     return (
         <aside
             aria-label="Démarrage rapide"
-            className="edu-enter-up fixed bottom-6 right-6 z-50 w-[320px]"
-            style={{ "--edu-enter-dy": "40px", "--edu-enter-s": "0.95", "--edu-enter-d": "300ms" } as React.CSSProperties}
+            className="edu-enter-up fixed right-6 z-50 w-[320px]"
+            style={{ bottom: "calc(1.5rem + var(--consent-banner-h, 0px))", "--edu-enter-dy": "40px", "--edu-enter-s": "0.95", "--edu-enter-d": "300ms" } as React.CSSProperties}
         >
                 <div className="rounded-card border border-border bg-card overflow-hidden">
                     {/* Header */}

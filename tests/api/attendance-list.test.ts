@@ -3,18 +3,23 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+vi.mock("@/lib/teachers/taught-classes", () => ({ taughtClassIds: vi.fn(), teacherTeachesStudent: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: { attendance: { findMany: vi.fn() }, parentProfile: { findUnique: vi.fn() } },
 }));
 
 import prisma from "@/lib/prisma";
 import { GET } from "@/app/api/attendance/route";
+import { taughtClassIds, teacherTeachesStudent } from "@/lib/teachers/taught-classes";
 
 const base = "http://localhost/api/attendance";
 
 describe("GET /api/attendance", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Par défaut, l'enseignant du test a la classe c1 et ses élèves
+    vi.mocked(taughtClassIds).mockResolvedValue(["c1"]);
+    vi.mocked(teacherTeachesStudent).mockResolvedValue(true);
     vi.mocked(prisma.attendance.findMany).mockResolvedValue([
       { id: "a1", status: "ABSENT", date: new Date("2026-09-10T00:00:00Z"), reason: null, class: { id: "c1", name: "6e A" }, student: { id: "s1", matricule: "M1", user: { id: "u1", firstName: "A", lastName: "B" } } },
     ] as never);
@@ -39,6 +44,15 @@ describe("GET /api/attendance", () => {
     expect(args.where).toEqual(expect.objectContaining({ classId: "c1", student: { user: { schoolId: FIXTURES.schoolA } } }));
     expect(args.take).toBe(1000);
     expect((await res.json()).data[0].date).toBe("2026-09-10T00:00:00.000Z");
+  });
+
+  it("refuse (403) à un enseignant une classe ou un élève hors de ses classes", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("TEACHER", { schoolId: FIXTURES.schoolA }));
+    vi.mocked(taughtClassIds).mockResolvedValue(["autre"]);
+    vi.mocked(teacherTeachesStudent).mockResolvedValue(false);
+    expect((await GET(makeRequest(`${base}?classId=c1`))).status).toBe(403);
+    expect((await GET(makeRequest(`${base}?studentId=s1`))).status).toBe(403);
+    expect(prisma.attendance.findMany).not.toHaveBeenCalled();
   });
 
   it("sans école active, refuse (403) sauf super-admin", async () => {

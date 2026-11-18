@@ -27,7 +27,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Permission } from "@/lib/rbac/permissions";
-import { incidentCreateSchema, IncidentFormValues } from "@/lib/validations/incident";
+import { incidentFormSchema, IncidentFormValues } from "@/lib/validations/forms/incident-form";
 import { Save, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -65,6 +65,15 @@ const SEVERITIES = [
 ];
 
 export default function NewIncidentPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={[Permission.SCHOOL_UPDATE, Permission.INCIDENT_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STAFF"]}>
+            <NewIncidentPageContent />
+        </PageGuard>
+    );
+}
+
+function NewIncidentPageContent() {
     const router = useRouter();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,8 +83,8 @@ export default function NewIncidentPage() {
 
     // severity (.default) rend le type d'entrée ≠ type de sortie : trois
     // génériques au lieu d'un cast du resolver.
-    const form = useForm<z.input<typeof incidentCreateSchema>, unknown, IncidentFormValues>({
-        resolver: zodResolver(incidentCreateSchema),
+    const form = useForm<z.input<typeof incidentFormSchema>, unknown, IncidentFormValues>({
+        resolver: zodResolver(incidentFormSchema),
         defaultValues: {
             studentId: "",
             incidentType: "OTHER",
@@ -127,7 +136,7 @@ export default function NewIncidentPage() {
     };
 
     return (
-        <PageGuard permission={[Permission.SCHOOL_UPDATE, Permission.INCIDENT_CREATE]} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Signaler un incident"
@@ -324,6 +333,6 @@ export default function NewIncidentPage() {
                     </CardContent>
                 </Card>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

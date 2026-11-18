@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { PULSE_MIN_RESPONSES, pulseWeekOf, shortWeekLabel } from "@/lib/wellbeing/pulse";
 
 const ALLOWED_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"] as const;
 
@@ -20,7 +21,7 @@ export const GET = createApiHandler(
             );
         }
 
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const now = new Date();
         const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -35,12 +36,13 @@ export const GET = createApiHandler(
                 select: { id: true, tag: true, severity: true },
             }),
             prisma.psyAppointment.findMany({
-                where: { schoolId, startAt: { gte: new Date(), lte: weekFromNow } },
+                where: { schoolId, startAt: { gte: now, lte: weekFromNow } },
                 orderBy: { startAt: "asc" },
                 take: 30,
             }),
+            // Rendez-vous des 7 prochains jours (même fenêtre que l'agenda, sans plafond)
             prisma.psyAppointment.count({
-                where: { schoolId, startAt: { gte: weekAgo } },
+                where: { schoolId, startAt: { gte: now, lte: weekFromNow } },
             }),
             prisma.climatePulseWeek.findMany({
                 where: { schoolId },
@@ -54,8 +56,13 @@ export const GET = createApiHandler(
         ).length;
         const reportsNominative = activeReports.length - reportsAnonymous;
 
-        const sortedPulse = pulseWeeks.slice().reverse(); // chronological order S1..S8
-        const latestPulse = pulseWeeks[0] ?? null;
+        // Seuil d'anonymat : une semaine n'est publiée qu'à partir de
+        // PULSE_MIN_RESPONSES réponses (sinon une moyenne révèle des réponses).
+        const currentWeekLabel = pulseWeekOf().weekLabel;
+        const publishable = pulseWeeks.filter((w) => w.responses >= PULSE_MIN_RESPONSES);
+        const sortedPulse = publishable.slice().reverse(); // ordre chronologique
+        const latestPulse = publishable[0] ?? null;
+        const currentWeek = pulseWeeks.find((w) => w.weekLabel === currentWeekLabel) ?? null;
 
         return NextResponse.json(
             {
@@ -68,6 +75,11 @@ export const GET = createApiHandler(
                     climateScore: latestPulse ? latestPulse.averageScore : null,
                     pulseResponses: latestPulse ? latestPulse.responses : 0,
                 },
+                pulse: {
+                    minResponses: PULSE_MIN_RESPONSES,
+                    currentWeekLabel: shortWeekLabel(currentWeekLabel),
+                    currentWeekResponses: currentWeek?.responses ?? 0,
+                },
                 reports: reports.map((r) => ({
                     id: r.id,
                     tag: r.tag,
@@ -78,10 +90,10 @@ export const GET = createApiHandler(
                     status: r.status,
                     createdAt: r.createdAt.toISOString(),
                 })),
-                pulseWeeks: sortedPulse.map((w, idx) => ({
-                    weekLabel: w.weekLabel,
+                pulseWeeks: sortedPulse.map((w) => ({
+                    weekLabel: shortWeekLabel(w.weekLabel),
                     value: w.averageScore,
-                    isCurrent: idx === sortedPulse.length - 1,
+                    isCurrent: w.weekLabel === currentWeekLabel,
                     responses: w.responses,
                 })),
                 pulseStats: latestPulse

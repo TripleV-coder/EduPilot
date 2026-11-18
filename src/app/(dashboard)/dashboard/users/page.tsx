@@ -12,6 +12,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 import { PageGuard } from "@/components/guard/page-guard";
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog";
+import { ActivationLinkDialog, type ActivationTarget } from "@/components/users/activation-link-dialog";
 import { Permission } from "@/lib/rbac/permissions";
 import { formatUserRoleLabel } from "@/lib/utils/role-label";
 import { t } from "@/lib/i18n";
@@ -35,6 +36,8 @@ type User = {
     lastName: string;
     role: string;
     isActive: boolean;
+    /** Compte créé par un tiers, mot de passe définitif pas encore choisi. */
+    mustChangePassword?: boolean;
     createdAt: string;
     schoolId: string | null;
     school?: { name: string } | null;
@@ -92,6 +95,15 @@ const ROLE_VARIANTS: Record<string, "brand" | "info" | "success" | "warning" | "
 };
 
 export default function UsersPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.USER_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]} >
+            <UsersPageContent />
+        </PageGuard>
+    );
+}
+
+function UsersPageContent() {
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const [roleFilter, setRoleFilter] = useState("ALL");
@@ -103,6 +115,7 @@ export default function UsersPage() {
         name: string;
         email: string;
     } | null>(null);
+    const [activationTarget, setActivationTarget] = useState<ActivationTarget | null>(null);
 
     const searchParams = new URLSearchParams();
     if (debouncedSearch) searchParams.set("search", debouncedSearch);
@@ -198,7 +211,7 @@ export default function UsersPage() {
             u.email,
             roleLabels[u.role] || formatUserRoleLabel(u.role),
             u.school?.name || "Global",
-            u.isActive ? "Actif" : "Inactif",
+            u.isActive ? (u.mustChangePassword ? "À activer" : "Actif") : "Inactif",
             format(new Date(u.createdAt), "dd/MM/yyyy", { locale: fr }),
         ]);
         const csv = [headers, ...rows]
@@ -219,10 +232,7 @@ export default function UsersPage() {
     ];
 
     return (
-        <PageGuard
-            permission={Permission.USER_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Utilisateurs et comptes"
@@ -286,7 +296,7 @@ export default function UsersPage() {
 
                 {loading ? <PageLoading label="Chargement des utilisateurs…" /> : null}
                 {error ? (
-                    <PageError
+                    <PageError error={error}
                         message="Impossible de charger les utilisateurs."
                         onRetry={() => void mutateUsers()}
                     />
@@ -322,11 +332,17 @@ export default function UsersPage() {
                                         roleLabels[user.role] || formatUserRoleLabel(user.role),
                                         user.email,
                                         user.school?.name,
-                                        user.isActive ? null : "inactif",
+                                        user.isActive ? (user.mustChangePassword ? "à activer" : null) : "inactif",
                                     ]
                                         .filter(Boolean)
                                         .join(" · ")}
                                     actions={[
+                                        ...(user.isActive && user.mustChangePassword
+                                            ? [{
+                                                label: "Envoyer un lien d'activation",
+                                                onSelect: () => setActivationTarget({ id: user.id, name, email: user.email }),
+                                            }]
+                                            : []),
                                         {
                                             label: "Supprimer le compte",
                                             danger: true,
@@ -355,7 +371,7 @@ export default function UsersPage() {
                                         <Th>École</Th>
                                         <Th width={120}>Inscrit</Th>
                                         <Th width={100}>Statut</Th>
-                                        <Th width={80} center>
+                                        <Th width={120} center>
                                             Actions
                                         </Th>
                                     </tr>
@@ -392,7 +408,7 @@ export default function UsersPage() {
                                                             <div
                                                                 className="truncate"
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color:
                                                                         "var(--eduflow-text-tertiary)",
                                                                 }}
@@ -434,7 +450,11 @@ export default function UsersPage() {
                                                     </span>
                                                 </Td>
                                                 <Td>
-                                                    {user.isActive ? (
+                                                    {user.isActive && user.mustChangePassword ? (
+                                                        <Badge variant="warning" size="sm">
+                                                            À activer
+                                                        </Badge>
+                                                    ) : user.isActive ? (
                                                         <Badge variant="success" size="sm" dot>
                                                             Actif
                                                         </Badge>
@@ -445,6 +465,19 @@ export default function UsersPage() {
                                                     )}
                                                 </Td>
                                                 <Td center>
+                                                    <div className="flex items-center justify-center gap-1">
+                                                    {user.isActive && user.mustChangePassword ? (
+                                                        <Button
+                                                            aria-label={`Envoyer un lien d'activation à ${fullName}`}
+                                                            title="Envoyer un lien d'activation"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            icon="sms"
+                                                            onClick={() =>
+                                                                setActivationTarget({ id: user.id, name: fullName, email: user.email })
+                                                            }
+                                                        />
+                                                    ) : null}
                                                     <Button aria-label={`Supprimer ${fullName}`}
                                                         variant="ghost"
                                                         size="sm"
@@ -459,6 +492,7 @@ export default function UsersPage() {
                                                         }
                                                     >
                                                     </Button>
+                                                    </div>
                                                 </Td>
                                             </tr>
                                         );
@@ -469,6 +503,11 @@ export default function UsersPage() {
                     </Card>
                 ) : null}
             </PageShell>
+
+            <ActivationLinkDialog
+                target={activationTarget}
+                onOpenChange={(open) => (open ? null : setActivationTarget(null))}
+            />
 
             <ConfirmActionDialog
                 open={deleteDialogOpen}
@@ -488,7 +527,7 @@ export default function UsersPage() {
                 isConfirmLoading={isDeleting}
                 onConfirm={confirmDelete}
             />
-        </PageGuard>
+        </>
     );
 }
 
@@ -562,7 +601,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -618,7 +657,7 @@ function FieldSearch({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,
@@ -667,7 +706,7 @@ function Th({
         <th
             style={{
                 padding: "10px 16px",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "var(--eduflow-text-tertiary)",
                 textAlign: center ? "center" : "left",

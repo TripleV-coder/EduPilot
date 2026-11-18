@@ -45,7 +45,6 @@ export const POST = createApiHandler(async (request, context) => {
                     justification: "Alternative suggérée par l'IA"
                 }))
             ],
-            engine: result.data.engine // optional flag
         });
 
     

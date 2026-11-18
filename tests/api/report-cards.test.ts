@@ -5,6 +5,11 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Élèves de l'enseignant (MS-02) : l'élève testé est dans ses classes
+vi.mock("@/lib/teachers/taught-classes", () => ({
+  taughtClassIds: vi.fn(async () => []),
+  teacherTeachesStudent: vi.fn(async () => true),
+}));
 vi.mock("@/lib/prisma", () => ({
   default: {
     // Calculs adaptés pour un élève : aucun par défaut

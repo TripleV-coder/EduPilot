@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 import { PageGuard } from "@/components/guard/page-guard";
 import { Permission } from "@/lib/rbac/permissions";
@@ -43,7 +44,11 @@ type SchoolEvent = {
     isPublished: boolean;
     createdBy: { firstName: string; lastName: string };
     _count: { participations: number };
+    /** Élèves de la famille déjà inscrits (élève ou parent connecté). */
+    myRegistrations?: string[];
 };
+
+type FamilyStudent = { id: string; firstName: string };
 
 const TYPE_LABEL: Record<EventType, string> = {
     GENERAL: "Général",
@@ -72,6 +77,15 @@ const TYPE_VARIANT: Record<EventType, "brand" | "info" | "success" | "warning" |
 };
 
 export default function EventsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]} >
+            <EventsPageContent />
+        </PageGuard>
+    );
+}
+
+function EventsPageContent() {
     const { data: session } = useSession();
     const isDirectorOrAdmin = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"].includes(
         session?.user?.role || ""
@@ -96,14 +110,45 @@ export default function EventsPage() {
     const [requiresPermission, setRequiresPermission] = useState(false);
     const [isPublished, setIsPublished] = useState(true);
 
+    const [viewerStudents, setViewerStudents] = useState<FamilyStudent[]>([]);
+    const [pendingKey, setPendingKey] = useState<string | null>(null);
+
+    // Inscription : la route existait, aucun bouton ne l'appelait
+    const toggleRegistration = async (ev: SchoolEvent, student: FamilyStudent, registered: boolean) => {
+        const key = `${ev.id}:${student.id}`;
+        setPendingKey(key);
+        try {
+            const res = registered
+                ? await fetch(`/api/events/${ev.id}/participate?studentId=${encodeURIComponent(student.id)}`, { method: "DELETE" })
+                : await fetch(`/api/events/${ev.id}/participate`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      // Parent : inscrire son enfant vaut autorisation quand elle est requise
+                      body: JSON.stringify({ studentId: student.id, permissionGiven: session?.user?.role === "PARENT" && ev.requiresPermission }),
+                  });
+            const body = (await res.json().catch(() => ({}))) as { error?: string };
+            if (!res.ok) {
+                toast.error(body.error || "L'inscription n'a pas été modifiée.");
+                return;
+            }
+            toast.success(registered ? "Inscription annulée." : `${student.firstName} est inscrit·e.`);
+            await fetchEvents();
+        } catch {
+            toast.error("Connexion impossible : l'inscription n'a pas été modifiée.");
+        } finally {
+            setPendingKey(null);
+        }
+    };
+
     const fetchEvents = async () => {
         setLoading(true);
         try {
             const res = await fetch("/api/events?limit=50");
             if (!res.ok) throw new Error("Erreur de récupération des événements");
             const data = await res.json();
-            // Format paginé du projet : { data, pagination }
+            // Format paginé du projet : { data, pagination } (+ élèves de la famille)
             setEvents(data.data || []);
+            setViewerStudents(Array.isArray(data.viewerStudents) ? data.viewerStudents : []);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Erreur inconnue");
         } finally {
@@ -164,10 +209,7 @@ export default function EventsPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Agenda & événements"
@@ -187,7 +229,7 @@ export default function EventsPage() {
                     }
                 />
 
-                {error ? <PageError message={error} onRetry={fetchEvents} /> : null}
+                {error ? <PageError error={error} message={error} onRetry={fetchEvents} /> : null}
 
                 {successMsg ? (
                     <Card
@@ -237,7 +279,7 @@ export default function EventsPage() {
                                 <span
                                     style={{
                                         display: "block",
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 600,
                                         color: "var(--eduflow-text-tertiary)",
                                         marginBottom: 6,
@@ -379,16 +421,35 @@ export default function EventsPage() {
                         }}
                     >
                         {events.map((ev) => (
-                            <EventCard key={ev.id} event={ev} />
+                            <EventCard
+                                key={ev.id}
+                                event={ev}
+                                students={viewerStudents}
+                                isStudent={session?.user?.role === "STUDENT"}
+                                pendingKey={pendingKey}
+                                onToggle={toggleRegistration}
+                            />
                         ))}
                     </div>
                 )}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 
-function EventCard({ event }: { event: SchoolEvent }) {
+function EventCard({
+    event,
+    students = [],
+    isStudent = false,
+    pendingKey = null,
+    onToggle,
+}: {
+    event: SchoolEvent;
+    students?: FamilyStudent[];
+    isStudent?: boolean;
+    pendingKey?: string | null;
+    onToggle?: (ev: SchoolEvent, student: FamilyStudent, registered: boolean) => void;
+}) {
     const variant = TYPE_VARIANT[event.type] ?? "brand";
     const label = TYPE_LABEL[event.type] ?? event.type;
     const start = new Date(event.startDate);
@@ -471,7 +532,7 @@ function EventCard({ event }: { event: SchoolEvent }) {
             >
                 <span
                     className="flex items-center gap-1.5"
-                    style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                    style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                 >
                     <Icon name="calendar" size={12} />
                     {formatter.format(start)}
@@ -479,7 +540,7 @@ function EventCard({ event }: { event: SchoolEvent }) {
                 {event.location ? (
                     <span
                         className="flex items-center gap-1.5"
-                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                        style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                     >
                         <Icon name="school" size={12} />
                         {event.location}
@@ -488,7 +549,7 @@ function EventCard({ event }: { event: SchoolEvent }) {
                 {event.maxParticipants ? (
                     <span
                         className="flex items-center gap-1.5"
-                        style={{ fontSize: 11, color: "var(--eduflow-text-secondary)" }}
+                        style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}
                     >
                         <Icon name="users" size={12} />
                         <span className="eduflow-tabular">
@@ -513,7 +574,7 @@ function EventCard({ event }: { event: SchoolEvent }) {
                     />
                     <span
                         style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--eduflow-text-tertiary)",
                         }}
                     >
@@ -521,6 +582,29 @@ function EventCard({ event }: { event: SchoolEvent }) {
                     </span>
                 </div>
             </div>
+            {onToggle && students.length > 0 && event.isPublished && new Date(event.startDate) > new Date() ? (
+                <div className="flex flex-wrap gap-2 border-t px-5 py-3" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
+                    {students.map((student) => {
+                        const registered = (event.myRegistrations ?? []).includes(student.id);
+                        const full = !registered && event.maxParticipants !== null && (event._count?.participations ?? 0) >= event.maxParticipants;
+                        const label = isStudent
+                            ? registered ? "Je ne participe plus" : "Je participe"
+                            : registered ? `${student.firstName} inscrit·e · Annuler` : `Inscrire ${student.firstName}`;
+                        return (
+                            <Button
+                                key={student.id}
+                                size="sm"
+                                variant={registered ? "secondary" : "primary"}
+                                disabled={full}
+                                loading={pendingKey === `${event.id}:${student.id}`}
+                                onClick={() => onToggle(event, student, registered)}
+                            >
+                                {full ? "Complet" : label}
+                            </Button>
+                        );
+                    })}
+                </div>
+            ) : null}
         </Card>
     );
 }
@@ -584,7 +668,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

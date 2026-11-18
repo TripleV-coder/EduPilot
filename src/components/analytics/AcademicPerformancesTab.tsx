@@ -156,7 +156,7 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                     </div>
                     <div>
                         <h2 className="text-sm font-bold tracking-tight">Performances par classe</h2>
-                        <p className="text-[11px] text-muted-foreground font-medium">Analysez les résultats et la progression académique.</p>
+                        <p className="text-xs text-muted-foreground font-medium">Analysez les résultats et la progression académique.</p>
                     </div>
                 </div>
                 <Select value={selectedClassId} onValueChange={(v) => { setSelectedClassId(v); setSelectedSubjectId(""); }}>
@@ -175,7 +175,7 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                     <CardHeader className="flex flex-row items-center justify-between space-y-0">
                         <div>
                             <CardTitle className="text-sm font-bold tracking-tight">Radar des matières</CardTitle>
-                            <CardDescription className="text-[11px]">Profil de performance équilibré vs déséquilibré</CardDescription>
+                            <CardDescription className="text-xs">Profil de performance équilibré vs déséquilibré</CardDescription>
                         </div>
                         <BookOpen className="w-4 h-4 text-muted-foreground/50" />
                     </CardHeader>
@@ -191,7 +191,7 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                 <Card className="lg:col-span-4 dashboard-block border-border" data-reveal>
                     <CardHeader>
                         <CardTitle className="text-sm font-bold tracking-tight">Progression individuelle</CardTitle>
-                        <CardDescription className="text-[11px]">Top 10 des élèves par moyenne générale</CardDescription>
+                        <CardDescription className="text-xs">Top 10 des élèves par moyenne générale</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                         <DataTable 
@@ -210,7 +210,7 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                     <div className="flex items-center gap-2">
                         <div className="h-px flex-1 bg-border" />
                         <Link href={`/dashboard/analytics/class/${selectedClassId}/subject/${selectedSubjectId}`}>
-                            <Badge variant="secondary" className="px-4 py-1 text-[11px] font-bold bg-primary/10 text-primary border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors gap-2">
+                            <Badge variant="secondary" className="px-4 py-1 text-xs font-bold bg-primary/10 text-primary border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors gap-2">
                                 Focus Matière : {classData?.subjectSummary?.find((s) => s.subjectId === selectedSubjectId)?.name}
                                 <ArrowRight className="w-3 h-3" />
                             </Badge>
@@ -220,13 +220,13 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Card className="dashboard-block border-border h-[300px]">
-                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Évolution de la moyenne</CardTitle></CardHeader>
+                            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold text-muted-foreground">Évolution de la moyenne</CardTitle></CardHeader>
                             <CardContent className="h-[220px]">
                                 <TrendLineChart data={subjectData?.monthlyTrend || []} />
                             </CardContent>
                         </Card>
                         <Card className="dashboard-block border-border h-[300px]">
-                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Distribution des notes</CardTitle></CardHeader>
+                            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold text-muted-foreground">Distribution des notes</CardTitle></CardHeader>
                             <CardContent className="h-[220px]">
                                 <PerformanceBarChart
                                     data={
@@ -243,7 +243,7 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                             </CardContent>
                         </Card>
                         <Card className="dashboard-block border-border h-[300px]">
-                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Classement vs établissement</CardTitle></CardHeader>
+                            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold text-muted-foreground">Classement vs établissement</CardTitle></CardHeader>
                             <CardContent className="flex flex-col items-center justify-center h-[220px] text-center">
                                 <div className="w-full h-full">
                                     <TrendLineChart data={classData?.monthlyTrend || []} />
@@ -251,13 +251,13 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                             </CardContent>
                         </Card>
                         <Card className="dashboard-block border-border h-[300px]">
-                            <CardHeader className="pb-2"><CardTitle className="text-[11px] font-bold text-muted-foreground">Enseignant référent</CardTitle></CardHeader>
+                            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold text-muted-foreground">Enseignant référent</CardTitle></CardHeader>
                             <CardContent className="flex flex-col items-center justify-center h-[220px] text-center">
                                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 border-2 border-primary/20">
                                     <User className="w-8 h-8 text-primary/40" />
                                 </div>
                                 <div className="font-bold text-sm">{subjectData?.teacherName || "Non assigné"}</div>
-                                <p className="text-[11px] text-muted-foreground mt-1">
+                                <p className="text-xs text-muted-foreground mt-1">
                                     {classData?.subjectSummary?.find((s) => s.subjectId === selectedSubjectId)?.name || "Matière"}
                                 </p>
                             </CardContent>
@@ -271,7 +271,7 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                     <div className="flex items-center justify-between">
                         <div>
                             <CardTitle className="text-sm font-bold tracking-tight">Positionnement des élèves</CardTitle>
-                            <CardDescription className="text-[11px]">Moyenne individuelle vs écart à la moyenne de classe</CardDescription>
+                            <CardDescription className="text-xs">Moyenne individuelle vs écart à la moyenne de classe</CardDescription>
                         </div>
                         <ScatterIcon className="w-4 h-4 text-muted-foreground/50" />
                     </div>
@@ -280,8 +280,8 @@ export function AcademicPerformancesTab({ classes, academicYearId: _academicYear
                     <ResponsiveContainer width="100%" height="100%">
                         <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                            <XAxis type="number" dataKey="x" name="Moyenne" unit="/20" domain={[0, 20]} tick={{ fontSize: 10 }} />
-                            <YAxis type="number" dataKey="y" name="Écart à la classe" unit="pts" domain={[-5, 5]} tick={{ fontSize: 10 }} />
+                            <XAxis type="number" dataKey="x" name="Moyenne" unit="/20" domain={[0, 20]} tick={{ fontSize: 12 }} />
+                            <YAxis type="number" dataKey="y" name="Écart à la classe" unit="pts" domain={[-5, 5]} tick={{ fontSize: 12 }} />
                             <ZAxis type="number" dataKey="average" range={[50, 400]} />
                             <Tooltip contentStyle={FR_TOOLTIP_STYLE.contentStyle} cursor={{ strokeDasharray: '3 3' }} />
                             <Scatter name="Élèves" data={scatterData}>

@@ -99,7 +99,7 @@ function SignatureBlockContent({ docType, docId, payload, canSign = false, title
                                 </div>
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ fontSize: 14, fontWeight: 600 }}>{s.signerName}</div>
-                                    <div style={{ fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                                    <div style={{ fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                         {formatUserRoleLabel(s.signerRole)} · {new Date(s.signedAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
                                     </div>
                                 </div>

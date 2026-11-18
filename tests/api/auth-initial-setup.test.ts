@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { auth } from "@/lib/auth";
 import { makeRequest, cuid } from "./test-helpers";
 
@@ -189,5 +189,45 @@ describe("POST /api/auth/initial-setup", () => {
     const res = await post(VALID_BODY);
     expect(res.status).toBe(500);
     expect((await res.json()).error).toContain("configuration");
+  });
+});
+describe("jeton d'installation (premier super-administrateur)", () => {
+  const TOKEN = "jeton-installation-0123456789abcdef";
+  const post = (body: Record<string, unknown>) =>
+    POST(makeRequest("http://localhost:3000/api/auth/initial-setup", { method: "POST", body }));
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("refuse sans le bon jeton (403), avant toute écriture", async () => {
+    vi.stubEnv("INITIAL_SETUP_TOKEN", TOKEN);
+    vi.mocked(auth).mockResolvedValue(null);
+    const missing = await post(VALID_BODY);
+    expect(missing.status).toBe(403);
+    expect((await missing.json()).code).toBe("SETUP_TOKEN_INVALID");
+    expect((await post({ ...VALID_BODY, setupToken: "faux" })).status).toBe(403);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("en production sans jeton configuré : verrouillé (503), jamais ouvert par défaut", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("INITIAL_SETUP_TOKEN", "");
+    // Ni secret maître : sinon le jeton est dérivé de NEXTAUTH_SECRET (cas de la CI)
+    vi.stubEnv("NEXTAUTH_SECRET", "");
+    vi.stubEnv("AUTH_SECRET", "");
+    vi.mocked(auth).mockResolvedValue(null);
+    const res = await post({ ...VALID_BODY, setupToken: "n'importe" });
+    expect(res.status).toBe(503);
+    expect((await res.json()).code).toBe("SETUP_LOCKED");
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("GET signale à la page qu'un jeton est demandé", async () => {
+    vi.stubEnv("INITIAL_SETUP_TOKEN", TOKEN);
+    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(prisma.user.count).mockResolvedValue(0);
+    const body = await (await GET(makeRequest("http://localhost:3000/api/auth/initial-setup"))).json();
+    expect(body).toMatchObject({ setupNeeded: true, tokenRequired: true, locked: false });
   });
 });

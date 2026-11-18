@@ -20,6 +20,7 @@ vi.mock("@/lib/api/cache-helpers", async (importOriginal) => {
     ...actual,
     withCache: vi.fn(async (handler: () => unknown) => await handler()),
     generateCacheKey: vi.fn(() => "cache-key"),
+    cacheScope: (s: { user: { id: string; schoolId?: string | null } }) => `${s.user.id}:${s.user.schoolId ?? "sans-ecole"}`,
     invalidateByPath: vi.fn(),
   };
 });

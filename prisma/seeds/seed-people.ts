@@ -18,6 +18,7 @@ import {
     cities,
     professions,
     studentScenarios,
+    emailPart,
 } from "./utils";
 import type { Gender } from "@prisma/client";
 
@@ -191,7 +192,7 @@ export async function seedPeople(ctx: SeedContext): Promise<void> {
             // Create Father
             const fatherFirstName = randomElement(firstNamesMale);
             const fatherUser = await createUser(
-                `${fatherFirstName.toLowerCase()}.${familyLastName.toLowerCase()}${studentIndex}@gmail.com`,
+                `${emailPart(fatherFirstName)}.${emailPart(familyLastName)}${studentIndex}@gmail.com`,
                 fatherFirstName, familyLastName, "PARENT", ctx.school1.id
             );
             const fatherProfile = await prisma.parentProfile.create({
@@ -204,7 +205,7 @@ export async function seedPeople(ctx: SeedContext): Promise<void> {
             if (Math.random() < 0.7) {
                 const motherFirstName = randomElement(firstNamesFemale);
                 const motherUser = await createUser(
-                    `${motherFirstName.toLowerCase()}.${familyLastName.toLowerCase()}${studentIndex}m@gmail.com`,
+                    `${emailPart(motherFirstName)}.${emailPart(familyLastName)}${studentIndex}m@gmail.com`,
                     motherFirstName, familyLastName, "PARENT", ctx.school1.id
                 );
                 motherProfile = await prisma.parentProfile.create({
@@ -218,7 +219,7 @@ export async function seedPeople(ctx: SeedContext): Promise<void> {
             const studentFirstName = gender === "MALE" ? randomElement(firstNamesMale) : randomElement(firstNamesFemale);
 
             const studentUser = await createUser(
-                `${studentFirstName.toLowerCase()}.${familyLastName.toLowerCase()}${studentIndex}@eleve.saintmichel.bj`,
+                `${emailPart(studentFirstName)}.${emailPart(familyLastName)}${studentIndex}@eleve.saintmichel.bj`,
                 studentFirstName, familyLastName, "STUDENT", ctx.school1.id
             );
 

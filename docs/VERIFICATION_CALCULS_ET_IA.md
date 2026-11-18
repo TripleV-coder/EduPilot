@@ -189,11 +189,7 @@ Chaque alerte affiche ses **causes en clair** (« Assiduité faible : 78 % »…
    - Une moyenne générale sous le niveau conseillé retire 15 points (réglable).
    - Points forts à partir de 12, points de vigilance sous 10 (réglables).
 4. **Sans aucune note** dans une discipline déterminante, l'application **refuse de proposer** une série et explique pourquoi.
-5. **IA externe** (seulement si elle est configurée) :
-   - elle reçoit les moyennes de l'élève **sans son nom** (des initiales seulement) ;
-   - elle doit répondre par une série de la liste officielle, sinon sa réponse est rejetée et la proposition locale est conservée.
-
-   **Corrigé à cette occasion :** une matière sans moyenne lui était envoyée comme un **0**, ce qui pouvait fausser sa proposition. Désormais, elle n'est pas envoyée, et une moyenne générale absente est indiquée « non disponible ».
+5. **Aucune IA externe** n'intervient (décision du 2026-11-07, ADR-0012) : la proposition est entièrement calculée par les règles ci-dessus.
 
 **Dans tous les cas, la décision d'orientation revient au conseil de classe.** L'application montre côte à côte la série proposée, le vœu de la famille et la décision du conseil.
 

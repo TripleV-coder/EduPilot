@@ -38,7 +38,7 @@ export function SubLabel({ children }: { children: React.ReactNode }) {
     return (
         <div
             style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 600,
                 color: "var(--eduflow-text-tertiary)",
                 marginBottom: 10,

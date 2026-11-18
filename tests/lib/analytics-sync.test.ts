@@ -211,4 +211,61 @@ describe("syncAllStudentsForSchool", () => {
 
     expect(result).toEqual({ processed: 1, errors: 1 });
   });
+
+  it("des demandes pendant un recalcul en cours donnent UN seul nouveau passage, pas des recalculs parallèles", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    vi.mocked(prisma.enrollment.findMany)
+      .mockImplementationOnce(async () => {
+        await gate; // premier passage bloqué tant que les autres demandes arrivent
+        return [{ studentId: "s1", classId: "cl1" }] as unknown as Enrollment[];
+      })
+      .mockResolvedValue([{ studentId: "s1", classId: "cl1" }] as unknown as Enrollment[]);
+    vi.mocked(prisma.period.findMany).mockResolvedValue([{ id: "p1" }] as unknown as Period[]);
+    vi.mocked(generateStudentAnalytics).mockResolvedValue(snapshot() as unknown as AnalyticsSnapshotResult);
+    const callsBefore = vi.mocked(prisma.enrollment.findMany).mock.calls.length;
+
+    const first = syncAllStudentsForSchool("school-coalesce", "y1");
+    const second = syncAllStudentsForSchool("school-coalesce", "y1");
+    const third = syncAllStudentsForSchool("school-coalesce", "y1");
+    expect(second).toBe(first);
+    expect(third).toBe(first);
+    release();
+    await first;
+
+    // Passage en cours + UN passage pour les demandes arrivées entre-temps
+    expect(vi.mocked(prisma.enrollment.findMany).mock.calls.length - callsBefore).toBe(2);
+    // Terminé : une nouvelle demande relance normalement
+    await syncAllStudentsForSchool("school-coalesce", "y1");
+    expect(vi.mocked(prisma.enrollment.findMany).mock.calls.length - callsBefore).toBe(3);
+  });
+
+  it("DEF-012 : un passage dépassé par une nouvelle demande s'arrête sans finir son calcul", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    vi.mocked(prisma.enrollment.findMany)
+      .mockImplementationOnce(async () => {
+        await gate;
+        return [
+          { studentId: "s1", classId: "cl1" },
+          { studentId: "s2", classId: "cl1" },
+        ] as unknown as Enrollment[];
+      })
+      .mockResolvedValue([
+        { studentId: "s1", classId: "cl1" },
+        { studentId: "s2", classId: "cl1" },
+      ] as unknown as Enrollment[]);
+    vi.mocked(prisma.period.findMany).mockResolvedValue([{ id: "p1" }] as unknown as Period[]);
+    vi.mocked(generateStudentAnalytics).mockClear();
+    vi.mocked(generateStudentAnalytics).mockResolvedValue(snapshot() as unknown as AnalyticsSnapshotResult);
+
+    const first = syncAllStudentsForSchool("school-superseded", "y1");
+    void syncAllStudentsForSchool("school-superseded", "y1"); // règles changées pendant le calcul
+    release();
+    const result = await first;
+
+    // Seul le passage à jour calcule : 2 élèves × 1 période, pas 4
+    expect(vi.mocked(generateStudentAnalytics)).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ processed: 2, errors: 0 });
+  });
 });

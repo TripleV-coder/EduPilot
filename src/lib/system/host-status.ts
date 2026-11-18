@@ -83,7 +83,9 @@ export function memoryStatus(): MemoryStatus {
  */
 export async function diskStatus(dir: string = process.cwd()): Promise<DiskStatus | null> {
     try {
-        const fsStat = await statfs(dir);
+        // turbopackIgnore : sans lui, Next 16.4 trace process.cwd() et embarque
+        // tout le dépôt (tests, docs…) dans la sortie standalone
+        const fsStat = await statfs(/* turbopackIgnore: true */ dir);
         const total = Number(fsStat.blocks) * Number(fsStat.bsize);
         // `bavail` = blocs disponibles à un utilisateur non privilégié : c'est
         // la place réellement utilisable, pas celle réservée à root.
@@ -125,7 +127,7 @@ export async function backupStatus(
 
     let entries: string[];
     try {
-        entries = await readdir(dir);
+        entries = await readdir(/* turbopackIgnore: true */ dir);
     } catch {
         return empty;
     }
@@ -140,7 +142,7 @@ export async function backupStatus(
     let latestTime = -Infinity;
     for (const file of manifests) {
         try {
-            const parsed = JSON.parse(await readFile(path.join(dir, file), "utf8")) as BackupManifest;
+            const parsed = JSON.parse(await readFile(path.join(/* turbopackIgnore: true */ dir, file), "utf8")) as BackupManifest;
             const time = parsed.createdAt ? Date.parse(parsed.createdAt) : NaN;
             if (!Number.isFinite(time)) continue;
             if (time > latestTime) {

@@ -3,9 +3,10 @@
  * Provides comprehensive utilities for API routes
  */
 
+import { publicBaseUrl } from "@/lib/system/platform";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { Permission, hasPermission, roleSatisfies } from "@/lib/rbac/permissions";
+import { Permission, hasPermission, roleSatisfies, roleAppliesAtSchool } from "@/lib/rbac/permissions";
 import { Prisma } from "@prisma/client";
 import type { UserRole } from "@prisma/client";
 import { canAccessSchool, getActiveSchoolId } from "@/lib/api/tenant-isolation";
@@ -23,6 +24,7 @@ import { InvalidCursorError } from "@/lib/api/pagination";
 import { ServiceUnavailableError, serviceUnavailableResponse } from "@/lib/resilience/errors";
 import { runWithDbContext } from "@/lib/db/db-context";
 import { dbContextForSession } from "@/lib/db/session-db-context";
+import { recordError, serverErrorReport } from "@/lib/monitoring/error-journal";
 
 // ============================================
 // CUID VALIDATION
@@ -158,6 +160,38 @@ export function handlePrismaError(error: unknown): { status: number; body: { err
     return { status: 500, body: { error: "Erreur inattendue." } };
 }
 
+/**
+ * Réponse 4xx quand l'erreur vient de l'entrée du client, sinon `null`.
+ * À appeler en tête du `catch` d'une route qui gère elle-même ses erreurs :
+ * sans cela, un identifiant de mauvais type ou un champ hors format finissait
+ * en 500 « erreur serveur » (campagne de tests du 2026-11-16), ce qui masque
+ * la vraie cause à l'utilisateur et pollue le journal des pannes.
+ */
+export function clientInputError(error: unknown): NextResponse | null {
+    if (isZodError(error)) {
+        return NextResponse.json(
+            {
+                error: "Données invalides",
+                code: "VALIDATION_ERROR",
+                details: error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
+            },
+            { status: 400 },
+        );
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError || error instanceof Prisma.PrismaClientValidationError) {
+        const { status, body } = handlePrismaError(error);
+        return status < 500 ? NextResponse.json(body, { status }) : null;
+    }
+    // request.formData() sur un corps qui n'est pas un formulaire
+    if (error instanceof TypeError && /Content-Type was not one of/i.test(error.message)) {
+        return NextResponse.json(
+            { error: "Un envoi de fichier (formulaire multipart) est attendu.", code: "INVALID_BODY" },
+            { status: 400 },
+        );
+    }
+    return null;
+}
+
 // Rate limiting is now handled via the unified checkRateLimitKey from @/lib/rate-limit
 
 // ============================================
@@ -212,6 +246,30 @@ type RouteHandler = (
     t: TranslationFn,
 ) => Promise<NextResponse | Response>;
 
+function denyIfOutsideGrantingSchools(session: Session, options: HandlerOptions): NextResponse | null {
+    const byRole = session.user.schoolIdsByRole;
+    if (!byRole) return null;
+    const active = getActiveSchoolId(session);
+    if (!active) return null;
+    // Rôle principal seulement (cumul désactivé tant que les routes ne le gèrent pas)
+    const roles = [session.user.role];
+
+    if (options.requiredPermissions && options.requiredPermissions.length > 0) {
+        const ok = options.requiredPermissions.every((perm) =>
+            roles.some((role) => hasPermission(role as UserRole, perm) && roleAppliesAtSchool(role, active, byRole)),
+        );
+        if (!ok) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    if (options.allowedRoles && options.allowedRoles.length > 0) {
+        const granting = roles.filter((role) => roleSatisfies(role, options.allowedRoles!));
+        if (granting.length > 0 && !granting.some((role) => roleAppliesAtSchool(role, active, byRole))) {
+            return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+        }
+    }
+    return null;
+}
+
 type RouteContext = { params?: Promise<Record<string, string>> };
 
 // ============================================
@@ -255,12 +313,61 @@ export const ANONYMOUS_SUBMISSION_HEADER = "x-edupilot-anonymous-submission";
 /** Limite par défaut du corps de requête : 1 Mo. Surchargeable par route (`maxBodyBytes`). */
 export const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
 
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function hostOf(url: string | undefined | null): string | null {
+    if (!url) return null;
+    try {
+        return new URL(url).host;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Mutation envoyée par un navigateur depuis un autre site : `Sec-Fetch-Site:
+ * cross-site`, Origin « null », ou Origin dont l'hôte n'est pas celui de
+ * l'application (hôte de la requête, hôte transmis par le proxy, URL publique
+ * configurée). Une requête sans Origin (client non navigateur) n'est pas visée.
+ */
+export function isCrossSiteBrowserMutation(request: Pick<Request, "method" | "url" | "headers">): boolean {
+    if (!MUTATING_METHODS.has((request.method ?? "").toUpperCase())) return false;
+    if (request.headers.get("sec-fetch-site") === "cross-site") return true;
+    const origin = request.headers.get("origin");
+    if (!origin) return false;
+    const originHost = hostOf(origin);
+    if (!originHost) return true; // « null » ou valeur illisible
+    const allowed = [
+        hostOf(request.url),
+        request.headers.get("host"),
+        request.headers.get("x-forwarded-host")?.split(",")[0]?.trim(),
+        hostOf(process.env.NEXTAUTH_URL),
+        hostOf(process.env.NEXT_PUBLIC_APP_URL),
+        hostOf(publicBaseUrl() ?? undefined),
+    ].filter((host): host is string => Boolean(host));
+    return !allowed.includes(originHost);
+}
+
 const BODY_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-type BodyInspection = "ok" | "too-large" | "invalid-json";
+type BodyInspection = "ok" | "too-large" | "invalid-json" | "unusable-json";
 
 function isJsonContentType(request: Request): boolean {
     return (request.headers.get("content-type") ?? "").toLowerCase().includes("application/json");
+}
+
+/**
+ * Interdit toute conservation d'une réponse privée (navigateur, proxy, service
+ * worker). `no-transform` est conservé : il empêche un proxy de compresser, et
+ * donc de retenir, un flux d'événements (SSE).
+ */
+function forbidPrivateCaching(response: Response): void {
+    try {
+        const keepNoTransform = /\bno-transform\b/i.test(response.headers.get("Cache-Control") ?? "");
+        response.headers.set("Cache-Control", keepNoTransform ? "private, no-store, no-transform" : "private, no-store");
+    } catch {
+        // En-têtes figés (réponse de redirection) : rien de privé à protéger
+    }
 }
 
 /**
@@ -302,12 +409,52 @@ async function inspectRequestBody(request: Request, limit: number): Promise<Body
     if (!json) return "ok";
     const text = new TextDecoder().decode(Buffer.concat(chunks));
     if (text.trim() === "") return "ok"; // corps vide : le handler décide
+    let parsed: unknown;
     try {
-        JSON.parse(text);
-        return "ok";
+        parsed = JSON.parse(text);
     } catch {
         return "invalid-json";
     }
+    return isUsableJsonBody(parsed) ? "ok" : "unusable-json";
+}
+
+/** Demi-paire de substitution isolée : texte Unicode mal formé, refusé par le moteur de requêtes. */
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+/** Imbrication maximale d'un corps JSON (un formulaire réel en a moins de dix). */
+const MAX_JSON_DEPTH = 100;
+
+/**
+ * Un corps JSON valide mais inexploitable, refusé avant le handler (campagne
+ * de tests du 2026-11-16 : 29 routes répondaient 500 à ces entrées) :
+ *  - `null`, un nombre, une chaîne ou un booléen seul : aucune route n'attend
+ *    cela, et lire un champ dessus levait une TypeError (500) ;
+ *  - le caractère nul ou un texte Unicode mal formé dans une clé ou une
+ *    valeur : PostgreSQL et le moteur de requêtes les refusent (500) ;
+ *  - une imbrication démesurée : débordement de pile à la validation.
+ * Parcours itératif : il ne peut pas lui-même déborder.
+ */
+function isUsableJsonBody(root: unknown): boolean {
+    if (root === null || typeof root !== "object") return false;
+    const stack: Array<{ value: unknown; depth: number }> = [{ value: root, depth: 1 }];
+    while (stack.length > 0) {
+        const { value, depth } = stack.pop()!;
+        if (typeof value === "string") {
+            if (value.includes("\u0000") || LONE_SURROGATE.test(value)) return false;
+            continue;
+        }
+        if (value === null || typeof value !== "object") continue;
+        if (depth > MAX_JSON_DEPTH) return false;
+        if (Array.isArray(value)) {
+            for (const item of value) stack.push({ value: item, depth: depth + 1 });
+        } else {
+            for (const [key, item] of Object.entries(value)) {
+                if (key.includes("\u0000") || LONE_SURROGATE.test(key)) return false;
+                stack.push({ value: item, depth: depth + 1 });
+            }
+        }
+    }
+    return true;
 }
 
 function payloadTooLarge(limit: number): NextResponse {
@@ -315,6 +462,13 @@ function payloadTooLarge(limit: number): NextResponse {
     return NextResponse.json(
         { error: `Requête trop volumineuse (limite : ${megabytes} Mo).`, code: "PAYLOAD_TOO_LARGE" },
         { status: 413 },
+    );
+}
+
+function unusableJson(): NextResponse {
+    return NextResponse.json(
+        { error: "Le corps de la requête est invalide : un objet JSON est attendu, sans caractère nul ni imbrication excessive.", code: "INVALID_BODY" },
+        { status: 400 },
     );
 }
 
@@ -342,7 +496,7 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
         try {
             // ── RATE LIMITING ──
             // Le middleware (`proxy.ts`) applique déjà un rate-limit Edge sur `/api/*`
-            // et pose `x-edupilot-edge-rl=1`. On saute alors le second round-trip Redis
+            // et pose `x-edupilot-edge-rl=1`. On saute alors le second comptage (aller-retour inutile)
             // (latence x2). Les tests unitaires (Request sans middleware) gardent le
             // chemin local. Forcer via `rateLimit: true` + absence du header.
             const edgeAlreadyLimited =
@@ -370,6 +524,14 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
 
             if (options.requireAuth !== false && !session?.user) {
                 return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+            }
+
+            // ── CSRF (défense en profondeur, en plus de SameSite=Lax) ──
+            // Une mutation authentifiée par cookie, venue d'un navigateur sur
+            // un autre site, est refusée. Les clients sans en-tête Origin et
+            // les routes publiques (webhooks signés) ne sont pas concernés.
+            if (options.requireAuth !== false && isCrossSiteBrowserMutation(request)) {
+                return NextResponse.json({ error: "Origine de la requête refusée", code: "CROSS_SITE_REQUEST" }, { status: 403 });
             }
 
             // ── ISOLATION MULTI-TENANT STRICTE ──
@@ -433,13 +595,16 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             }
 
             if (options.allowedRoles && options.allowedRoles.length > 0 && session?.user) {
+                // Rôle PRINCIPAL seulement : les routes décident d'après lui
+                // (session.user.role) ; accepter un rôle secondaire à l'entrée
+                // donnait plus que chacun des rôles (escalade STAFF+TEACHER).
                 if (!roleSatisfies(session.user.role, options.allowedRoles)) {
                     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
                 }
             }
 
             if (options.requiredPermissions && options.requiredPermissions.length > 0 && session?.user) {
-                const userRole = session.user.role;
+                const userRole = session.user.role as UserRole;
                 const hasAccess = options.requiredPermissions.every(
                     (perm: Permission) => hasPermission(userRole, perm)
                 );
@@ -448,12 +613,22 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
                 }
             }
 
+            // Une fonction secondaire n'est exercée que dans les écoles que
+            // cette fonction ouvre (TEACHER+ACCOUNTANT : pas de finance au
+            // rattachement d'enseignement). Absent de schoolIdsByRole : sessions
+            // anciennes, le périmètre union déjà calculé s'applique.
+            if (options.requireAuth !== false && session?.user && session.user.role !== "SUPER_ADMIN") {
+                const scoped = denyIfOutsideGrantingSchools(session, options);
+                if (scoped) return scoped;
+            }
+
             // Corps vérifié après les contrôles d'accès : une requête refusée
             // n'est jamais lue.
             const bodyLimit = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
             const body = await inspectRequestBody(request, bodyLimit);
             if (body === "too-large") return payloadTooLarge(bodyLimit);
             if (body === "invalid-json") return invalidJson();
+            if (body === "unusable-json") return unusableJson();
 
             // Contexte d'établissement transmis à PostgreSQL pour toute la
             // requête (audit M2) ; sans session, aucun : les tables sensibles
@@ -483,6 +658,13 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             if (session?.user && response.status < 400 && !anonymousSubmission) {
                 await recordSensitiveAccess(request, session, response.status);
             }
+
+            // Réponse propre à une session : jamais conservée par le navigateur
+            // ni par un intermédiaire (audit MS-03). Un `max-age` laissait le
+            // cache HTTP resservir la réponse d'un autre compte ou de l'école
+            // précédente sans interroger le serveur. Le cache serveur
+            // (`withCache`, clé utilisateur + école) n'est pas concerné.
+            if (session?.user) forbidPrivateCaching(response);
 
             return response;
         } catch (error: unknown) {
@@ -517,6 +699,9 @@ export function createApiHandler(handler: RouteHandler, options: HandlerOptions 
             // personnelles (email, matricule) : seul le chemin est écrit.
             const path = request.nextUrl?.pathname ?? (request.url ? new URL(request.url).pathname : "/api");
             logger.error("Erreur non interceptée d'une route API", error, { module: "api", path });
+            // Journal des erreurs + alerte aux super-administrateurs (sans attendre :
+            // la réponse 500 part tout de suite ; le journal ne lève jamais).
+            void recordError(serverErrorReport(error, path));
 
             // Handle Prisma-specific errors with appropriate HTTP status codes
             if (

@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useForm, useFieldArray, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { FieldErrors } from "react-hook-form";
 import * as z from "zod";
 import { PageGuard } from "@/components/guard/page-guard";
 import { PageHeader, PageShell } from "@/components/layout/page-shell";
@@ -73,7 +75,18 @@ type CourseFormValues = z.infer<typeof courseSchema>;
 type CourseFormControl = Control<z.input<typeof courseSchema>, unknown, CourseFormValues>;
 
 export default function NewCoursePage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <NewCoursePageContent />
+        </PageGuard>
+    );
+}
+
+function NewCoursePageContent() {
     const router = useRouter();
+    const { data: session } = useSession();
+    const role = session?.user?.role;
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [mySubjects, setMySubjects] = useState<ClassSubjectWithTeacher[]>([]);
@@ -107,15 +120,44 @@ export default function NewCoursePage() {
     });
 
     useEffect(() => {
+        if (!role) return;
+        // L'enseignant choisit parmi SES matières ; la direction parmi celles de
+        // l'école (me/subjects lui renvoyait une liste vide : création impossible).
+        const endpoint = role === "TEACHER" ? "/api/me/subjects" : "/api/class-subjects";
         // Sur une erreur, le corps { error } arrivait dans l'état et
         // `mySubjects.map` faisait planter la page.
-        fetch("/api/me/subjects")
-            .then(res => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+        fetch(endpoint)
+            .then(async (res) => {
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error((data as { error?: string }).error || "Impossible de charger les matières.");
+                return data;
+            })
             .then(data => setMySubjects(Array.isArray(data) ? data : []))
-            .catch(() => {
-                toast({ title: "Matières indisponibles", description: "Impossible de charger vos matières. Rechargez la page.", variant: "destructive" });
+            .catch((err: unknown) => {
+                toast({ title: "Matières indisponibles", description: err instanceof Error ? err.message : "Impossible de charger les matières. Rechargez la page.", variant: "destructive" });
             });
-    }, []);
+    }, [role, toast]);
+
+    // Envoi invalide : les messages peuvent être dans un module replié, hors de
+    // vue — l'enseignant cliquait sur « Enregistrer » sans rien voir (recette du
+    // 2026-10-26, « aucun message »). Le premier problème est annoncé ici.
+    function onInvalid(errors: FieldErrors<z.input<typeof courseSchema>>) {
+        const moduleIndex = Array.isArray(errors.modules) ? errors.modules.findIndex((m) => m) : -1;
+        const moduleError = moduleIndex >= 0 ? errors.modules?.[moduleIndex] : undefined;
+        const detail =
+            errors.title?.message ??
+            errors.description?.message ??
+            errors.classSubjectId?.message ??
+            errors.modules?.message ??
+            (moduleError
+                ? `Module ${moduleIndex + 1} : ${moduleError.title?.message ?? moduleError.lessons?.message ?? moduleError.lessons?.root?.message ?? "une leçon est incomplète (titre ou contenu)"}`
+                : undefined);
+        toast({
+            title: "Le cours n'est pas enregistré",
+            description: detail ? `${detail}.` : "Corrigez les champs signalés.",
+            variant: "destructive",
+        });
+    }
 
     async function onSubmit(values: CourseFormValues) {
         setIsSubmitting(true);
@@ -142,7 +184,7 @@ export default function NewCoursePage() {
     }
 
     return (
-        <PageGuard roles={["TEACHER", "SCHOOL_ADMIN", "DIRECTOR"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Créer un nouveau cours"
@@ -155,7 +197,7 @@ export default function NewCoursePage() {
                 />
 
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
                         {/* Course Basic Info */}
                         <Card className="border-border shadow-sm">
                             <CardHeader>
@@ -339,7 +381,7 @@ export default function NewCoursePage() {
                     </form>
                 </Form>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 
@@ -371,7 +413,7 @@ function LessonsList({ moduleIndex, control }: { moduleIndex: number, control: C
                                 name={`modules.${moduleIndex}.lessons.${lessonIndex}.type`}
                                 render={({ field }) => (
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <SelectTrigger aria-label="Type de leçon" className="h-7 w-[100px] text-[11px] font-bold">
+                                        <SelectTrigger aria-label="Type de leçon" className="h-7 w-[100px] text-xs font-bold">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>

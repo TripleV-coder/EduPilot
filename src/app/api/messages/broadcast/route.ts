@@ -114,8 +114,7 @@ export const POST = createApiHandler(
                 })),
             });
 
-            // Notifications + push temps réel (publisher Redis singleton,
-            // REFRESH_REQUIRED déclenche un refetch côté client)
+            // Notifications in-app (+ push web via l'écouteur de créations)
             await createBulkNotifications({
                 userIds: recipientIds,
                 type: "MESSAGE",

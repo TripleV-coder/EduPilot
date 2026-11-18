@@ -92,6 +92,15 @@ function fmtRangeLabel(monday: Date): string {
 }
 
 export default function ExamsPlanningPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.EVALUATION_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]} >
+            <ExamsPlanningPageContent />
+        </PageGuard>
+    );
+}
+
+function ExamsPlanningPageContent() {
     const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()));
     const [classFilter, setClassFilter] = useState<string>("all");
     const [evals, setEvals] = useState<Evaluation[]>([]);
@@ -171,10 +180,7 @@ export default function ExamsPlanningPage() {
     const distinctSubjects = new Set(filtered.map((e) => e.classSubject.subject.id)).size;
 
     return (
-        <PageGuard
-            permission={Permission.EVALUATION_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"]}
-        >
+        <>
             <PageShell>
                 <div className="flex flex-wrap items-center gap-3">
                     <Link href="/dashboard/exams" style={{ textDecoration: "none" }}>
@@ -402,7 +408,7 @@ export default function ExamsPlanningPage() {
                                                 slotIdx === 0
                                                     ? "1px solid var(--eduflow-border-subtle)"
                                                     : "none",
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             fontWeight: 700,
                                             color:
                                                 "var(--eduflow-text-tertiary)",
@@ -463,7 +469,7 @@ export default function ExamsPlanningPage() {
                                                                     </div>
                                                                     <div
                                                                         style={{
-                                                                            fontSize: 11,
+                                                                            fontSize: 12,
                                                                             color: `var(--eduflow-${color}-800)`,
                                                                             marginTop: 4,
                                                                         }}
@@ -473,7 +479,7 @@ export default function ExamsPlanningPage() {
                                                                     {e.title ? (
                                                                         <div
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color: `var(--eduflow-${color}-800)`,
                                                                                 opacity: 0.7,
                                                                             }}
@@ -484,7 +490,7 @@ export default function ExamsPlanningPage() {
                                                                     <div
                                                                         style={{
                                                                             marginTop: 6,
-                                                                            fontSize: 11,
+                                                                            fontSize: 12,
                                                                             color: `var(--eduflow-${color}-700)`,
                                                                             fontWeight: 600,
                                                                             fontVariantNumeric:
@@ -541,6 +547,6 @@ export default function ExamsPlanningPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

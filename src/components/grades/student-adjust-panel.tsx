@@ -181,7 +181,7 @@ export function StudentAdjustPanel({ classId, classSubjectId, periodId, studentI
                 <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
-                            <tr style={{ textAlign: "left", fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                            <tr style={{ textAlign: "left", fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                 <th style={cell}>Nom</th>
                                 <th style={cell}>Évaluation</th>
                                 <th style={cell}>Note</th>
@@ -283,7 +283,7 @@ export function StudentAdjustPanel({ classId, classSubjectId, periodId, studentI
                             onChange={setFormula}
                             disabled={busy}
                         />
-                        <label className="grid gap-1" style={{ fontSize: 11, fontWeight: 600, color: "var(--eduflow-text-tertiary)" }}>
+                        <label className="grid gap-1" style={{ fontSize: 12, fontWeight: 600, color: "var(--eduflow-text-tertiary)" }}>
                             Motif (obligatoire)
                             <input style={input} value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} />
                         </label>
@@ -321,7 +321,7 @@ export function StudentAdjustPanel({ classId, classSubjectId, periodId, studentI
                         {message.text}
                     </p>
                 ) : null}
-                <p style={{ margin: 0, fontSize: 11, color: "var(--eduflow-text-tertiary)" }}>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                     Possible jusqu&apos;à la validation du conseil de classe. Chaque changement est enregistré dans l&apos;historique et
                     signalé sur le bulletin.
                 </p>

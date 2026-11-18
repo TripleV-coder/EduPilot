@@ -26,6 +26,15 @@ type Student = {
 };
 
 export default function DocumentGeneratorPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <DocumentGeneratorPageContent />
+        </PageGuard>
+    );
+}
+
+function DocumentGeneratorPageContent() {
     const [selectedStudent, setSelectedStudent] = useState("");
     const [selectedDoc, setSelectedDoc] = useState("CERTIFICATE_ENROLLMENT");
     const [generating, setGenerating] = useState(false);
@@ -49,7 +58,11 @@ export default function DocumentGeneratorPage() {
                 }),
             });
 
-            if (!res.ok) throw new Error("Échec de la génération");
+            if (!res.ok) {
+                // Refus motivé (ex. incidents graves sur l'année) : affiché tel quel.
+                const body = (await res.json().catch(() => ({}))) as { error?: string };
+                throw new Error(body.error ?? "Erreur lors de la génération du document.");
+            }
 
             const payload = await res.json();
             const link = document.createElement("a");
@@ -60,15 +73,15 @@ export default function DocumentGeneratorPage() {
             document.body.removeChild(link);
 
             toast.success("Document généré avec succès.");
-        } catch {
-            toast.error("Erreur lors de la génération du document.");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Erreur lors de la génération du document.");
         } finally {
             setGenerating(false);
         }
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Générateur de documents"
@@ -196,6 +209,6 @@ export default function DocumentGeneratorPage() {
                     </Card>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

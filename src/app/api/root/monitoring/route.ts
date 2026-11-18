@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { LOGIN_ACTIONS, loggedInSince } from "@/lib/audit/logins";
 import { requireRoot } from "@/lib/security/require-root";
 import { logger } from "@/lib/utils/logger";
 import { createApiHandler } from "@/lib/api/api-helpers";
@@ -60,46 +61,33 @@ export const GET = createApiHandler(
         _count: true,
       });
 
-      // Sessions actives
-      const activeSessions = await prisma.session.count({
-        where: {
-          expires: { gte: now },
-        },
-      });
-
-      // Utilisateurs connectés récemment (24h)
-      const recentLogins = await prisma.auditLog.count({
-        where: {
-          action: "LOGIN",
-          createdAt: { gte: last24h },
-        },
-      });
+      // Activité réelle (journal d'audit) : les sessions sont des JWT, la
+      // table `sessions` n'est jamais alimentée (ce compteur valait toujours 0)
+      const [connectedAccounts24h, recentLogins] = await Promise.all([
+        prisma.user.count({ where: loggedInSince(last24h) }),
+        prisma.auditLog.count({
+          where: {
+            action: { in: [...LOGIN_ACTIONS] },
+            createdAt: { gte: last24h },
+          },
+        }),
+      ]);
 
       // Requêtes de données en attente
       const pendingRequests = await prisma.dataAccessRequest.count({
         where: { status: "PENDING" },
       });
 
-      // État du cache Redis
-      let cacheStatus: { connected: boolean; hitRate: number; memory: string | null } = { connected: false, hitRate: 0, memory: null };
-      try {
-        const { getRedisClient } = await import("@/lib/cache/redis");
-        const client = getRedisClient();
-        if (client) {
-          try {
-            const pong = await client.ping();
-            cacheStatus = {
-              connected: Boolean(pong),
-              hitRate: 0,
-              memory: null,
-            };
-          } catch {
-            cacheStatus.connected = false;
-          }
-        }
-      } catch {
-        // Redis non disponible
-      }
+      // Cache mémoire (taux mesuré) et état partagé PostgreSQL (limites,
+      // coupe-circuits) : « connecté » tant que son coupe-circuit est fermé.
+      const { getCacheStats } = await import("@/lib/cache/service");
+      const { storeCircuit } = await import("@/lib/shared-state/pg");
+      const measuredCache = getCacheStats();
+      const cacheStatus: { connected: boolean; hitRate: number; memory: string | null } = {
+        connected: !storeCircuit.isOpen(),
+        hitRate: measuredCache.hitRate,
+        memory: `${measuredCache.entries} entrée(s) · ${(measuredCache.bytes / (1024 * 1024)).toFixed(1)} Mo`,
+      };
 
       // État du système (maintenance mode)
       const maintenanceSetting = await prisma.systemSetting.findUnique({
@@ -109,9 +97,37 @@ export const GET = createApiHandler(
 
       // Nombre RÉEL d'erreurs sur 24 h : `recentErrors` est plafonné à 50
       // par son `take`, il ne pouvait donc pas servir de compteur.
-      const errorCount = await prisma.auditLog.count({
+      const auditErrorCount = await prisma.auditLog.count({
         where: { action: { contains: "ERROR" }, createdAt: { gte: last24h } },
       });
+
+      // Journal des erreurs serveur et navigateur (remplace Sentry)
+      const [journalCount, journalRecent, journalTop] = await Promise.all([
+        prisma.errorLog.count({ where: { createdAt: { gte: last24h } } }),
+        prisma.errorLog.findMany({
+          where: { createdAt: { gte: last24h } },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: { id: true, source: true, message: true, path: true, createdAt: true },
+        }),
+        prisma.errorLog.groupBy({
+          by: ["fingerprint"],
+          where: { createdAt: { gte: last7d } },
+          _count: { _all: true },
+          _max: { createdAt: true },
+          orderBy: { _count: { fingerprint: "desc" } },
+          take: 5,
+        }),
+      ]);
+      const topSamples = journalTop.length
+        ? await prisma.errorLog.findMany({
+            where: { fingerprint: { in: journalTop.map((t) => t.fingerprint) } },
+            distinct: ["fingerprint"],
+            orderBy: { createdAt: "desc" },
+            select: { fingerprint: true, source: true, message: true, path: true },
+          })
+        : [];
+      const errorCount = auditErrorCount + journalCount;
 
       // État de la machine (Lot 7) : mémoire, disque, dernière sauvegarde.
       const host = await hostStatus();
@@ -134,7 +150,7 @@ export const GET = createApiHandler(
         cache: cacheStatus,
         system: {
           maintenanceMode,
-          activeSessions,
+          connectedAccounts24h,
           recentLogins,
           pendingDataRequests: pendingRequests,
         },
@@ -146,6 +162,21 @@ export const GET = createApiHandler(
             type: e.action,
             count: e._count,
           })),
+          journal: {
+            last24h: journalCount,
+            recent: journalRecent.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() })),
+            frequent: journalTop.map((t) => {
+              const sample = topSamples.find((x) => x.fingerprint === t.fingerprint);
+              return {
+                fingerprint: t.fingerprint,
+                count: t._count._all,
+                lastSeen: t._max.createdAt?.toISOString() ?? null,
+                source: sample?.source ?? "server",
+                message: sample?.message ?? "",
+                path: sample?.path ?? null,
+              };
+            }),
+          },
         },
         alerts: [
           ...(dbHealth.status === "critical"
@@ -226,7 +257,7 @@ export const GET = createApiHandler(
             ? [
               {
                 level: "warning",
-                message: "Cache Redis non connecté",
+                message: "État partagé (PostgreSQL) injoignable : limites en mémoire locale",
                 timestamp: now.toISOString(),
               },
             ]

@@ -6,7 +6,7 @@
 *Cantine & restauration* : menus du jour, tickets repas, solde de tickets de l'élève. On achète des tickets **par lots de 1 à 200** (10 par défaut), qui s'ajoutent au solde. Un ticket est valable 30 jours par défaut, une durée réglable dans les paramètres de l'établissement.
 
 ## 13.2 Transport scolaire ✅ (module à activer)
-*Transport scolaire* : circuits, arrêts, véhicules, élèves inscrits sur chaque circuit.
+*Transport scolaire* : circuits, arrêts, véhicules, élèves inscrits sur chaque circuit. Bouton **« Élèves »** d'une ligne : inscrire un élève de l'école (aller, retour ou les deux) ou le retirer ; un élève d'une autre école est refusé.
 
 ## 13.3 Bibliothèque ✅ (module à activer)
 *Bibliothèque & fonds* : catalogue des ouvrages, emprunts et retours. L'élève voit ses emprunts en cours.
@@ -26,9 +26,13 @@ Les journaux de passage sont effacés après la durée fixée par l'école (chap
 
 ## 13.6 Documents et attestations ✅
 *Générateur de documents* : certificats de scolarité et attestations en PDF. Le module « Documents » permet aussi aux familles de **déposer des pièces** (dossier d'inscription…).
+- Le **certificat de scolarité** exige une inscription sur l'année.
+- L'**attestation de bonne conduite** exige une inscription et **aucun incident** de la gravité choisie par l'école (paramètres › *Discipline*, par défaut « majeur ») sur l'année scolaire. Sinon, l'application explique le refus et le nombre d'incidents en cause. Le texte de l'attestation dit exactement ce qui a été vérifié.
 
 ## 13.7 Signature électronique ✅ (module à activer)
 Signature des documents et attestations par les personnes habilitées. Chaque signature est horodatée et vérifiable.
+- Se signent aujourd'hui : les **bulletins** et les **certificats** (direction).
+- 🔧 Les **autorisations parentales** et les **contrats du personnel** ne se signent pas encore : aucun écran ne les crée. L'application refuse de sceller une signature sur un document qui n'existe pas.
 
 ## 13.8 Anciens élèves ✅ (module à activer)
 *Réseau Alumni* : annuaire et suivi des anciens élèves.

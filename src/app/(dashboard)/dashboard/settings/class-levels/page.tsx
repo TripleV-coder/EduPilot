@@ -1,4 +1,5 @@
 "use client";
+import { ResourceActions } from "@/components/shared/resource-actions";
 import { cycleLabel } from "@/lib/benin/levels";
 import type { SchoolLevel } from "@prisma/client";
 
@@ -10,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/lib/rbac/permissions";
-import { Plus, Save, AlertCircle, CheckCircle, Trash2, Edit2, Layers } from "lucide-react";
+import { Plus, Save, AlertCircle, CheckCircle, Layers } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { getErrorMessage } from "@/lib/utils/error-message";
 import { Spinner } from "@/components/edu";
@@ -25,6 +26,15 @@ type ClassLevel = {
 };
 
 export default function ClassLevelsSettingsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE}>
+            <ClassLevelsSettingsPageContent />
+        </PageGuard>
+    );
+}
+
+function ClassLevelsSettingsPageContent() {
     const [levels, setLevels] = useState<ClassLevel[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -94,7 +104,7 @@ export default function ClassLevelsSettingsPage() {
     };
 
     return (
-        <PageGuard permission={Permission.SCHOOL_UPDATE}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Niveaux d'étude"
@@ -173,7 +183,7 @@ export default function ClassLevelsSettingsPage() {
                                     <div className="space-y-2">
                                         <Label htmlFor="sequence">Séquence (Ordre)</Label>
                                         <Input id="sequence" name="sequence" type="number" min="1" required />
-                                        <p className="text-[11px] text-muted-foreground">Détermine l'affichage (1 d'abord).</p>
+                                        <p className="text-xs text-muted-foreground">Détermine l'affichage (1 d'abord).</p>
                                     </div>
                                 </div>
 
@@ -221,12 +231,24 @@ export default function ClassLevelsSettingsPage() {
                                     </div>
 
                                     <div className="flex items-center gap-1 shrink-0">
-                                        <Button variant="ghost" size="icon" title="Modifier">
-                                            <Edit2 className="h-4 w-4 text-muted-foreground" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="hover:text-destructive hover:bg-destructive/10" title={t("common.delete")}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        {/* Les deux icônes n'avaient aucun gestionnaire : modification et suppression réelles */}
+                                        <ResourceActions
+                                            endpoint={`/api/class-levels/${level.id}`}
+                                            resourceLabel={`Le niveau ${level.name}`}
+                                            fields={[
+                                                { name: "name", label: "Nom", type: "text", required: true, maxLength: 60 },
+                                                { name: "code", label: "Code", type: "text", required: true, maxLength: 10 },
+                                                { name: "sequence", label: "Ordre", type: "number", required: true, min: 1, integer: true },
+                                                {
+                                                    name: "level",
+                                                    label: "Cycle (modifiable tant qu'aucune classe n'y est rattachée)",
+                                                    type: "select",
+                                                    options: (["PRIMARY", "SECONDARY_COLLEGE", "SECONDARY_LYCEE", "MIXED"] as SchoolLevel[]).map((v) => ({ value: v, label: cycleLabel(v) })),
+                                                },
+                                            ]}
+                                            initial={{ name: level.name, code: level.code, sequence: level.sequence, level: level.level }}
+                                            onChanged={() => void fetchLevels()}
+                                        />
                                     </div>
                                 </CardContent>
                             </Card>
@@ -234,6 +256,6 @@ export default function ClassLevelsSettingsPage() {
                     )}
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

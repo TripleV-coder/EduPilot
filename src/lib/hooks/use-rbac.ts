@@ -25,7 +25,9 @@ export function useRBAC() {
         ({ permission: _permission, roles }: RBACCheck): boolean => {
             if (!user) return false;
 
-            const userRoles: UserRole[] = user.roles || [user.role];
+            // Rôle principal seulement, comme createApiHandler : avec roles[],
+            // un STAFF + TEACHER ouvrait la saisie de notes que l'API lui refuse
+            const userRoles: UserRole[] = [user.role as UserRole];
             const isSuperAdmin = userRoles.includes("SUPER_ADMIN");
 
             // Super admin can access everything
@@ -59,7 +61,7 @@ export function useRBAC() {
         (role: string | string[]): boolean => {
             if (!user) return false;
             const targetRoles = Array.isArray(role) ? role : [role];
-            const userRoles: UserRole[] = user.roles || [user.role];
+            const userRoles: UserRole[] = [user.role as UserRole];
             return targetRoles.some(r => userRoles.includes(r as UserRole));
         },
         [user]

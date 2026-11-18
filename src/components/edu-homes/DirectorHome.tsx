@@ -24,6 +24,8 @@ export interface DirectorHomeProps {
         failureRate: number;
         paymentsReceived: number;
         pendingPayments: number;
+        /** Essais en ligne en attente de confirmation du fournisseur (rien à valider à la main). */
+        pendingOnlinePayments?: number;
         /** Recouvrement de l'année sur l'attendu réel ; null si rien n'est facturé. */
         feeRecoveryRate?: number | null;
         feesCollected?: number | null;
@@ -191,7 +193,7 @@ export function DirectorHome({ focus = "school", enabledModules, userName, schoo
                     <h2 id="home-watch" className={styles.blockTitle}>À surveiller</h2>
                     {finance ? null : <Link href="/dashboard/risks/failure" className={styles.link}>Tout voir</Link>}
                 </div>
-                {watched.length === 0 && data.pendingPayments <= 0 ? (
+                {watched.length === 0 && data.pendingPayments <= 0 && (data.pendingOnlinePayments ?? 0) <= 0 ? (
                     <p className={styles.calm}>
                         <Icon name="success" size={20} color={MODULE.green} />
                         Rien à signaler : aucun élève à risque élevé ni paiement en attente.
@@ -228,6 +230,20 @@ export function DirectorHome({ focus = "school", enabledModules, userName, schoo
                                     <div className={styles.detail}>{formatFcfa(data.pendingPayments)} FCFA déclarés, en attente de validation</div>
                                 </div>
                                 <Link href="/dashboard/finance/reconciliation" className={styles.pill}>Valider</Link>
+                            </li>
+                        ) : null}
+                        {(data.pendingOnlinePayments ?? 0) > 0 ? (
+                            <li className={styles.watchItem}>
+                                <span className={styles.avatar} style={{ background: MODULE.blue }} aria-hidden="true">
+                                    <Icon name="money" size={18} color="#fff" />
+                                </span>
+                                <div>
+                                    <div className={styles.name}>Paiements en ligne en cours</div>
+                                    <div className={styles.detail}>
+                                        {formatFcfa(data.pendingOnlinePayments ?? 0)} FCFA en attente de la confirmation du fournisseur
+                                    </div>
+                                </div>
+                                <Link href="/dashboard/finance" className={styles.pill}>Suivre</Link>
                             </li>
                         ) : null}
                     </ul>

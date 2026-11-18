@@ -4,6 +4,8 @@ import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { refuse, runFeeMutation } from "@/lib/finance/collection";
+import { assertCoherentPaymentPlan } from "@/lib/finance/helpers";
 
 // GET /api/payment-plans/[id] - Get payment plan details
 export const GET = createApiHandler(async (request, context) => {
@@ -110,20 +112,28 @@ export const DELETE = createApiHandler(
         return NextResponse.json({ error: "Plan de paiement non trouvé" }, { status: 404 });
       }
 
-      // Check if any installments have been paid
-      const hasPaidInstallments = paymentPlan.installmentPayments.some(
-        inst => inst.status === "PAID"
-      );
-
-      if (hasPaidInstallments) {
-        return NextResponse.json({ error: "Impossible de supprimer un plan avec des paiements effectués" }, { status: 400 });
-      }
-
-      // Update status to CANCELLED instead of deleting
-      await prisma.paymentPlan.update({
-        where: { id: id },
-        data: { status: "CANCELLED" },
+      // Annulation sous le verrou élève/frais, en transaction (lot 3d) :
+      // refusée dès qu'une opération de paiement existe pour ce frais, quel
+      // que soit son statut — un essai en attente, expiré ou annulé peut
+      // encore être confirmé. Aucun paiement n'est modifié.
+      const result = await runFeeMutation(paymentPlan.studentId, paymentPlan.feeId, async (tx) => {
+        const current = await tx.paymentPlan.findUnique({
+          where: { id },
+          select: { id: true, status: true, student: { select: { schoolId: true } }, fee: { select: { schoolId: true } } },
+        });
+        if (!current) return refuse(404, "Plan de paiement non trouvé");
+        // Plan incohérent : conservé tel quel, même son annulation est refusée
+        assertCoherentPaymentPlan(current);
+        if (current.status === "CANCELLED") refuse(400, "Plan de paiement déjà annulé");
+        const operations = await tx.payment.count({
+          where: { studentId: paymentPlan.studentId, feeId: paymentPlan.feeId },
+        });
+        if (operations > 0) {
+          refuse(409, "Impossible d'annuler ce plan : des opérations de paiement existent déjà pour ces frais.");
+        }
+        return tx.paymentPlan.update({ where: { id }, data: { status: "CANCELLED" } });
       });
+      if (!result.ok) return NextResponse.json({ error: result.refusal.error }, { status: result.refusal.status });
 
       // Log audit
       await prisma.auditLog.create({

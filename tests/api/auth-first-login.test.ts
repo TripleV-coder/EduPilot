@@ -39,6 +39,7 @@ vi.mock("@/lib/auth/password", () => ({
 import prisma from "@/lib/prisma";
 import bcrypt from "@/lib/auth/password";
 import { GET, POST } from "@/app/api/auth/first-login/route";
+import { hashActivationToken } from "@/lib/auth/activation-link";
 
 const TOKEN = "first-login-token-abc";
 const USER_ID = cuid("userfirst");
@@ -58,6 +59,8 @@ function tokenRecord(overrides: Record<string, unknown> = {}) {
       lastName: "Dossou",
       role: "PARENT",
       password: "old-hash",
+      isActive: true,
+      mustChangePassword: true,
     },
     ...overrides,
   } as never;
@@ -84,7 +87,7 @@ describe("GET /api/auth/first-login", () => {
 
     const res = await GET(makeRequest(`http://localhost:3000/api/auth/first-login?token=${TOKEN}`));
     expect(res.status).toBe(404);
-    expect((await res.json()).error).toBe("Token invalide");
+    expect((await res.json()).error).toBe("Ce lien d'activation est invalide.");
   });
 
   it("retourne 410 si le token est expiré", async () => {
@@ -117,6 +120,38 @@ describe("GET /api/auth/first-login", () => {
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.user.email).toBe("awa@school.bj");
+    expect(body.requiresTempPassword).toBe(true);
+    // La base ne garde que l'empreinte du jeton.
+    expect(vi.mocked(prisma.firstLoginToken.findUnique)).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { token: hashActivationToken(TOKEN) } })
+    );
+  });
+
+  it("signale qu'un lien émis par la direction n'exige pas de mot de passe provisoire", async () => {
+    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(prisma.firstLoginToken.findUnique).mockResolvedValue(tokenRecord({ tempPassword: null }));
+
+    const res = await GET(makeRequest(`http://localhost:3000/api/auth/first-login?token=${TOKEN}`));
+    expect(res.status).toBe(200);
+    expect((await res.json()).requiresTempPassword).toBe(false);
+  });
+
+  it("refuse un lien encore valide d'un compte déjà activé ou désactivé", async () => {
+    vi.mocked(auth).mockResolvedValue(null);
+    const base = tokenRecord() as unknown as { user: Record<string, unknown> };
+    vi.mocked(prisma.firstLoginToken.findUnique).mockResolvedValueOnce(
+      tokenRecord({ user: { ...base.user, mustChangePassword: false } })
+    );
+    const activated = await GET(makeRequest(`http://localhost:3000/api/auth/first-login?token=${TOKEN}`));
+    expect(activated.status).toBe(410);
+    expect((await activated.json()).error).toContain("déjà activé");
+
+    vi.mocked(prisma.firstLoginToken.findUnique).mockResolvedValueOnce(
+      tokenRecord({ user: { ...base.user, isActive: false } })
+    );
+    const disabled = await GET(makeRequest(`http://localhost:3000/api/auth/first-login?token=${TOKEN}`));
+    expect(disabled.status).toBe(410);
+    expect((await disabled.json()).error).toContain("désactivé");
   });
 
   it("retourne 500 si la lecture échoue", async () => {
@@ -164,6 +199,19 @@ describe("POST /api/auth/first-login", () => {
 
     const res = await post({ token: TOKEN, newPassword: NEW_PASSWORD });
     expect(res.status).toBe(400);
+  });
+
+  it("refuse de remplacer le mot de passe d'un compte déjà activé", async () => {
+    vi.mocked(auth).mockResolvedValue(null);
+    const base = tokenRecord() as unknown as { user: Record<string, unknown> };
+    vi.mocked(prisma.firstLoginToken.findUnique).mockResolvedValue(
+      tokenRecord({ tempPassword: null, user: { ...base.user, mustChangePassword: false } })
+    );
+
+    const res = await post({ token: TOKEN, newPassword: NEW_PASSWORD });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toContain("déjà activé");
+    expect(vi.mocked(prisma.user.update)).not.toHaveBeenCalled();
   });
 
   it("retourne 400 si le mot de passe temporaire est requis mais absent", async () => {

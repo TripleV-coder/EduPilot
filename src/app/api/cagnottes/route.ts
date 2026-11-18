@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { ensureRequestedSchoolAccess, getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { canReviewCagnotte, summarizeContributions } from "@/lib/cagnotte/contributions";
 
 export const GET = createApiHandler(
     async (request, context) => {
@@ -44,6 +45,7 @@ export const GET = createApiHandler(
                         id: true,
                         parentUserId: true,
                         amountFcfa: true,
+                        status: true,
                         paidAt: true,
                         parent: {
                             select: { firstName: true, lastName: true },
@@ -58,22 +60,19 @@ export const GET = createApiHandler(
         const viewerId = session.user.id;
 
         const payload = cagnottes.map((c) => {
-            const raisedFcfa = c.contributions.reduce<bigint>(
-                (sum, x) => sum + x.amountFcfa,
-                BigInt(0),
-            );
-            const participantIds = new Set(c.contributions.map((x) => x.parentUserId));
-            const myContribution = c.contributions
-                .filter((x) => x.parentUserId === viewerId)
-                .reduce<bigint>((sum, x) => sum + x.amountFcfa, BigInt(0));
-            const lastContrib = c.contributions[0];
+            // TD-019 : seul le confirmé compte (total, participants, dernières familles).
+            const summary = summarizeContributions(c.contributions, viewerId);
+            const raisedFcfa = summary.raisedFcfa;
+            const confirmed = c.contributions.filter((x) => x.status === "CONFIRMED");
+            const myContribution = summary.myConfirmedFcfa;
+            const lastContrib = confirmed[0];
 
             const daysLeft = Math.max(
                 0,
                 Math.ceil((c.deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
             );
 
-            const recentInitials = c.contributions.slice(0, 6).map((x) => {
+            const recentInitials = confirmed.slice(0, 6).map((x) => {
                 const f = (x.parent?.firstName ?? "?").slice(0, 1).toUpperCase();
                 const l = (x.parent?.lastName ?? "?").slice(0, 1).toUpperCase();
                 return `${f}${l}`;
@@ -96,7 +95,9 @@ export const GET = createApiHandler(
                 hostLabel,
                 targetFcfa: c.targetFcfa.toString(),
                 raisedFcfa: raisedFcfa.toString(),
-                participantCount: participantIds.size,
+                participantCount: summary.participantCount,
+                myPendingFcfa: summary.myPendingFcfa.toString(),
+                pendingCount: canReviewCagnotte(session.user.role) ? summary.pendingCount : 0,
                 expectedParticipants: c.expectedParticipants,
                 deadline: c.deadline.toISOString(),
                 daysLeft,
@@ -120,7 +121,7 @@ export const GET = createApiHandler(
             },
         );
     },
-    { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "PARENT"] }
+    { allowedRoles: ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT", "TEACHER", "PARENT"] }
 );
 
 // ─── POST /api/cagnottes — création d'une cagnotte ────────────────────────

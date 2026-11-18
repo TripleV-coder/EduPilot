@@ -17,6 +17,7 @@ import {
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { auth } from "@/lib/auth";
 import { invalidateUserStatusCache } from "@/lib/auth/config";
+import { hashActivationToken } from "@/lib/auth/activation-link";
 
 /**
  * M1 — compte créé par un tiers, connecté avec son mot de passe provisoire :
@@ -86,28 +87,31 @@ export const GET = createApiHandler(
         return NextResponse.json({ error: 'Token manquant' }, { status: 400 });
       }
 
-      // Trouver le token
+      // La base ne garde que l'empreinte du jeton (lib/auth/activation-link).
       const tokenRecord = await prisma.firstLoginToken.findUnique({
-        where: { token },
+        where: { token: hashActivationToken(token) },
         include: {
           user: {
             select: {
-              id: true,
               email: true,
               firstName: true,
               lastName: true,
-              role: true,
+              isActive: true,
+              mustChangePassword: true,
             },
           },
         },
       });
 
       if (!tokenRecord) {
-        return NextResponse.json({ error: 'Token invalide' }, { status: 404 });
+        return NextResponse.json({ error: "Ce lien d'activation est invalide." }, { status: 404 });
       }
 
       if (tokenRecord.expiresAt < new Date()) {
-        return NextResponse.json({ error: 'Token expiré' }, { status: 410 });
+        return NextResponse.json(
+          { error: "Ce lien a expiré : demandez-en un nouveau à votre établissement." },
+          { status: 410 }
+        );
       }
 
       if (tokenRecord.usedAt) {
@@ -117,10 +121,18 @@ export const GET = createApiHandler(
         );
       }
 
+      const unusable = unusableAccountError(tokenRecord.user);
+      if (unusable) return NextResponse.json({ error: unusable }, { status: 410 });
+
       return NextResponse.json({
         success: true,
-        user: tokenRecord.user,
-        // Ne pas retourner le tempPassword hashé (inutile côté client)
+        user: {
+          email: tokenRecord.user.email,
+          firstName: tokenRecord.user.firstName,
+          lastName: tokenRecord.user.lastName,
+        },
+        // Lien émis par la direction : aucun mot de passe provisoire à saisir.
+        requiresTempPassword: tokenRecord.tempPassword !== null,
       });
     } catch (error) {
       logger.error('[Validate Token Error]', error);
@@ -181,10 +193,23 @@ export const POST = createApiHandler(
 async function activationToken(req: Request): Promise<string | null> {
   try {
     const { token } = (await req.clone().json()) as { token?: unknown };
-    return typeof token === 'string' && token ? `token:${token}` : null;
+    return typeof token === 'string' && token ? `token:${hashActivationToken(token)}` : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Un lien ne sert qu'à ACTIVER un compte : une fois le mot de passe définitif
+ * choisi (par ce lien ou depuis la session, M1), un ancien lien encore valide
+ * ne doit plus permettre de le remplacer.
+ */
+function unusableAccountError(user: { isActive: boolean; mustChangePassword: boolean }): string | null {
+  if (!user.isActive) return "Ce compte a été désactivé. Contactez votre établissement.";
+  if (!user.mustChangePassword) {
+    return "Ce compte est déjà activé. Connectez-vous, ou utilisez « Mot de passe oublié ».";
+  }
+  return null;
 }
 
 async function changeFirstLoginPassword(req: Request): Promise<NextResponse> {
@@ -209,15 +234,15 @@ async function changeFirstLoginPassword(req: Request): Promise<NextResponse> {
         return changeProvisionalPasswordFromSession(validated.currentPassword, validated.newPassword);
       }
 
-      // 1. Trouver le token
+      // 1. Trouver le token (par son empreinte)
       const tokenRecord = await prisma.firstLoginToken.findUnique({
-        where: { token: validated.token },
+        where: { token: hashActivationToken(validated.token) },
         include: { user: true },
       });
 
       if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
         return NextResponse.json(
-          { error: 'Token invalide ou expiré' },
+          { error: "Lien d'activation invalide ou expiré : demandez-en un nouveau à votre établissement." },
           { status: 400 }
         );
       }
@@ -228,6 +253,9 @@ async function changeFirstLoginPassword(req: Request): Promise<NextResponse> {
           { status: 400 }
         );
       }
+
+      const unusable = unusableAccountError(tokenRecord.user);
+      if (unusable) return NextResponse.json({ error: unusable }, { status: 400 });
 
       // 2. Vérifier le mot de passe temporaire si le token en possède un
       // (Un token sans tempPassword est considéré comme un vrai Magic Link généré par l'admin via email)

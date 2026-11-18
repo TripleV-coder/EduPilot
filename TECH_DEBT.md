@@ -52,16 +52,21 @@ d'échecs de connexion).
 | TD-012 | Deux familles de primitives d'interface (`ui/` shadcn et `edu/` maison) | 15j | 3 | 1 | 0,2 | 🟡 Ouvert — **assumé**, à traiter par la refonte |
 | TD-013 | Deux jeux de jetons de style décrivant la même charte | 4j | 2 | 1 | 0,5 | 🟡 Ouvert — **assumé**, à traiter par la refonte |
 | TD-014 | 92 routes d'API sans aucun test unitaire | 8j | 3 | 3 | 1,1 | 🟡 Ouvert |
-| TD-015 | Accueil publique : 913 Ko de JS, animations au défilement (framer-motion) | 2j | 2 | 1 | 1,0 | 🟡 Ouvert |
-| TD-016 | Deux systèmes de notification (sonner + Radix toast) | 2j | 1 | 1 | 0,5 | 🟡 Ouvert — **assumé**, design gelé |
+| TD-015 | Accueil publique : 913 Ko de JS, animations au défilement (framer-motion) | 2j | 2 | 1 | 1,0 | ✅ **Corrigé 2026-11-06** (lot G : framer-motion retiré du projet, entrées CSS, une seule requête de chiffres) |
+| TD-016 | Deux systèmes de notification (sonner + Radix toast) | 2j | 1 | 1 | 0,5 | ✅ **Corrigé 2026-11-06** (lot G : sonner seul, `useToast` adaptateur) |
 | TD-017 | « Facturation en masse » sans modèle de données : la page envoie `{classLevelId, feeId, academicYearId}`, l'API attend `{paymentIds}` → toujours 400 | 3j | 3 | 2 | 2,0 | ✅ Corrigé 2026-09-19 (avis de paiement) |
 | TD-018 | Clôture d'année scolaire non implémentée (statut `CLOSED` jamais écrit, aucune API) | 3j | 3 | 2 | 2,0 | ✅ Corrigé 2026-09-19 |
-| TD-019 | Contributions aux cagnottes déclaratives : un parent enregistre une contribution « payée » sans aucune vérification | 2j | 3 | 3 | 1,5 | 🔴 Ouvert — **décision produit** |
-| TD-020 | Analyse IA d'un élève : un enseignant est limité à son école, pas à ses classes (les analyses de classe, elles, le sont) | 0,5j | 3 | 2 | 2,0 | 🔴 Ouvert — **décision produit** |
-| TD-021 | Attestation de bonne conduite émise sans consulter les incidents ; signatures « autorisation parentale » et « contrat » sans modèle ni écran | 1j | 2 | 2 | 1,0 | 🟡 Ouvert — **décision produit** |
-| TD-022 | Rôle STAFF : les API élèves, annonces et IA le refusent ; son menu est réduit à accueil, vie scolaire, paramètres | 2j | 2 | 2 | 1,0 | 🟡 Ouvert — **décision produit** |
-| TD-023 | Durée d'examen non contrôlée côté serveur sur le parcours de la page (session créée à la soumission, pas au démarrage) | 1j | 3 | 2 | 1,5 | 🟡 Ouvert |
-| TD-024 | Pages qui lancent leurs requêtes avant leur PageGuard (403 inutiles quand le rôle est refusé) ; motif « sous-identifiant qui remplace la contrainte » à relire route par route (corrigé dans le cahier de notes) | 3j | 2 | 2 | 0,7 | 🟡 Ouvert |
+| TD-019 | Contributions aux cagnottes déclaratives : un parent enregistre une contribution « payée » sans aucune vérification | 2j | 3 | 3 | 1,5 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-020 | Analyse IA d'un élève : un enseignant est limité à son école, pas à ses classes (les analyses de classe, elles, le sont) | 0,5j | 3 | 2 | 2,0 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-021 | Attestation de bonne conduite émise sans consulter les incidents ; signatures « autorisation parentale » et « contrat » sans modèle ni écran | 1j | 2 | 2 | 1,0 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-022 | Rôle STAFF : les API élèves, annonces et IA le refusent ; son menu est réduit à accueil, vie scolaire, paramètres | 2j | 2 | 2 | 1,0 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-023 | Durée d'examen non contrôlée côté serveur sur le parcours de la page (session créée à la soumission, pas au démarrage) | 1j | 3 | 2 | 1,5 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-024 | Pages qui lancent leurs requêtes avant leur PageGuard (403 inutiles quand le rôle est refusé) ; motif « sous-identifiant qui remplace la contrainte » à relire route par route (corrigé dans le cahier de notes) | 3j | 2 | 2 | 0,7 | ✅ **Corrigé** (vérifié dans le code le 2026-11-06) |
+| TD-026 | Routes d'API sans écran : création de modules de cours (`/api/modules*`), import d'emplois du temps / aperçu / modèles d'import (`/api/import/{schedules,preview,templates}`), sous-routes médicales `/api/medical-records/[id]/*` | 3j | 2 | 2 | 1,3 | 🟡 Ouvert — à brancher sur un écran ou retirer |
+| TD-027 | WhatsApp : « envoyé » = accepté par Meta ; ni remise ni lecture suivies (webhook de statuts non codé, `WHATSAPP_VERIFY_TOKEN` retiré de .env.example) | 1j | 2 | 1 | 2,0 | ✅ Résolu le 2026-11-14 : statuts reçus par `/api/whatsapp/webhook` (signés Meta), suivis dans `communication_logs`, SMS de secours sur échec |
+| TD-028 | Tables `benchmark_snapshots` / `benchmark_snapshot_indicators` conservées sans usage (module retiré le 2026-11-06) | 0,5j | 1 | 1 | 2,0 | 🟡 Ouvert — supprimer après confirmation qu'aucune donnée n'est à garder |
+| TD-029 | Push web : réglage par appareil seulement (tout ou rien), pas de choix par type de notification | 1j | 2 | 1 | 2,0 | 🟡 Ouvert |
+| TD-030 | Icônes d'installation en SVG seulement (`manifest.json`, `apple-touch-icon.svg`) : iOS exige un PNG pour l'icône d'écran d'accueil — or le push sur iPhone passe par l'application installée | 0,5j | 3 | 2 | 6,0 | ✅ **Corrigé 2026-11-06** (PNG 192/512/maskable + apple-touch-icon.png, tirés du logo) |
 
 ---
 
@@ -182,7 +187,7 @@ route non testée hérite quand même des garanties.
 
 ---
 
-## TD-015 — Accueil publique lente sur mobile *(ouvert)*
+## TD-015 — Accueil publique lente sur mobile *(corrigé 2026-11-06)*
 
 Mesure du 2026-09-18, machine au repos, build de production, Lighthouse 12
 mobile (4G lente + CPU ÷4) : **perf 0,61**, LCP 5,4 s, TBT 686 ms, 531 Ko
@@ -204,7 +209,7 @@ initial).
 
 ---
 
-## TD-016 — Deux systèmes de notification *(ouvert, assumé)*
+## TD-016 — Deux systèmes de notification *(corrigé 2026-11-06)*
 
 `sonner` (26 fichiers) et le toast Radix via `useToast` (35 fichiers)
 coexistent, tous deux montés dans la mise en page racine. Les unifier changerait
@@ -248,6 +253,52 @@ Relevés au nettoyage du 2026-09-18 (déclarations jamais lues).
   (`ACADEMIC_YEAR_CLOSED`) toute écriture d'évaluation, de note et de présence
   (garde `src/lib/academic/year-lock.ts`, branchée sur les 5 routes d'écriture).
   Boutons Clôturer / Rouvrir sur la page Années académiques.
+
+
+## TD-025 — Paiements en ligne sans issue définitive : aucune libération manuelle *(résolu pour l'essentiel le 2026-10-25 ; deux réserves ci-dessous)*
+
+**Décision (2026-10-25) : rapprochement manuel prouvé, par l'école.** Le
+comptable ou l'administration de l'école (pas le super-admin) déclenche
+`POST /api/payments/<id>/verify-provider` depuis *Finance › Rapprochement*
+(« Interroger le fournisseur »), avec un motif obligatoire. Le fournisseur est
+interrogé sur le compte marchand de l'école du paiement
+(`verifyPendingPayment`, mêmes règles que la réconciliation quotidienne) :
+validé seulement si montant, devise, fournisseur et transaction correspondent ;
+annulé seulement sur échec définitif ; sinon rien ne change et le montant reste
+réservé. Note datée sur le paiement et entrée `PAYMENT_PROVIDER_VERIFY` au
+journal d'audit à chaque essai. **Aucun bouton de libération sans preuve.**
+Tests : `tests/integration-db/school-payment-accounts.test.ts` (bloc TD-025).
+
+Réserves restantes :
+- **Essai sans identifiant fournisseur** : rien n'est interrogeable ; le montant
+  reste réservé (choix assumé : une absence d'information ne vaut jamais
+  échec). Résolution par le support du fournisseur, hors application.
+- **Codes d'erreur du fournisseur** garantissant qu'aucune transaction n'a été
+  créée : à confirmer pendant la recette FedaPay sandbox (bloquée faute
+  d'identifiants).
+
+Historique de la dette :
+
+Lot 3b (audit paiements du 2026-10-17). Un paiement en ligne dont le résultat
+reste inconnu (fournisseur injoignable, réponse d'erreur à la création, essai
+sans identifiant fournisseur) reste PENDING et garde son montant réservé : une
+absence d'information ne vaut jamais échec, pour éviter un double encaissement.
+Une alerte unique part au service financier après 48 h.
+
+Il n'existe **aucun moyen pour un responsable de libérer une réservation** :
+une famille peut rester bloquée sur ce montant (au guichet comme en ligne)
+tant que le fournisseur ne donne pas de réponse définitive — par exemple après
+un numéro de téléphone mal saisi refusé par MoMo.
+
+À concevoir avant la production, sur décision métier :
+- qui peut libérer (rôle), après quelle vérification (relevé du fournisseur) ;
+- trace obligatoire (auteur, motif, date) et avertissement explicite sur le
+  risque d'une confirmation tardive, qui resterait comptabilisée
+  (`confirmOnlinePayment`, règle 5) ;
+- confirmation, auprès de chaque fournisseur réel, des codes d'erreur qui
+  garantissent qu'aucune transaction n'a été créée (aujourd'hui toute réponse
+  HTTP d'erreur à la création est traitée comme un résultat inconnu,
+  `src/lib/finance/providers/init-error.ts`).
 
 ---
 

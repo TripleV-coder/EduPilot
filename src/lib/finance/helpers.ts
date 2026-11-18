@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { logger } from "@/lib/utils/logger";
 
 export type FinanceDateRange = {
   startDate?: Date;
@@ -266,6 +267,83 @@ export async function resolvePreviousFinanceDateRange(
   };
 }
 
+/**
+ * Ajoute une ligne aux notes d'un paiement sans effacer les précédentes :
+ * elles portent la trace des trop-perçus et des écarts « à rapprocher ».
+ */
+export function appendNote(current: string | null, line: string): string {
+  return current ? `${current}\n${line}` : line;
+}
+
+/**
+ * Plan en vigueur pour un élève et un frais : le plus récent non annulé, l'id
+ * départageant deux créations simultanées. MÊME règle partout (recalcul,
+ * solde, paiement d'une échéance) : avec un doublon historique, toutes les
+ * fonctions travaillent sur le même plan (lot 3d).
+ */
+/**
+ * Paiement confié à un fournisseur en ligne : montant, référence et moyen sont
+ * ceux de l'essai transmis (la référence est la clé de son webhook, le montant
+ * celui qu'il confirmera). Les modifier à la main le rendait introuvable ou
+ * toujours « à rapprocher ». Renvoie le message de refus, ou null.
+ */
+export function providerBoundEditRefusal(
+    payment: { provider: string | null },
+    changes: { amount?: unknown; reference?: unknown; method?: unknown },
+): string | null {
+    if (!payment.provider) return null;
+    if (changes.amount === undefined && changes.reference === undefined && changes.method === undefined) return null;
+    return "Paiement en ligne : son montant, sa référence et son moyen sont fixés par le fournisseur et ne peuvent pas être modifiés.";
+}
+
+export const CURRENT_PLAN_ORDER = [{ createdAt: "desc" }, { id: "desc" }] satisfies Prisma.PaymentPlanOrderByWithRelationInput[];
+
+/**
+ * Plan dont l'élève et le frais relèvent d'établissements différents
+ * (souveraineté des écoles, lot 3d). Un tel plan, forcément historique, est
+ * conservé tel quel : aucune écriture financière n'est faite dessus tant qu'il
+ * n'a pas été examiné — l'opération qui en dépend échoue en bloc. Doublé en
+ * base par le trigger payment_plans_unique_guard.
+ */
+export class IncoherentPaymentPlanError extends Error {
+  constructor(readonly planId: string) {
+    super(`Plan de paiement ${planId} incohérent : élève et frais d'établissements différents.`);
+    this.name = "IncoherentPaymentPlanError";
+  }
+}
+
+export const INCOHERENT_PLAN_MESSAGE =
+  "Opération bloquée : le plan de paiement associe un élève et des frais d'établissements différents. Il doit être examiné avant toute opération financière.";
+
+/** Refuse (et journalise) toute écriture financière sur un plan incohérent. */
+export function assertCoherentPaymentPlan(plan: {
+  id: string;
+  student: { schoolId: string };
+  fee: { schoolId: string };
+}): void {
+  if (plan.student.schoolId === plan.fee.schoolId) return;
+  logger.error("Plan de paiement incohérent : écriture financière refusée", new IncoherentPaymentPlanError(plan.id), {
+    module: "finance/payment-plans",
+    planId: plan.id,
+    studentSchoolId: plan.student.schoolId,
+    feeSchoolId: plan.fee.schoolId,
+  });
+  throw new IncoherentPaymentPlanError(plan.id);
+}
+
+/**
+ * Plans incohérents (élève et frais d'écoles différentes), à tenir à l'écart
+ * des traitements de masse (relances) pour qu'ils n'y échouent pas.
+ */
+export async function incoherentPaymentPlanIds(db: Pick<Prisma.TransactionClient, "$queryRaw"> = prisma): Promise<string[]> {
+  const rows = await db.$queryRaw<Array<{ id: string }>>`
+    SELECT pp."id" FROM "payment_plans" pp
+    JOIN "student_profiles" sp ON sp."id" = pp."studentId"
+    JOIN "fees" f ON f."id" = pp."feeId"
+    WHERE sp."schoolId" <> f."schoolId"`;
+  return rows.map((row) => row.id);
+}
+
 export async function syncPaymentPlanLedger(
   db: PaymentPlanClient,
   studentId: string,
@@ -277,10 +355,13 @@ export async function syncPaymentPlanLedger(
       feeId,
       status: { not: "CANCELLED" },
     },
+    orderBy: CURRENT_PLAN_ORDER,
     include: {
+      student: { select: { schoolId: true } },
       fee: {
         select: {
           dueDate: true,
+          schoolId: true,
         },
       },
       installmentPayments: {
@@ -292,6 +373,9 @@ export async function syncPaymentPlanLedger(
   if (!paymentPlan) {
     return null;
   }
+  // Plan en vigueur incohérent : refus AVANT toute écriture, jamais de repli
+  // silencieux sur un autre plan
+  assertCoherentPaymentPlan(paymentPlan);
 
   const payments = await db.payment.findMany({
     where: {
@@ -301,16 +385,39 @@ export async function syncPaymentPlanLedger(
     },
     orderBy: [{ paidAt: "asc" }, { createdAt: "asc" }],
     select: {
+      id: true,
       amount: true,
       paidAt: true,
       createdAt: true,
+      refundOfId: true,
     },
   });
 
-  const paymentQueue = payments.map((payment) => ({
-    remaining: Number(payment.amount),
-    paidAt: getEffectivePaymentDate(payment),
-  }));
+  // Remboursements (extournes, montants négatifs) : déduits du paiement qu'ils
+  // annulent, puis des paiements les plus récents si celui-ci n'est plus
+  // encaissé. Sans cela, la file ci-dessous les ignorait et une échéance
+  // remboursée restait « payée ».
+  const paymentQueue = payments
+    .filter((payment) => Number(payment.amount) > 0)
+    .map((payment) => ({
+      id: payment.id,
+      remaining: Number(payment.amount),
+      paidAt: getEffectivePaymentDate(payment),
+    }));
+  for (const refund of payments.filter((payment) => Number(payment.amount) < 0)) {
+    let toDeduct = -Number(refund.amount);
+    const target = paymentQueue.find((entry) => entry.id === refund.refundOfId);
+    if (target) {
+      const taken = Math.min(target.remaining, toDeduct);
+      target.remaining -= taken;
+      toDeduct -= taken;
+    }
+    for (let i = paymentQueue.length - 1; i >= 0 && toDeduct > 0; i--) {
+      const taken = Math.min(paymentQueue[i].remaining, toDeduct);
+      paymentQueue[i].remaining -= taken;
+      toDeduct -= taken;
+    }
+  }
 
   const tolerance = 0.0001;
   let paymentIndex = 0;

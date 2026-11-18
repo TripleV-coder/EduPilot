@@ -44,6 +44,15 @@ async function errorMessage(res: Response, fallback: string): Promise<string> {
 }
 
 export default function ClassSubjectsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <ClassSubjectsPageContent />
+        </PageGuard>
+    );
+}
+
+function ClassSubjectsPageContent() {
     // N25 : la route renvoie { data, pagination }, pas un tableau (section vide, ni
     // liste ni état vide). `undefined` tant que la réponse n'est pas arrivée.
     const { data: classesPayload, isLoading: classesLoading } = useSWR<unknown>("/api/classes", fetcher);
@@ -133,7 +142,7 @@ export default function ClassSubjectsPage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Matières par classe"
@@ -306,6 +315,6 @@ export default function ClassSubjectsPage() {
                 </>
                 )}
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

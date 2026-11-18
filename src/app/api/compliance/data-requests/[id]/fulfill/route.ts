@@ -5,7 +5,7 @@ import { logger } from "@/lib/utils/logger";
 import { anonymizeUser, exportUserData } from "@/lib/security/rgpd";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { roleSatisfies } from "@/lib/rbac/permissions";
-import { createApiHandler } from "@/lib/api/api-helpers";
+import { createApiHandler, clientInputError } from "@/lib/api/api-helpers";
 
 /**
  * POST /api/compliance/data-requests/[id]/fulfill — traitement d'une demande.
@@ -125,6 +125,9 @@ export const POST = createApiHandler(async (request, context) => {
 
         return NextResponse.json({ error: "Type de demande non supporté" }, { status: 400 });
     } catch (error) {
+        // Entrée invalide du client (mauvais type, format) : 400, pas une panne
+        const badInput = clientInputError(error);
+        if (badInput) return badInput;
         logger.error("Traitement d'une demande RGPD impossible", error as Error, { module: "compliance/fulfill" });
         return NextResponse.json({ error: "Erreur lors du traitement de la demande" }, { status: 500 });
     }

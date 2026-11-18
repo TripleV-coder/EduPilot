@@ -5,6 +5,8 @@ import prisma from "@/lib/prisma";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Montant facturé : sémantique testée sur une vraie base (integration-db/parent-payment-journey)
+vi.mock("@/lib/finance/online-payments", () => ({ getFeeBalance: vi.fn(async () => null) }));
 vi.mock("@/lib/prisma", () => ({
   default: {
     payment: { findUnique: vi.fn() },
@@ -17,6 +19,9 @@ function makePayment(overrides: Record<string, unknown> = {}) {
   return {
     id: "pay1",
     amount: 50000,
+    status: "VERIFIED",
+    deletedAt: null,
+    feeId: "fee1",
     method: "MOBILE_MONEY_MTN",
     paidAt: new Date("2026-01-15"),
     reference: "REF-001",
@@ -115,5 +120,34 @@ describe("GET /api/payments/[id]/invoice", () => {
     expect(body.success).toBe(true);
     expect(body.pdf).toContain("data:application/pdf");
     expect(body.filename).toContain("facture_pay1");
+  });
+
+  it.each(["PENDING", "CANCELLED", "EXPIRED"])("paiement %s : aucun reçu (409)", async (status) => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue(makePayment({ status }));
+    const res = await GET(makeRequest("http://localhost/api/payments/pay1/invoice"), { params: Promise.resolve({ id: "pay1" }) });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: "RECEIPT_NOT_AVAILABLE" });
+  });
+
+  it("paiement supprimé : aucun reçu (409)", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue(makePayment({ deletedAt: new Date() }));
+    const res = await GET(makeRequest("http://localhost/api/payments/pay1/invoice"), { params: Promise.resolve({ id: "pay1" }) });
+    expect(res.status).toBe(409);
+  });
+
+  it("les notes internes figurent pour le comptable, jamais pour la famille", async () => {
+    const pdfText = async () => {
+      const res = await GET(makeRequest("http://localhost/api/payments/pay1/invoice"), { params: Promise.resolve({ id: "pay1" }) });
+      const { pdf } = await res.json();
+      return Buffer.from(String(pdf).split(",")[1], "base64").toString("latin1");
+    };
+    vi.mocked(prisma.payment.findUnique).mockResolvedValue(makePayment({ notes: "NOTE-INTERNE-XYZ" }));
+    vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
+    expect(await pdfText()).toContain("NOTE-INTERNE-XYZ");
+    vi.mocked(auth).mockResolvedValue(makeSession("PARENT", { id: "u_parent" }));
+    vi.mocked(prisma.parentProfile.findUnique).mockResolvedValue({ parentStudents: [{ studentId: FIXTURES.studentA }] } as never);
+    expect(await pdfText()).not.toContain("NOTE-INTERNE-XYZ");
   });
 });

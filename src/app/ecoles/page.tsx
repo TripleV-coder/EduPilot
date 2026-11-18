@@ -144,7 +144,7 @@ function DirectoryInner() {
                                             {s.motto}
                                         </p>
                                     ) : null}
-                                    <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--eduflow-text-tertiary)" }}>
+                                    <div style={{ marginTop: 10, fontSize: 12, color: "var(--eduflow-text-tertiary)" }}>
                                         {[s.city, s.region].filter(Boolean).join(" · ")}
                                         {s.type ? ` · ${schoolTypeLabel(s.type)}` : ""}
                                     </div>

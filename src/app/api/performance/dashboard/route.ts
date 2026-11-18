@@ -64,8 +64,8 @@ export const GET = createApiHandler(
 
       // Get cache statistics
       const cacheStats = {
-        redis: {
-          connected: false,
+        memory: {
+          entries: 0,
           hitRate: 0,
           missRate: 0,
         },
@@ -75,21 +75,14 @@ export const GET = createApiHandler(
         },
       };
 
-      // Try to get Redis cache stats if available
-      try {
-        const { getRedisClient } = await import("@/lib/cache/redis");
-        const client = getRedisClient();
-        if (client) {
-          try {
-            const pong = await client.ping();
-            cacheStats.redis.connected = Boolean(pong);
-          } catch {
-            // Ping failed
-          }
-        }
-      } catch {
-        // Redis not available
-      }
+      // Cache mémoire du processus : chiffres mesurés depuis le démarrage
+      const { getCacheStats } = await import("@/lib/cache/service");
+      const measured = getCacheStats();
+      cacheStats.memory = {
+        entries: measured.entries,
+        hitRate: measured.hitRate,
+        missRate: measured.hits + measured.misses === 0 ? 0 : Math.round((1000 * measured.misses) / (measured.hits + measured.misses)) / 10,
+      };
 
       const metrics: PerformanceMetrics = {
         webVitals,

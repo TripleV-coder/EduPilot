@@ -1,135 +1,131 @@
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { taughtClassIds } from "@/lib/teachers/taught-classes";
 
+/**
+ * Qui peut écrire à qui (nouveau message ; une réponse suit le fil).
+ *
+ * Le périmètre est UN filtre de base (`recipientScope`), utilisé à la fois
+ * pour la recherche de destinataires et pour l'autorisation d'envoi : les
+ * deux ne peuvent pas diverger. Avant (2026-11-08), l'autorisation relisait la
+ * liste affichée, plafonnée à 200 noms : dans une école de 2 600 comptes, la
+ * direction ne pouvait écrire qu'aux noms de « A » à « Ah… » (envoi refusé,
+ * 403, à un parent nommé Zinsou).
+ *
+ *  - direction (et administrateurs) : tous les comptes actifs de l'école ;
+ *  - enseignant : élèves et parents de ses classes (écoles où il est
+ *    rattaché, école active seulement — audit MS-01, F3), et la direction ;
+ *  - parent / élève : enseignants des classes des enfants (ou des siennes),
+ *    et la direction ;
+ *  - autres rôles (personnel, comptable…) : direction et enseignants.
+ * Comptes désactivés exclus (l'envoi leur serait refusé de toute façon).
+ */
 export type MessageRecipient = {
   id: string;
   firstName: string;
   lastName: string;
+  /** Distingue les homonymes dans le choix du destinataire. */
+  email: string;
   role: string;
 };
 
-const USER_SELECT = { id: true, firstName: true, lastName: true, role: true } as const;
+const USER_SELECT = { id: true, firstName: true, lastName: true, email: true, role: true } as const;
+const DIRECTION_ROLES = new Set(["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "NETWORK_ADMIN"]);
 
-function dedupe(rows: MessageRecipient[], selfId: string): MessageRecipient[] {
-  const map = new Map<string, MessageRecipient>();
-  for (const row of rows) {
-    if (row.id && row.id !== selfId) map.set(row.id, row);
-  }
-  return [...map.values()].sort((a, b) => a.lastName.localeCompare(b.lastName, "fr"));
-}
+/** Résultats renvoyés par défaut / au plus par une recherche. */
+export const RECIPIENTS_PAGE = 50;
+export const RECIPIENTS_MAX = 100;
 
-async function schoolDirection(schoolId: string): Promise<MessageRecipient[]> {
-  return prisma.user.findMany({
-    where: { schoolId, isActive: true, role: { in: ["DIRECTOR", "SCHOOL_ADMIN"] } },
-    select: USER_SELECT,
-    take: 30,
-  });
-}
+const directionOf = (schoolId: string): Prisma.UserWhereInput => ({
+  schoolId,
+  role: { in: ["DIRECTOR", "SCHOOL_ADMIN"] },
+});
 
-async function teachersOfClasses(classIds: string[]): Promise<MessageRecipient[]> {
-  if (classIds.length === 0) return [];
-  const assignments = await prisma.classSubject.findMany({
-    where: { classId: { in: classIds }, teacherId: { not: null } },
-    select: { teacher: { select: { user: { select: USER_SELECT } } } },
-  });
-  return assignments.flatMap((row) => (row.teacher?.user ? [row.teacher.user] : []));
-}
+const teachersOf = (classIds: string[]): Prisma.UserWhereInput => ({
+  teacherProfile: { classSubjects: { some: { classId: { in: classIds } } } },
+});
 
-/** Personnes à qui ce compte peut écrire un nouveau message. */
-export async function listMessageRecipients(
+/** Filtre des destinataires permis ; `null` : personne (pas d'école active). */
+export async function recipientScope(
   userId: string,
   role: string,
   schoolId: string | null | undefined,
-): Promise<MessageRecipient[]> {
-  if (!schoolId) return [];
+): Promise<Prisma.UserWhereInput | null> {
+  if (!schoolId) return null;
+  const base: Prisma.UserWhereInput = { isActive: true, id: { not: userId } };
 
-  if (role === "SUPER_ADMIN" || role === "SCHOOL_ADMIN" || role === "DIRECTOR" || role === "NETWORK_ADMIN") {
-    return prisma.user.findMany({
-      where: { schoolId, isActive: true, id: { not: userId } },
-      select: USER_SELECT,
-      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-      take: 200,
-    });
-  }
+  if (DIRECTION_ROLES.has(role)) return { ...base, schoolId };
 
-  if (role === "PARENT") {
-    const parent = await prisma.parentProfile.findUnique({
-      where: { userId },
-      select: {
-        parentStudents: {
-          select: {
-            student: {
-              select: {
-                enrollments: {
-                  where: { status: "ACTIVE" },
-                  select: { classId: true },
-                },
-              },
-            },
-          },
-        },
+  if (role === "PARENT" || role === "STUDENT") {
+    const enrollments = await prisma.enrollment.findMany({
+      where: {
+        status: "ACTIVE",
+        student: role === "PARENT" ? { parentStudents: { some: { parent: { userId } } } } : { userId },
       },
+      select: { classId: true },
     });
-    const classIds = [
-      ...new Set(parent?.parentStudents.flatMap((link) => link.student.enrollments.map((e) => e.classId)) ?? []),
-    ];
-    const [teachers, direction] = await Promise.all([teachersOfClasses(classIds), schoolDirection(schoolId)]);
-    return dedupe([...teachers, ...direction], userId);
-  }
-
-  if (role === "STUDENT") {
-    const student = await prisma.studentProfile.findUnique({
-      where: { userId },
-      select: { enrollments: { where: { status: "ACTIVE" }, select: { classId: true } } },
-    });
-    const classIds = student?.enrollments.map((e) => e.classId) ?? [];
-    const [teachers, direction] = await Promise.all([teachersOfClasses(classIds), schoolDirection(schoolId)]);
-    return dedupe([...teachers, ...direction], userId);
+    const classIds = [...new Set(enrollments.map((e) => e.classId))];
+    return { ...base, OR: [teachersOf(classIds), directionOf(schoolId)] };
   }
 
   if (role === "TEACHER") {
     const classIds = await taughtClassIds(userId);
-    const enrollments = classIds.length
-      ? await prisma.enrollment.findMany({
-          where: { classId: { in: classIds }, status: "ACTIVE" },
-          select: {
-            student: {
-              select: {
-                user: { select: USER_SELECT },
-                parentStudents: { select: { parent: { select: { user: { select: USER_SELECT } } } } },
-              },
-            },
-          },
-        })
-      : [];
-    const people: MessageRecipient[] = [];
-    for (const enrollment of enrollments) {
-      people.push(enrollment.student.user);
-      for (const link of enrollment.student.parentStudents) {
-        if (link.parent.user) people.push(link.parent.user);
-      }
-    }
-    const direction = await schoolDirection(schoolId);
-    return dedupe([...people, ...direction], userId);
+    const inMyClasses: Prisma.EnrollmentWhereInput = { classId: { in: classIds }, status: "ACTIVE", class: { schoolId } };
+    return {
+      ...base,
+      OR: [
+        { studentProfile: { enrollments: { some: inMyClasses } } },
+        { parentProfile: { parentStudents: { some: { student: { enrollments: { some: inMyClasses } } } } } },
+        directionOf(schoolId),
+      ],
+    };
   }
 
-  const [direction, teachers] = await Promise.all([
-    schoolDirection(schoolId),
-    prisma.user.findMany({
-      where: { schoolId, isActive: true, role: "TEACHER", id: { not: userId } },
-      select: USER_SELECT,
-      take: 100,
-    }),
-  ]);
-  return dedupe([...direction, ...teachers], userId);
+  return { ...base, schoolId, role: { in: ["DIRECTOR", "SCHOOL_ADMIN", "TEACHER"] } };
 }
 
+/** Recherche sur prénom, nom ou e-mail : chaque mot doit correspondre. */
+function searchFilter(query: string | undefined): Prisma.UserWhereInput | undefined {
+  const terms = (query ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 5);
+  if (terms.length === 0) return undefined;
+  return {
+    AND: terms.map((term) => ({
+      OR: [
+        { firstName: { contains: term, mode: "insensitive" as const } },
+        { lastName: { contains: term, mode: "insensitive" as const } },
+        { email: { contains: term, mode: "insensitive" as const } },
+      ],
+    })),
+  };
+}
+
+/** Destinataires permis (triés par nom), filtrés par `query` ; `total` = nombre de correspondances. */
+export async function listMessageRecipients(
+  userId: string,
+  role: string,
+  schoolId: string | null | undefined,
+  options: { query?: string; take?: number } = {},
+): Promise<{ data: MessageRecipient[]; total: number }> {
+  const scope = await recipientScope(userId, role, schoolId);
+  if (!scope) return { data: [], total: 0 };
+  const search = searchFilter(options.query);
+  const where: Prisma.UserWhereInput = search ? { AND: [scope, search] } : scope;
+  const take = Math.min(Math.max(1, options.take ?? RECIPIENTS_PAGE), RECIPIENTS_MAX);
+  const [data, total] = await Promise.all([
+    prisma.user.findMany({ where, select: USER_SELECT, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], take }),
+    prisma.user.count({ where }),
+  ]);
+  return { data, total };
+}
+
+/** Vrai si ce compte peut écrire à `recipientId` (une requête ciblée, sans plafond). */
 export async function recipientIsAllowed(
   userId: string,
   role: string,
   schoolId: string | null | undefined,
   recipientId: string,
 ): Promise<boolean> {
-  const recipients = await listMessageRecipients(userId, role, schoolId);
-  return recipients.some((recipient) => recipient.id === recipientId);
+  const scope = await recipientScope(userId, role, schoolId);
+  if (!scope) return false;
+  return (await prisma.user.count({ where: { AND: [scope, { id: recipientId }] } })) > 0;
 }

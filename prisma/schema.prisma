@@ -55,7 +55,8 @@ model OrganizationMembership {
   userId         String
   title          String?
   isOwner        Boolean      @default(false)
-  canManageSites Boolean      @default(true)
+  /// Droit de gestion de l'organisation : jamais implicite (S5), accordé explicitement
+  canManageSites Boolean      @default(false)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -67,93 +68,96 @@ model OrganizationMembership {
 }
 
 model School {
-  id                     String                    @id @default(cuid())
-  organizationId         String?
-  name                   String
-  code                   String                    @unique
-  type                   SchoolType                @default(PRIVATE)
-  level                  SchoolLevel
-  offeredLevels          SchoolLevel[]             @default([])
+  id                         String                      @id @default(cuid())
+  organizationId             String?
+  name                       String
+  code                       String                      @unique
+  type                       SchoolType                  @default(PRIVATE)
+  level                      SchoolLevel
+  offeredLevels              SchoolLevel[]               @default([])
   // Lot 6 (minimisation) : modules actifs de l'école. Défaut = socle
   // (lib/modules/catalog). Les écoles existantes reçoivent tout le catalogue
   // par la migration 20260917100000_school_enabled_modules.
-  enabledModules         String[]                  @default(["students", "classes", "grades", "attendance", "schedule", "messaging", "finance"])
-  siteType               SiteType                  @default(MAIN)
-  address                String?
-  city                   String?
-  phone                  String?
-  email                  String?
-  emailDomain            String?
-  logo                   String?
-  motto                  String?
-  mempCode               String?
-  primaryColor           String?
+  enabledModules             String[]                    @default(["students", "classes", "grades", "attendance", "schedule", "messaging", "finance"])
+  siteType                   SiteType                    @default(MAIN)
+  address                    String?
+  city                       String?
+  phone                      String?
+  email                      String?
+  emailDomain                String?
+  logo                       String?
+  motto                      String?
+  mempCode                   String?
+  primaryColor               String?
   // Vitrine publique (annuaire + fiche établissement) — champs exposés sans auth.
-  isPublic               Boolean                   @default(false)
-  coverImage             String?
-  publicDescription      String?
-  region                 String?
-  publicPhone            String?
-  isActive               Boolean                   @default(true)
-  createdAt              DateTime                  @default(now())
-  updatedAt              DateTime                  @updatedAt
-  planId                 String?
-  parentSchoolId         String?
-  subscriptionStatus     SubscriptionStatus?       @default(TRIAL)
-  academicConfig         AcademicConfig?
-  academicYears          AcademicYear[]
-  announcements          Announcement[]
-  auditLogs              AuditLog[]
-  books                  Book[]
-  canteenMenus           CanteenMenu[]
-  classLevels            ClassLevel[]
-  communicationLogs      CommunicationLog[]
-  communicationTemplates CommunicationTemplate[]
-  classes                Class[]
-  configOptions          ConfigOption[]
-  dataRetentionPolicies  DataRetentionPolicy[]
-  evaluationTypes        EvaluationType[]
-  fees                   Fee[]
-  importTemplates        ImportTemplate[]
-  leaderboard            Leaderboard[]
-  mealTickets            MealTicket[]
-  publicHolidays         PublicHoliday[]
-  resources              Resource[]
-  schoolCalendarEvents   SchoolCalendarEvent[]
-  schoolEvents           SchoolEvent[]
-  schoolHolidays         SchoolHoliday[]
-  parentSchool           School?                   @relation("SchoolHierarchy", fields: [parentSchoolId], references: [id], onDelete: SetNull)
-  childSchools           School[]                  @relation("SchoolHierarchy")
-  organization           Organization?             @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  plan                   SubscriptionPlan?         @relation(fields: [planId], references: [id])
-  studentProfiles        StudentProfile[]
-  subjectCategories      SubjectCategory[]
-  subjects               Subject[]
-  teacherAssignments     TeacherSchoolAssignment[]
-  teacherProfiles        TeacherProfile[]
-  users                  User[]
-  walletAccounts         WalletAccount[]
-  walletTransactions     WalletTransaction[]
-  scheduledDisbursements ScheduledDisbursement[]
-  cagnottes              Cagnotte[]
-  wellbeingReports       WellbeingReport[]
-  psyAppointments        PsyAppointment[]
-  climatePulseWeeks      ClimatePulseWeek[]
-  fiscalYears            FiscalYear[]
-  ohadaAccounts          OhadaAccount[]
-  journalEntries         JournalEntry[]
-  voiceCampaigns         VoiceCampaign[]
-  alumni                 Alumni[]
-  scanPoints             ScanPoint[]
-  scanLogs               ScanLog[]
-  badges                 Badge[]
-  benchmarkSnapshots     BenchmarkSnapshot[]
-  transportLines         TransportLine[]
-  transportBuses         Bus[]
-  staffAttendances       StaffAttendance[]
-  leaveRequests          LeaveRequest[]
-  payrollEntries         PayrollEntry[]
-  documentSignatures     DocumentSignature[]
+  isPublic                   Boolean                     @default(false)
+  coverImage                 String?
+  publicDescription          String?
+  region                     String?
+  publicPhone                String?
+  isActive                   Boolean                     @default(true)
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+  planId                     String?
+  parentSchoolId             String?
+  subscriptionStatus         SubscriptionStatus?         @default(TRIAL)
+  academicConfig             AcademicConfig?
+  academicYears              AcademicYear[]
+  announcements              Announcement[]
+  auditLogs                  AuditLog[]
+  books                      Book[]
+  canteenMenus               CanteenMenu[]
+  classLevels                ClassLevel[]
+  communicationLogs          CommunicationLog[]
+  communicationTemplates     CommunicationTemplate[]
+  classes                    Class[]
+  configOptions              ConfigOption[]
+  dataRetentionPolicies      DataRetentionPolicy[]
+  evaluationTypes            EvaluationType[]
+  fees                       Fee[]
+  paymentAccounts            SchoolPaymentAccount[]
+  importTemplates            ImportTemplate[]
+  leaderboard                Leaderboard[]
+  mealTickets                MealTicket[]
+  publicHolidays             PublicHoliday[]
+  resources                  Resource[]
+  schoolCalendarEvents       SchoolCalendarEvent[]
+  schoolEvents               SchoolEvent[]
+  schoolHolidays             SchoolHoliday[]
+  parentSchool               School?                     @relation("SchoolHierarchy", fields: [parentSchoolId], references: [id], onDelete: SetNull)
+  childSchools               School[]                    @relation("SchoolHierarchy")
+  organization               Organization?               @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  plan                       SubscriptionPlan?           @relation(fields: [planId], references: [id])
+  studentProfiles            StudentProfile[]
+  subjectCategories          SubjectCategory[]
+  subjects                   Subject[]
+  teacherAssignments         TeacherSchoolAssignment[]
+  teacherInvitations         TeacherInvitation[]
+  teacherProfiles            TeacherProfile[]
+  users                      User[]
+  walletAccounts             WalletAccount[]
+  walletTransactions         WalletTransaction[]
+  scheduledDisbursements     ScheduledDisbursement[]
+  cagnottes                  Cagnotte[]
+  wellbeingReports           WellbeingReport[]
+  psyAppointments            PsyAppointment[]
+  climatePulseWeeks          ClimatePulseWeek[]
+  climatePulseParticipations ClimatePulseParticipation[]
+  fiscalYears                FiscalYear[]
+  ohadaAccounts              OhadaAccount[]
+  journalEntries             JournalEntry[]
+  voiceCampaigns             VoiceCampaign[]
+  alumni                     Alumni[]
+  scanPoints                 ScanPoint[]
+  scanLogs                   ScanLog[]
+  badges                     Badge[]
+  benchmarkSnapshots         BenchmarkSnapshot[]
+  transportLines             TransportLine[]
+  transportBuses             Bus[]
+  staffAttendances           StaffAttendance[]
+  leaveRequests              LeaveRequest[]
+  payrollEntries             PayrollEntry[]
+  documentSignatures         DocumentSignature[]
 
   clubs Club[]
 
@@ -278,6 +282,7 @@ model User {
   parentProfile                     ParentProfile?
   paymentsReceived                  Payment[]                   @relation("PaymentReceivedBy")
   paymentsReconciled                Payment[]                   @relation("PaymentReconciledBy")
+  paymentAccountsCreated            SchoolPaymentAccount[]      @relation("PaymentAccountCreatedBy")
   resourcesUploaded                 Resource[]
   sanctionsAssigned                 Sanction[]
   schoolEventsCreated               SchoolEvent[]
@@ -289,11 +294,15 @@ model User {
   organizationMemberships           OrganizationMembership[]
   cagnottesHosted                   Cagnotte[]                  @relation("CagnotteHost")
   cagnotteContributions             CagnotteContribution[]      @relation("CagnotteContributions")
+  cagnotteContributionReviews       CagnotteContribution[]      @relation("CagnotteContributionReviews")
   cagnotteJournalActions            CagnotteJournalEntry[]      @relation("CagnotteJournalActor")
   wellbeingReportsFiled             WellbeingReport[]           @relation("WellbeingReporter")
   wellbeingReportsAbout             WellbeingReport[]           @relation("WellbeingReportedAbout")
   psyAppointmentsAsPsy              PsyAppointment[]            @relation("PsyAppointmentPsy")
   psyAppointmentsAsStudent          PsyAppointment[]            @relation("PsyAppointmentStudent")
+  climatePulseParticipations        ClimatePulseParticipation[]
+  pushSubscriptions                 PushSubscription[]
+  storedFiles                       StoredFile[]
   voiceCampaignsAuthored            VoiceCampaign[]             @relation("VoiceCampaignAuthor")
   staffAttendances                  StaffAttendance[]           @relation("StaffAttendanceUser")
   staffAttendancesRecorded          StaffAttendance[]           @relation("StaffAttendanceRecorder")
@@ -383,6 +392,19 @@ model FirstLoginToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("first_login_tokens")
+}
+
+/// Sessions fermées (déconnexion) : identifiant de session stable porté par
+/// le jeton. Un cookie recopié avant la déconnexion n'est plus accepté
+/// (sécurité HTTP, 2026-10-18). Lignes purgées après expiration du jeton.
+model RevokedSession {
+  sid       String   @id
+  userId    String
+  revokedAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("revoked_sessions")
 }
 
 model SystemSetting {
@@ -890,32 +912,88 @@ model Fee {
 }
 
 model Payment {
-  id               String         @id @default(cuid())
-  studentId        String
-  feeId            String
-  amount           Decimal        @db.Decimal(10, 2)
-  method           PaymentMethod
-  reference        String?        @unique
-  paidAt           DateTime?
-  receivedBy       String?
-  notes            String?
-  status           PaymentStatus  @default(PENDING)
-  reconciledAt     DateTime?
-  reconciledBy     String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  deletedAt        DateTime?
-  mealTickets      MealTicket[]
-  fee              Fee            @relation(fields: [feeId], references: [id], onDelete: Cascade)
-  receivedByUser   User?          @relation("PaymentReceivedBy", fields: [receivedBy], references: [id])
-  reconciledByUser User?          @relation("PaymentReconciledBy", fields: [reconciledBy], references: [id])
-  student          StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id                    String                     @id @default(cuid())
+  studentId             String
+  feeId                 String
+  amount                Decimal                    @db.Decimal(10, 2)
+  method                PaymentMethod
+  reference             String?                    @unique
+  paidAt                DateTime?
+  receivedBy            String?
+  notes                 String?
+  status                PaymentStatus              @default(PENDING)
+  reconciledAt          DateTime?
+  reconciledBy          String?
+  /// Fournisseur du paiement en ligne (FEDAPAY, MOMO, FLUTTERWAVE, PAYSTACK)
+  provider              String?
+  /// Identifiant de la transaction chez le fournisseur : sert à lui redemander
+  /// l'état d'un paiement resté sans réponse (réconciliation)
+  providerTransactionId String?
+  /// Origine d'une annulation (status CANCELLED) : échec signalé par le
+  /// fournisseur, ou annulation manuelle par l'école. Null pour les paiements
+  /// annulés avant son introduction (origine inconnue). Conservé si une
+  /// confirmation authentique valide ensuite le paiement (trace).
+  cancellationSource    PaymentCancellationSource?
+  /// Compte marchand de l'école qui a créé la transaction en ligne (S7).
+  /// Posé à l'initiation, jamais modifié (garde-fou en base). Null pour un
+  /// paiement manuel ou un paiement en ligne antérieur à S7 (compte global).
+  paymentAccountId      String?
+  /// Remboursement : écriture d'extourne, montant NÉGATIF, liée au paiement
+  /// remboursé. Tous les totaux (encaissé, reste à payer, statistiques) sont
+  /// ainsi nets sans traitement particulier ; l'échéancier déduit chaque
+  /// remboursement du paiement qu'il annule. Null pour un paiement ordinaire.
+  refundOfId            String?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  deletedAt             DateTime?
+  mealTickets           MealTicket[]
+  refundOf              Payment?                   @relation("PaymentRefunds", fields: [refundOfId], references: [id], onDelete: Restrict)
+  refunds               Payment[]                  @relation("PaymentRefunds")
+  fee                   Fee                        @relation(fields: [feeId], references: [id], onDelete: Cascade)
+  receivedByUser        User?                      @relation("PaymentReceivedBy", fields: [receivedBy], references: [id])
+  reconciledByUser      User?                      @relation("PaymentReconciledBy", fields: [reconciledBy], references: [id])
+  student               StudentProfile             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  paymentAccount        SchoolPaymentAccount?      @relation(fields: [paymentAccountId], references: [id], onDelete: Restrict)
 
   @@index([studentId, feeId])
+  @@index([paymentAccountId])
+  @@index([refundOfId])
   @@index([reference])
   @@index([status])
   @@index([deletedAt])
   @@map("payments")
+}
+
+/// Compte marchand propre à une école (S7, ADR-0011). Les fonds d'une école
+/// sont encaissés sur SON compte ; aucun compte global ne sert de repli.
+/// Secrets chiffrés (AES-256-GCM, clé PAYMENT_SECRETS_KEY), liés à l'école et
+/// au compte ; jamais renvoyés par l'API ni journalisés.
+model SchoolPaymentAccount {
+  id                      String                    @id @default(cuid())
+  schoolId                String
+  provider                String                    @default("FEDAPAY")
+  environment             PaymentAccountEnvironment
+  status                  PaymentAccountStatus      @default(INACTIVE)
+  /// Clé secrète API chiffrée
+  secretKeyCiphertext     String
+  /// Secret de signature du webhook de CE compte, chiffré séparément
+  webhookSecretCiphertext String
+  /// Version de la clé maîtresse qui a chiffré les deux secrets
+  encryptionKeyVersion    Int
+  /// 4 derniers caractères de la clé secrète, pour l'affichage
+  secretKeyLast4          String
+  lastVerifiedAt          DateTime?
+  activatedAt             DateTime?
+  revokedAt               DateTime?
+  createdById             String?
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  school                  School                    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  createdBy               User?                     @relation("PaymentAccountCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  payments                Payment[]
+
+  @@index([schoolId, provider, environment, status])
+  @@map("school_payment_accounts")
 }
 
 model PaymentPlan {
@@ -1094,6 +1172,26 @@ model Notification {
   @@index([userId, isRead])
   @@index([createdAt])
   @@map("notifications")
+}
+
+/// Journal des erreurs serveur et navigateur (remplace Sentry, 2026-11-08).
+/// Alimenté par src/lib/monitoring/error-journal.ts ; purgé après 30 jours.
+model ErrorLog {
+  id          String   @id @default(cuid())
+  /// "server" (route API, rendu) ou "client" (navigateur)
+  source      String
+  message     String
+  /// Empreinte stable (source + message normalisé + chemin) : regroupement et alertes
+  fingerprint String
+  path        String?
+  digest      String?
+  stack       String?
+  userId      String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([fingerprint, createdAt])
+  @@map("error_logs")
 }
 
 model AuditLog {
@@ -2071,6 +2169,25 @@ enum UserRole {
   STAFF
 }
 
+/// Code d'invitation remis par un établissement à un enseignant qui a DÉJÀ un
+/// compte EduPilot (rattachement à une école supplémentaire). Usage unique,
+/// durée limitée ; seule l'empreinte du code est stockée.
+model TeacherInvitation {
+  id           String    @id @default(cuid())
+  schoolId     String
+  codeHash     String    @unique
+  createdById  String
+  expiresAt    DateTime
+  usedAt       DateTime?
+  usedByUserId String?
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, usedAt])
+  @@map("teacher_invitations")
+}
+
 enum TeacherAssignmentStatus {
   ACTIVE
   INACTIVE
@@ -2110,11 +2227,22 @@ enum PaymentMethod {
   OTHER
 }
 
+enum PaymentCancellationSource {
+  /// Échec ou expiration définitifs signalés par le fournisseur
+  PROVIDER
+  /// Annulation décidée par l'école (comptabilité, administration)
+  MANUAL
+}
+
 enum PaymentStatus {
   PENDING
   VERIFIED
   RECONCILED
   CANCELLED
+  /// Paiement en ligne non confirmé après 24 h (résultat incertain chez le
+  /// fournisseur) : n'est plus réservé, reste à rapprocher. Une confirmation
+  /// tardive authentique et au bon montant le valide encore.
+  EXPIRED
 }
 
 enum BackgroundJobStatus {
@@ -2450,6 +2578,9 @@ model CommunicationLog {
   status    String   @default("PENDING")
   error     String?
   metadata  Json?    @default("{}")
+  /// Identifiant du message chez le fournisseur (WhatsApp : wamid) — relie
+  /// les statuts reçus (livré, lu, échoué) au message envoyé.
+  externalId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -2459,6 +2590,7 @@ model CommunicationLog {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  @@index([externalId])
   @@map("communication_logs")
 }
 
@@ -2607,9 +2739,19 @@ enum CagnotteStatus {
   CANCELLED
 }
 
+/// Contribution déclarée par une famille : elle ne compte dans la collecte
+/// qu'une fois confirmée par le comptable ou la direction (TD-019).
+enum CagnotteContributionStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
 enum CagnotteJournalKind {
   CREATED
+  CONTRIBUTION_DECLARED
   CONTRIBUTION_PAID
+  CONTRIBUTION_REJECTED
   CONTRIBUTION_REFUNDED
   CLOSED
   DISBURSED
@@ -2642,17 +2784,23 @@ model Cagnotte {
 }
 
 model CagnotteContribution {
-  id           String   @id @default(cuid())
+  id           String                     @id @default(cuid())
   cagnotteId   String
   parentUserId String
   amountFcfa   BigInt
   paymentRef   String?
-  paidAt       DateTime @default(now())
-  createdAt    DateTime @default(now())
+  paidAt       DateTime                   @default(now())
+  createdAt    DateTime                   @default(now())
+  status       CagnotteContributionStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
 
-  cagnotte Cagnotte @relation(fields: [cagnotteId], references: [id], onDelete: Cascade)
-  parent   User     @relation("CagnotteContributions", fields: [parentUserId], references: [id], onDelete: Cascade)
+  cagnotte   Cagnotte @relation(fields: [cagnotteId], references: [id], onDelete: Cascade)
+  parent     User     @relation("CagnotteContributions", fields: [parentUserId], references: [id], onDelete: Cascade)
+  reviewedBy User?    @relation("CagnotteContributionReviews", fields: [reviewedById], references: [id], onDelete: SetNull)
 
+  @@index([cagnotteId, status])
   @@index([cagnotteId, paidAt])
   @@index([parentUserId])
   @@map("cagnotte_contributions")
@@ -2753,6 +2901,13 @@ model ClimatePulseWeek {
   pctFriend        Float? // % "j'ai un ami proche"
   pctAdultListens  Float? // % "un adulte m'écoute"
   pctHarassWitness Float? // % "témoin harcèlement"
+  // Compteurs bruts (réponses anonymes agrégées) : les moyennes et % ci-dessus
+  // en sont recalculés à chaque réponse (lib/wellbeing/pulse).
+  scoreSum         Float    @default(0)
+  safetyYes        Int      @default(0)
+  friendYes        Int      @default(0)
+  adultYes         Int      @default(0)
+  harassYes        Int      @default(0)
   createdAt        DateTime @default(now())
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -2760,6 +2915,45 @@ model ClimatePulseWeek {
   @@unique([schoolId, weekLabel])
   @@index([schoolId, weekStart])
   @@map("climate_pulse_weeks")
+}
+
+/// Abonnement aux notifications push d'un navigateur (Web Push, VAPID).
+/// `endpoint` désigne l'appareil : un même navigateur ne sert qu'un compte
+/// à la fois (le dernier connecté qui l'active). Supprimé à la déconnexion,
+/// quand le service push répond 404/410, ou après 5 échecs consécutifs.
+model PushSubscription {
+  id            String    @id @default(cuid())
+  userId        String
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  failureCount  Int       @default(0)
+  lastSuccessAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+/// Qui a déjà répondu au pulse d'une semaine — jamais CE qu'il a répondu :
+/// les réponses ne sont conservées qu'agrégées dans ClimatePulseWeek.
+model ClimatePulseParticipation {
+  id        String   @id @default(cuid())
+  schoolId  String
+  userId    String
+  weekStart DateTime
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([schoolId, weekStart])
+  @@map("climate_pulse_participations")
 }
 
 // ─── Comptabilité OHADA / SYSCOHADA révisé ────────────────────────────────
@@ -3388,4 +3582,68 @@ model StudentFormula {
   @@index([studentId])
   @@index([periodId])
   @@map("student_formulas")
+}
+
+enum PaymentAccountEnvironment {
+  SANDBOX
+  LIVE
+}
+
+enum PaymentAccountStatus {
+  /// Enregistré, pas encore utilisé pour encaisser (à tester puis activer)
+  INACTIVE
+  /// Compte utilisé pour les nouveaux paiements en ligne de l'école
+  ACTIVE
+  /// Remplacé ou désactivé : plus aucun nouveau paiement ; ses paiements passés
+  /// restent rapprochables
+  REVOKED
+}
+
+/// Fichiers envoyés (avatars, justificatifs, documents), stockés en base :
+/// aucun disque persistant requis (hébergement sans serveur), sauvegardés avec
+/// la base. Limite 5 Mo par fichier (route /api/upload).
+model StoredFile {
+  id               String   @id @default(cuid())
+  /// avatar | document | justification | general
+  type             String
+  storedFilename   String   @unique
+  originalFilename String
+  mimeType         String
+  size             Int
+  data             Bytes
+  uploaderId       String
+  schoolId         String?
+  createdAt        DateTime @default(now())
+
+  uploader User @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  @@index([uploaderId])
+  @@index([schoolId])
+  @@map("stored_files")
+}
+
+/// État partagé entre instances, sans Redis (hébergement sans serveur) :
+/// fenêtres fixes des limites de débit et clés à durée de vie des
+/// coupe-circuits. Table UNLOGGED (migration 20261107100000) : rien n'est écrit
+/// dans le journal de PostgreSQL, ce sont des compteurs jetables.
+/// Accès en SQL uniquement : `src/lib/shared-state/pg.ts`.
+model RateLimitCounter {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+  @@map("rate_limit_counters")
+}
+
+/// Seaux à jetons du débit général (proxy), partagés entre instances.
+/// UNLOGGED comme `rate_limit_counters` ; synchronisation par lot, atomique,
+/// par la fonction SQL `edupilot_sync_token_buckets` (migration 20261107100000).
+model TokenBucket {
+  key       String   @id
+  tokens    Float
+  updatedAt DateTime
+
+  @@index([updatedAt])
+  @@map("token_buckets")
 }

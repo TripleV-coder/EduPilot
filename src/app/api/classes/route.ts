@@ -1,10 +1,11 @@
+import { taughtClassIds } from "@/lib/teachers/taught-classes";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { classSchema } from "@/lib/validations/school";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { getListWindow } from "@/lib/api/list-window";
-import { invalidateByPath, CACHE_PATHS, CACHE_TTL_MEDIUM, generateCacheKey, withCache } from "@/lib/api/cache-helpers";
+import { invalidateByPath, CACHE_PATHS, CACHE_TTL_MEDIUM, generateCacheKey, withCache, cacheScope } from "@/lib/api/cache-helpers";
 import { withHttpCache } from "@/lib/api/cache-http";
 import { Permission } from "@/lib/rbac/permissions";
 import { API_ERRORS } from "@/lib/constants/api-messages";
@@ -42,12 +43,18 @@ export const GET = createApiHandler(
     const where: Prisma.ClassWhereInput = {};
     if (schoolId) where.schoolId = schoolId;
     if (classLevelId) where.classLevelId = classLevelId;
+    // ?mine=1 : un enseignant ne voit que ses classes (appel). La feuille d'appel
+    // listait toutes les classes de l'école ; l'enregistrement, lui, est déjà
+    // refusé hors de ses classes (attendance/bulk).
+    if (searchParams.get("mine") === "1" && session.user.role === "TEACHER") {
+      where.id = { in: await taughtClassIds(session.user.id) };
+    }
     if (search) {
       where.name = { contains: search, mode: "insensitive" };
     }
 
     const url = new URL(request.url);
-    const cacheKey = generateCacheKey(url.pathname, url.searchParams, session.user.id);
+    const cacheKey = generateCacheKey(url.pathname, url.searchParams, cacheScope(session));
 
     const handler = async () => {
       const [classes, total] = await Promise.all([

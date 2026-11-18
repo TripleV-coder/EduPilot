@@ -1,4 +1,4 @@
-import EmbeddedPostgres from "embedded-postgres";
+import type EmbeddedPostgres from "embedded-postgres";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import net from "node:net";
@@ -7,6 +7,7 @@ import path from "node:path";
 import type { TestProject } from "vitest/node";
 import { PrismaClient } from "@prisma/client";
 import { assertDisposableDatabaseUrl } from "./disposable";
+import { loadEmbeddedPostgres } from "./embedded-cluster";
 import { setupAppRole } from "../../scripts/db/app-role.mjs";
 
 declare module "vitest" {
@@ -51,7 +52,9 @@ export default async function setup(project: TestProject) {
   } else {
     dataDir = mkdtempSync(path.join(tmpdir(), "edupilot-it-"));
     const port = await findFreePort();
-    cluster = new EmbeddedPostgres({
+    // Chargé ici seulement : son import seul faisait sortir une suite en échec avec 0
+    const EmbeddedPostgresCluster = await loadEmbeddedPostgres();
+    cluster = new EmbeddedPostgresCluster({
       databaseDir: dataDir,
       user: "edupilot",
       password: "edupilot",

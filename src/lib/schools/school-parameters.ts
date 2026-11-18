@@ -176,6 +176,22 @@ export const PARAMETER_SECTIONS = [
         ],
     },
     {
+        key: "discipline",
+        title: "Discipline",
+        description: "Effet des incidents sur les documents délivrés par l'établissement.",
+        params: [
+            p(
+                "conductCertificateBlockingSeverity",
+                "Attestation de bonne conduite refusée à partir d'un incident",
+                "gravité (1 mineur · 2 moyen · 3 majeur · 4 critique · 5 jamais)",
+                1,
+                5,
+                3,
+                "Un incident de cette gravité ou plus, sur l'année scolaire, empêche de délivrer l'attestation. 5 : l'attestation n'est jamais bloquée.",
+            ),
+        ],
+    },
+    {
         key: "services",
         title: "Communication et services",
         description: "Délais du cahier de liaison, des codes parents, de la cantine et de la bibliothèque.",

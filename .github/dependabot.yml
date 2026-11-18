@@ -1,13 +1,15 @@
+# Mises à jour regroupées : au plus UNE PR par écosystème et par mois.
+# Les correctifs de sécurité (Dependabot security updates) restent
+# immédiats : ils ne dépendent pas de ce calendrier.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
       timezone: "Africa/Porto-Novo"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 2
     versioning-strategy: "increase"
     labels:
       - "dependencies"
@@ -17,38 +19,36 @@ updates:
       prefix-development: "chore(dev-deps)"
       include: "scope"
     groups:
-      react:
-        patterns: ["react", "react-dom", "@types/react*"]
-      next:
-        patterns: ["next", "@next/*", "eslint-config-next"]
-      prisma:
-        patterns: ["prisma", "@prisma/*"]
-      radix:
-        patterns: ["@radix-ui/*"]
-      testing:
-        patterns: ["vitest", "@vitest/*", "@playwright/*", "playwright"]
-      sentry:
-        patterns: ["@sentry/*"]
+      # Mineures et correctifs : une seule PR pour tout le projet.
+      npm-mineures:
+        update-types: ["minor", "patch"]
     ignore:
-      # Ignore Next 9.x downgrade suggestions from postcss advisories
-      - dependency-name: "next"
-        versions: ["<10.0.0"]
+      # Versions majeures (TypeScript 6, ESLint 10…) : migration manuelle.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
+    open-pull-requests-limit: 1
     labels:
       - "ci"
       - "dependencies"
     commit-message:
       prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]
 
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
+    open-pull-requests-limit: 1
     commit-message:
       prefix: "chore(docker)"
+    ignore:
+      # Node : changement de version majeure décidé manuellement (.nvmrc, CI).
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]

@@ -14,8 +14,8 @@ export const scheduleSchema = z
     dayOfWeek: z.coerce
       .number()
       .int("Le jour doit être un nombre entier")
-      .min(0, "Le jour doit être entre 0 (Lundi) et 6 (Dimanche)")
-      .max(6, "Le jour doit être entre 0 (Lundi) et 6 (Dimanche)"),
+      .min(0, "Jour invalide : 1 (lundi) à 6 (samedi), 0 pour dimanche")
+      .max(6, "Jour invalide : 1 (lundi) à 6 (samedi), 0 pour dimanche"),
     startTime: timeSchema,
     endTime: timeSchema,
     room: z.string().max(50, "Le nom de la salle est trop long").optional(),

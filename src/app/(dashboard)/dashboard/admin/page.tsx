@@ -92,7 +92,7 @@ function AdminContent() {
             />
 
             {loading ? <PageLoading label="Chargement de l'administration…" /> : null}
-            {error ? <PageError message={error} onRetry={() => window.location.reload()} /> : null}
+            {error ? <PageError error={error} message={error} onRetry={() => window.location.reload()} /> : null}
 
             {!loading && !error && info ? (
                 <div className="space-y-4">

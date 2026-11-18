@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { type ElementType } from "react";
+import { Reveal } from "./Reveal";
 
 interface SectionHeaderProps {
     badgeIcon?: ElementType;
@@ -13,13 +13,7 @@ interface SectionHeaderProps {
 
 export function SectionHeader({ badgeIcon: BadgeIcon, badgeText, title, subtitle, className = "" }: SectionHeaderProps) {
     return (
-        <motion.div
-            className={`mx-auto mb-16 max-w-2xl text-center ${className}`}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-        >
+        <Reveal className={`mx-auto mb-16 max-w-2xl text-center ${className}`} dy={20}>
             <span
                 className="mb-6 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
                 style={{
@@ -39,6 +33,6 @@ export function SectionHeader({ badgeIcon: BadgeIcon, badgeText, title, subtitle
             <p className="text-lg" style={{ color: "var(--eduflow-text-secondary)" }}>
                 {subtitle}
             </p>
-        </motion.div>
+        </Reveal>
     );
 }

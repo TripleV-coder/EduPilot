@@ -21,6 +21,15 @@ type EnforcementResult = {
 };
 
 export default function SystemRetentionPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <SystemRetentionPageContent />
+        </PageGuard>
+    );
+}
+
+function SystemRetentionPageContent() {
     const { toast } = useToast();
     const [running, setRunning] = useState(false);
     const [lastResult, setLastResult] = useState<EnforcementResult | null>(null);
@@ -50,7 +59,7 @@ export default function SystemRetentionPage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Rétention & RGPD"
@@ -217,6 +226,6 @@ export default function SystemRetentionPage() {
                     </div>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

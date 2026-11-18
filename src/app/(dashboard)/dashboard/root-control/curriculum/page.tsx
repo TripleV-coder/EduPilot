@@ -24,6 +24,15 @@ type CurriculumResponse = {
 };
 
 export default function RootCurriculumPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN"]}>
+            <RootCurriculumPageContent />
+        </PageGuard>
+    );
+}
+
+function RootCurriculumPageContent() {
     const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
     const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
     const [selectedClassId, setSelectedClassId] = useState<string>("");
@@ -124,7 +133,7 @@ export default function RootCurriculumPage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN"]}>
+        <>
             <ConfirmActionDialog
                 open={pendingRemoveId !== null}
                 onOpenChange={(open) => { if (!open) setPendingRemoveId(null); }}
@@ -214,13 +223,13 @@ export default function RootCurriculumPage() {
                         <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between">
                             <div>
                                 <CardTitle className="text-sm font-bold">Contenu du programme</CardTitle>
-                                <CardDescription className="text-[11px]">Liste des matières et coefficients pour cette classe.</CardDescription>
+                                <CardDescription className="text-xs">Liste des matières et coefficients pour cette classe.</CardDescription>
                             </div>
                             <Badge variant="secondary" className="font-bold">Consolidé</Badge>
                         </CardHeader>
                         <CardContent className="p-0">
                             <table className="w-full text-sm">
-                                <thead className="bg-muted/10 text-muted-foreground font-bold text-[11px] border-b">
+                                <thead className="bg-muted/10 text-muted-foreground font-bold text-xs border-b">
                                     <tr>
                                         <th className="px-6 py-3 text-left">Matière</th>
                                         <th className="px-6 py-3 text-center">Code</th>
@@ -281,7 +290,7 @@ export default function RootCurriculumPage() {
                                 </tbody>
                                 <tfoot className="bg-muted/20 font-bold">
                                     <tr>
-                                        <td colSpan={2} className="px-6 py-3 text-right text-[11px]">Somme des Coefficients</td>
+                                        <td colSpan={2} className="px-6 py-3 text-right text-xs">Somme des Coefficients</td>
                                         <td className="px-6 py-3 text-center">{curriculumData?.totalCoefficients || 0}</td>
                                         <td></td>
                                     </tr>
@@ -303,6 +312,6 @@ export default function RootCurriculumPage() {
                     />
                 ) : null}
             </div>
-        </PageGuard>
+        </>
     );
 }

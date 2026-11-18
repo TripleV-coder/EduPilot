@@ -8,6 +8,7 @@ import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { logger } from "@/lib/utils/logger";
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { taughtClassIds } from "@/lib/teachers/taught-classes";
 
 /**
  * GET /api/analytics/class/[classId]
@@ -39,6 +40,10 @@ export const GET = createApiHandler(async (request, context) => {
 
     if (session.user.role !== "SUPER_ADMIN" && classData.schoolId !== schoolId) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+    }
+    // Enseignant (MS-02) : statistiques de ses classes seulement
+    if (session.user.role === "TEACHER" && !(await taughtClassIds(session.user.id)).includes(classId)) {
+      return NextResponse.json({ error: "Accès refusé : cette classe n'est pas l'une des vôtres" }, { status: 403 });
     }
 
     // Get current academic year

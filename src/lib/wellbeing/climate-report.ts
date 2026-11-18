@@ -148,7 +148,7 @@ export async function downloadClimateReport(data: ClimateReportInput): Promise<v
       head: [section.headers],
       body: section.rows,
       theme: "striped",
-      styles: { fontSize: 8 },
+      styles: { fontSize: 12 },
       headStyles: { fillColor: [79, 70, 229] },
       margin: { left: 14, right: 14 },
     });

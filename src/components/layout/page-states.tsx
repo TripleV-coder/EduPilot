@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Button, Icon, Spinner, type IconName } from "@/components/edu";
 import { cn } from "@/lib/utils";
+import { httpStatusOf } from "@/lib/http-error";
 
 export function PageLoading({ label = "Chargement en cours…" }: { label?: string }) {
     return (
@@ -22,10 +23,46 @@ export function PageLoading({ label = "Chargement en cours…" }: { label?: stri
 export function PageError({
     message,
     onRetry,
+    error,
 }: {
     message: string;
     onRetry?: () => void;
+    /**
+     * Erreur d'origine (SWR, FetchError) : un refus (403), une absence (404) ou
+     * une session expirée (401) s'affichent comme tels, avec le message du
+     * serveur et sans « Réessayer », qui ne changerait rien.
+     */
+    error?: unknown;
 }) {
+    const status = httpStatusOf(error);
+    if (status === 401 || status === 403 || status === 404) {
+        const title = status === 401 ? "Session expirée" : status === 403 ? "Accès refusé" : "Introuvable";
+        const detail = error instanceof Error && error.message ? error.message : message;
+        return (
+            <div
+                role="alert"
+                className="flex min-h-[200px] flex-col items-center justify-center gap-4 rounded-card border px-6 py-10 text-center"
+                style={{
+                    background: "var(--eduflow-surface-sunken)",
+                    borderColor: "var(--eduflow-border-subtle)",
+                    color: "var(--eduflow-text-primary)",
+                }}
+            >
+                <Icon name={status === 404 ? "search" : status === 401 ? "clock" : "info"} size={28} color="var(--eduflow-text-secondary)" />
+                <div>
+                    <p className="text-sm font-semibold">{title}</p>
+                    <p className="mt-1 text-sm" style={{ color: "var(--eduflow-text-secondary)" }}>{detail}</p>
+                </div>
+                <Link
+                    href={status === 401 ? "/login" : "/dashboard"}
+                    className="text-sm font-semibold"
+                    style={{ color: "var(--brand-700)" }}
+                >
+                    {status === 401 ? "Se reconnecter" : "Retour à l'accueil"}
+                </Link>
+            </div>
+        );
+    }
     return (
         <div
             role="alert"

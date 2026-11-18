@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 
 export enum StudentSegment {
     ALL = "ALL",
@@ -34,8 +34,27 @@ const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefin
 
 export function AnalyticsProvider({ children, initialAcademicYearId, initialPeriodId }: { children: ReactNode, initialAcademicYearId?: string, initialPeriodId?: string }) {
     const [establishmentId, setEstablishmentId] = useState<string>("ALL");
-    const [academicYearId, setAcademicYearId] = useState<string>(initialAcademicYearId || "ALL");
-    const [periodId, setPeriodId] = useState<string>(initialPeriodId || "ALL");
+    const [academicYearId, setAcademicYearIdState] = useState<string>(initialAcademicYearId || "ALL");
+    const [periodId, setPeriodIdState] = useState<string>(initialPeriodId || "ALL");
+    // Année et période suivent celles de l'établissement tant que la personne
+    // ne les a pas choisies ici : au changement d'école, l'année de la nouvelle
+    // école n'est connue qu'après coup (R-CA-05).
+    const yearChosen = useRef(false);
+    const periodChosen = useRef(false);
+    const setAcademicYearId = (value: string) => {
+        yearChosen.current = true;
+        setAcademicYearIdState(value);
+    };
+    const setPeriodId = (value: string) => {
+        periodChosen.current = true;
+        setPeriodIdState(value);
+    };
+    useEffect(() => {
+        if (!yearChosen.current) setAcademicYearIdState(initialAcademicYearId || "ALL");
+    }, [initialAcademicYearId]);
+    useEffect(() => {
+        if (!periodChosen.current) setPeriodIdState(initialPeriodId || "ALL");
+    }, [initialPeriodId]);
     const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
     const [levelIds, setLevelIds] = useState<string[]>([]);
     const [classIds, setClassIds] = useState<string[]>([]);
@@ -44,8 +63,10 @@ export function AnalyticsProvider({ children, initialAcademicYearId, initialPeri
 
     const resetFilters = () => {
         setEstablishmentId("ALL");
-        setAcademicYearId(initialAcademicYearId || "ALL");
-        setPeriodId(initialPeriodId || "ALL");
+        yearChosen.current = false;
+        periodChosen.current = false;
+        setAcademicYearIdState(initialAcademicYearId || "ALL");
+        setPeriodIdState(initialPeriodId || "ALL");
         setDateRange({ from: undefined, to: undefined });
         setLevelIds([]);
         setClassIds([]);

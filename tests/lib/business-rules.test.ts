@@ -48,7 +48,6 @@ import type {
 } from "@prisma/client";
 import {
   ValidationError,
-  paymentPlanValidations,
   courseValidations,
   gradeValidations,
   scheduleValidations,
@@ -61,89 +60,6 @@ const tomorrow = () => new Date(Date.now() + 24 * 3600 * 1000);
 
 beforeEach(() => {
   vi.clearAllMocks();
-});
-
-describe("paymentPlanValidations.validatePaymentPlanCreation", () => {
-  const base = {
-    studentId: "s1",
-    feeId: "f1",
-    totalAmount: 120000,
-    installments: 4,
-    startDate: tomorrow(),
-  };
-
-  it("rejette une date de début passée", async () => {
-    await expect(
-      paymentPlanValidations.validatePaymentPlanCreation({
-        ...base,
-        startDate: new Date("2020-01-01"),
-      })
-    ).rejects.toThrow(ValidationError);
-  });
-
-  it("rejette un doublon de plan actif", async () => {
-    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue({ id: "plan1" } as unknown as PaymentPlan);
-    await expect(paymentPlanValidations.validatePaymentPlanCreation(base)).rejects.toThrow(
-      /existe déjà/
-    );
-  });
-
-  it("rejette une mensualité inférieure à 10", async () => {
-    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue(null);
-    await expect(
-      paymentPlanValidations.validatePaymentPlanCreation({
-        ...base,
-        totalAmount: 20,
-        installments: 4,
-      })
-    ).rejects.toThrow(/au moins 10/);
-  });
-
-  it("accepte un plan valide", async () => {
-    vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue(null);
-    await expect(paymentPlanValidations.validatePaymentPlanCreation(base)).resolves.toBeUndefined();
-  });
-});
-
-describe("paymentPlanValidations.validateInstallmentPayment", () => {
-  it("rejette une mensualité introuvable", async () => {
-    vi.mocked(prisma.installmentPayment.findUnique).mockResolvedValue(null);
-    await expect(
-      paymentPlanValidations.validateInstallmentPayment("i1", new Date())
-    ).rejects.toThrow(/non trouvée/);
-  });
-
-  it("rejette une mensualité déjà payée ou un plan inactif", async () => {
-    vi.mocked(prisma.installmentPayment.findUnique).mockResolvedValue({
-      status: "PAID",
-      paymentPlan: { status: "ACTIVE" },
-    } as unknown as InstallmentPayment);
-    await expect(
-      paymentPlanValidations.validateInstallmentPayment("i1", new Date())
-    ).rejects.toThrow(/déjà été payée/);
-
-    vi.mocked(prisma.installmentPayment.findUnique).mockResolvedValue({
-      status: "PENDING",
-      paymentPlan: { status: "CANCELLED" },
-    } as unknown as InstallmentPayment);
-    await expect(
-      paymentPlanValidations.validateInstallmentPayment("i1", new Date())
-    ).rejects.toThrow(/pas actif/);
-  });
-
-  it("accepte (avec warning loggé) un paiement hors ordre", async () => {
-    vi.mocked(prisma.installmentPayment.findUnique).mockResolvedValue({
-      status: "PENDING",
-      paymentPlanId: "p1",
-      dueDate: new Date(),
-      paymentPlan: { status: "ACTIVE" },
-    } as unknown as InstallmentPayment);
-    vi.mocked(prisma.installmentPayment.count).mockResolvedValue(2);
-
-    await expect(
-      paymentPlanValidations.validateInstallmentPayment("i1", new Date())
-    ).resolves.toBeUndefined();
-  });
 });
 
 describe("courseValidations", () => {

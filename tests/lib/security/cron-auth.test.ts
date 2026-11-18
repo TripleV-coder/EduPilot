@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { verifyCronSecret } from "@/lib/security/cron-auth";
 
 /**
@@ -27,7 +27,16 @@ describe("verifyCronSecret", () => {
     });
 
     it("signale l'absence de configuration plutôt que d'accepter", () => {
-        expect(verifyCronSecret(`Bearer ${SECRET}`, undefined)).toBe("not-configured");
-        expect(verifyCronSecret("Bearer ", "")).toBe("not-configured");
+        // Sans CRON_SECRET NI secret maître (sinon le secret est dérivé de
+        // NEXTAUTH_SECRET : cas de la CI, où il est défini)
+        vi.stubEnv("CRON_SECRET", "");
+        vi.stubEnv("NEXTAUTH_SECRET", "");
+        vi.stubEnv("AUTH_SECRET", "");
+        try {
+            expect(verifyCronSecret(`Bearer ${SECRET}`, undefined)).toBe("not-configured");
+            expect(verifyCronSecret("Bearer ", "")).toBe("not-configured");
+        } finally {
+            vi.unstubAllEnvs();
+        }
     });
 });

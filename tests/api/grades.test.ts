@@ -4,6 +4,12 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Classes enseignées (MS-02) : l'enseignant de ces tests enseigne la classe testée
+vi.mock("@/lib/teachers/taught-classes", () => ({
+  taughtClassIds: vi.fn(async () => ["class-a"]),
+  teacherTeachesStudent: vi.fn(async () => true),
+}));
+
 // Paramètres de l'établissement : valeurs par défaut (pas de table de réglages dans le mock Prisma)
 vi.mock("@/lib/schools/school-parameters-store", async () => {
     const { DEFAULT_SCHOOL_PARAMETERS } = await import("@/lib/schools/school-parameters");
@@ -21,7 +27,7 @@ vi.mock("@/lib/academic/grading-settings", async (importOriginal) => ({
 vi.mock("@/lib/prisma", () => {
   const prismaMock: Record<string, unknown> = {
     evaluation: { findUnique: vi.fn() },
-    enrollment: { count: vi.fn() },
+    enrollment: { count: vi.fn(), findMany: vi.fn(async () => [{ studentId: "eleve-de-sa-classe" }]) },
     grade: { upsert: vi.fn(), findMany: vi.fn() },
     period: { findUnique: vi.fn(), findFirst: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
@@ -357,6 +363,8 @@ describe("GET /api/grades/statistics", () => {
       expect.objectContaining({ schoolId: FIXTURES.schoolA }),
       { passingGrade: 10, excellentFrom: 16, veryGoodFrom: 14 },
     );
+    // MS-02 : un enseignant sans filtre n'agrège que les élèves de ses classes
+    expect(vi.mocked(aggregateGradeStatistics).mock.calls[0][0]).toMatchObject({ studentIds: ["eleve-de-sa-classe"] });
   });
 
   /**

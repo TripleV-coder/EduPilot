@@ -157,13 +157,13 @@ export function AnalyticsReportsTab() {
                             </div>
                             <div>
                                 <CardTitle className="text-sm font-bold tracking-tight">Configuration du rapport</CardTitle>
-                                <CardDescription className="text-[11px]">Personnalisez le contenu et l&apos;ordre des sections.</CardDescription>
+                                <CardDescription className="text-xs">Personnalisez le contenu et l&apos;ordre des sections.</CardDescription>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6 space-y-6">
                         <div className="space-y-2">
-                            <label className="text-[11px] font-bold text-muted-foreground">Titre du document</label>
+                            <label className="text-xs font-bold text-muted-foreground">Titre du document</label>
                             <Input
                                 value={reportTitle}
                                 onChange={(e) => setReportTitle(e.target.value)}
@@ -172,7 +172,7 @@ export function AnalyticsReportsTab() {
                         </div>
 
                         <div className="space-y-3">
-                            <label className="text-[11px] font-bold text-muted-foreground">Sections à inclure (Glisser pour réordonner)</label>
+                            <label className="text-xs font-bold text-muted-foreground">Sections à inclure (Glisser pour réordonner)</label>
                             <div className="space-y-2">
                                 {reportBlockOrder.map((key) => (
                                     <div
@@ -194,9 +194,9 @@ export function AnalyticsReportsTab() {
                                         />
                                         <div className="flex-1">
                                             <p className="text-sm font-bold">{blockLabels[key].label}</p>
-                                            <p className="text-[11px] text-muted-foreground font-medium">{blockLabels[key].desc}</p>
+                                            <p className="text-xs text-muted-foreground font-medium">{blockLabels[key].desc}</p>
                                         </div>
-                                        {reportBlocks[key] && <Badge variant="secondary" className="text-[11px] font-bold bg-primary/5 text-primary border-primary/10">Inclus</Badge>}
+                                        {reportBlocks[key] && <Badge variant="secondary" className="text-xs font-bold bg-primary/5 text-primary border-primary/10">Inclus</Badge>}
                                     </div>
                                 ))}
                             </div>
@@ -229,7 +229,7 @@ export function AnalyticsReportsTab() {
                             {busy === "CSV" ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
                             {busy === "CSV" ? "Génération…" : "Exporter CSV"}
                         </Button>
-                        <p className="text-[11px] text-center text-muted-foreground mt-4 italic">
+                        <p className="text-xs text-center text-muted-foreground mt-4 italic">
                             Le rapport inclura les filtres actuellement actifs dans la barre de contexte globale.
                         </p>
                     </CardContent>
@@ -237,7 +237,7 @@ export function AnalyticsReportsTab() {
 
                 <Card className="dashboard-block border-border bg-muted/5" data-reveal>
                     <CardHeader>
-                        <CardTitle className="text-[11px] font-bold text-muted-foreground flex items-center gap-2">
+                        <CardTitle className="text-xs font-bold text-muted-foreground flex items-center gap-2">
                             <Clock className="w-3.5 h-3.5" />
                             Rapports récents
                         </CardTitle>
@@ -245,7 +245,7 @@ export function AnalyticsReportsTab() {
                     <CardContent className="p-0">
                         <div className="divide-y divide-border/50">
                             {recent.length === 0 ? (
-                                <p className="p-4 text-[11px] text-muted-foreground italic">
+                                <p className="p-4 text-xs text-muted-foreground italic">
                                     Aucun rapport généré pour l&apos;instant.
                                 </p>
                             ) : (
@@ -256,11 +256,11 @@ export function AnalyticsReportsTab() {
                                     >
                                         <div>
                                             <p className="text-xs font-bold">{entry.title}</p>
-                                            <p className="text-[11px] text-muted-foreground">
+                                            <p className="text-xs text-muted-foreground">
                                                 {entry.format} · {new Date(entry.generatedAt).toLocaleString("fr-FR")}
                                             </p>
                                         </div>
-                                        <span className="text-[11px] font-bold text-muted-foreground">
+                                        <span className="text-xs font-bold text-muted-foreground">
                                             {entry.format}
                                         </span>
                                     </div>

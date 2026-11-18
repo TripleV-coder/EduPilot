@@ -45,7 +45,9 @@ describe("GET /api/analytics/organization/overview", () => {
     expect((await res.json()).error).toBe("Accès organisation refusé");
   });
 
-  it("should forbid an organization outside the allowed perimeter", async () => {
+  // S5 : la vue consolidée (données des écoles du réseau) est réservée au
+  // NETWORK_ADMIN ; être propriétaire d'organisation ne suffit plus.
+  it("refuse un DIRECTOR propriétaire d'organisation (403) sans lire de données", async () => {
     vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
     vi.mocked(getOrganizationAccessForUser).mockResolvedValue({
       memberships: [{ organizationId: ORG_A, isOwner: true, canManageSites: true }],
@@ -54,7 +56,21 @@ describe("GET /api/analytics/organization/overview", () => {
       accessibleSchoolIds: [],
       isOrganizationManager: true,
     } as never);
-    const res = await GET(makeRequest(`http://localhost/api/analytics/organization/overview?organizationId=${ORG_B}`), { session: makeSession("DIRECTOR") });
+    const res = await GET(makeRequest("http://localhost/api/analytics/organization/overview"), { session: makeSession("DIRECTOR") });
+    expect(res.status).toBe(403);
+    expect(getOrganizationDashboardData).not.toHaveBeenCalled();
+  });
+
+  it("should forbid an organization outside the allowed perimeter", async () => {
+    vi.mocked(auth).mockResolvedValue(makeSession("NETWORK_ADMIN"));
+    vi.mocked(getOrganizationAccessForUser).mockResolvedValue({
+      memberships: [{ organizationId: ORG_A, isOwner: true, canManageSites: true }],
+      organizationIds: [ORG_A],
+      primaryOrganizationId: ORG_A,
+      accessibleSchoolIds: [],
+      isOrganizationManager: true,
+    } as never);
+    const res = await GET(makeRequest(`http://localhost/api/analytics/organization/overview?organizationId=${ORG_B}`), { session: makeSession("NETWORK_ADMIN") });
     expect(res.status).toBe(403);
     expect((await res.json()).error).toBe("Organisation hors périmètre autorisé");
   });
@@ -95,7 +111,7 @@ describe("GET /api/analytics/organization/overview", () => {
   });
 
   it("should use the first manageable organization for non-root users", async () => {
-    vi.mocked(auth).mockResolvedValue(makeSession("DIRECTOR"));
+    vi.mocked(auth).mockResolvedValue(makeSession("NETWORK_ADMIN"));
     vi.mocked(getOrganizationAccessForUser).mockResolvedValue({
       memberships: [{ organizationId: ORG_A, isOwner: true, canManageSites: true }],
       organizationIds: [ORG_A],
@@ -104,7 +120,7 @@ describe("GET /api/analytics/organization/overview", () => {
       isOrganizationManager: true,
     } as never);
     vi.mocked(getOrganizationDashboardData).mockResolvedValue({ organization: { id: ORG_A } } as never);
-    const res = await GET(makeRequest("http://localhost/api/analytics/organization/overview"), { session: makeSession("DIRECTOR") });
+    const res = await GET(makeRequest("http://localhost/api/analytics/organization/overview"), { session: makeSession("NETWORK_ADMIN") });
     expect(res.status).toBe(200);
     expect(getOrganizationDashboardData).toHaveBeenCalledWith(
       expect.objectContaining({ organizationId: ORG_A })

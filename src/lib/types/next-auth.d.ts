@@ -16,6 +16,7 @@ declare module "next-auth" {
       primarySchoolId: string | null;
       schoolId: string | null;
       accessibleSchoolIds?: string[];
+      schoolIdsByRole?: Record<string, string[]>;
       firstName: string;
       lastName: string;
       phone?: string | null;
@@ -37,6 +38,7 @@ declare module "next-auth" {
     primarySchoolId: string | null;
     schoolId: string | null;
     accessibleSchoolIds?: string[];
+    schoolIdsByRole?: Record<string, string[]>;
     firstName: string;
     lastName: string;
     phone?: string | null;
@@ -58,6 +60,7 @@ declare module "@auth/core/adapters" {
     primarySchoolId: string | null;
     schoolId: string | null;
     accessibleSchoolIds?: string[];
+    schoolIdsByRole?: Record<string, string[]>;
     firstName: string;
     lastName: string;
     phone?: string | null;
@@ -71,6 +74,8 @@ declare module "@auth/core/adapters" {
 declare module "next-auth/jwt" {
   interface JWT extends DefaultJWT {
     id: string;
+    /** Identifiant de session stable, révoqué à la déconnexion. */
+    sid?: string;
     role: UserRole;
     roles?: UserRole[];
     permissions?: Permission[];
@@ -80,6 +85,7 @@ declare module "next-auth/jwt" {
     primarySchoolId: string | null;
     schoolId: string | null;
     accessibleSchoolIds?: string[];
+    schoolIdsByRole?: Record<string, string[]>;
     firstName: string;
     lastName: string;
     phone?: string | null;
@@ -87,5 +93,9 @@ declare module "next-auth/jwt" {
     isTwoFactorAuthenticated: boolean;
     mustChangePassword?: boolean;
     avatar?: string | null;
+    /** « Rester connecté » : session de 30 jours (lib/auth/session-lifetime). */
+    remember?: boolean;
+    /** Dernière activité (secondes) : sans « Rester connecté », 24 h d'inactivité ferment la session. */
+    lastSeenAt?: number;
   }
 }

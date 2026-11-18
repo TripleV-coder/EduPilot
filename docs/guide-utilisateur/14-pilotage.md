@@ -41,7 +41,7 @@ Détail des mesures : `docs/VERIFICATION_CALCULS_ET_IA.md`.
 
 ## 14.4 Comparaisons ✅
 - *Pilotage de l'organisation* : comparaison des écoles d'un même réseau, sur la même année de référence.
-- *Benchmark national* : position de l'école par rapport aux données publiques nationales (module « Comparaison entre établissements » : des chiffres agrégés sortent de l'établissement).
+- La comparaison « nationale » entre établissements a été **retirée** (2026-11) : aucune donnée publique réelle ne l'alimentait.
 
 ## 14.5 Journal d'audit ✅
 *Journal d'audit* : toutes les actions importantes (qui, quoi, quand), consultables 90 jours en accès direct. Depuis l'ajout de l'historique des notes (chapitre 6), chaque modification de note y figure aussi.

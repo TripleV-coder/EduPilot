@@ -25,6 +25,15 @@ type ClassLevel = {
 };
 
 export default function AcademicLevelsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+            <AcademicLevelsPageContent />
+        </PageGuard>
+    );
+}
+
+function AcademicLevelsPageContent() {
     const { data, isLoading, error, mutate } = useSWR<ClassLevel[]>("/api/class-levels", fetcher);
     const { toast } = useToast();
     // Cycle dans lequel on ajoute un niveau (null = fenêtre fermée).
@@ -82,7 +91,7 @@ export default function AcademicLevelsPage() {
     };
 
     return (
-        <PageGuard roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR"]}>
+        <>
             <PageShell>
                 <PageHeader
                     title="Cycles, niveaux et séries"
@@ -220,6 +229,6 @@ export default function AcademicLevelsPage() {
                     </DialogContent>
                 </Dialog>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }

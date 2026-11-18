@@ -1,89 +1,62 @@
 import { NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import prisma from "@/lib/prisma";
 import { getStudentPredictions } from "@/lib/services/ai-predictive";
 import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { createApiHandler } from "@/lib/api/api-helpers";
+import { aiStudentAccessDenied } from "@/lib/ai/student-access";
+
+/**
+ * Contrôle commun au POST et au GET : élève de l'école active (sauf
+ * SUPER_ADMIN), puis règle d'accès IA par rôle (direction : école ;
+ * enseignant : ses classes ; parent : ses enfants ; élève : lui-même).
+ *
+ * Avant, le GET ne vérifiait l'accès que pour l'élève et le parent : tout autre
+ * compte connecté, de n'importe quelle école, lisait les prédictions de
+ * n'importe quel élève.
+ */
+async function predictionAccessError(session: Session, studentId: string): Promise<NextResponse | null> {
+  const student = await prisma.studentProfile.findUnique({
+    where: { id: studentId },
+    select: { id: true, userId: true, user: { select: { schoolId: true } } },
+  });
+  if (!student) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
+  if (session.user.role !== "SUPER_ADMIN" && student.user.schoolId !== getActiveSchoolId(session)) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
+  const denied = await aiStudentAccessDenied(session, student, { allowFamily: true });
+  return denied ? NextResponse.json({ error: denied }, { status: 403 }) : null;
+}
 
 /**
  * POST /api/ai/predictions/student
  * Générer des prédictions IA pour un élève
  */
 export const POST = createApiHandler(async (request, context) => {
-    try {
-        const session = context.session;
-
-    const body = await request.json();
-    const { studentId } = body;
+  try {
+    const session = context.session;
+    const body = await request.json().catch(() => ({}));
+    const studentId = typeof body?.studentId === "string" ? body.studentId : "";
 
     if (!studentId) {
-      return NextResponse.json(
-        { error: "studentId est requis" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "studentId est requis" }, { status: 400 });
     }
 
-    // Vérifier les permissions
-    if (session.user.role === "STUDENT") {
-      // L'élève ne peut voir que ses propres prédictions
-      const studentProfile = await prisma.studentProfile.findUnique({
-        where: { userId: session.user.id },
-        select: { id: true },
-      });
+    const accessError = await predictionAccessError(session, studentId);
+    if (accessError) return accessError;
 
-      if (!studentProfile || studentProfile.id !== studentId) {
-        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-      }
-    } else if (session.user.role === "PARENT") {
-      // Le parent ne peut voir que les prédictions de ses enfants
-      const parentProfile = await prisma.parentProfile.findUnique({
-        where: { userId: session.user.id },
-        include: {
-          parentStudents: {
-            select: { studentId: true },
-          },
-        },
-      });
-
-      if (
-        !parentProfile ||
-        !parentProfile.parentStudents.some((c) => c.studentId === studentId)
-      ) {
-        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-      }
-    } else if (
-      !["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER"].includes(
-        session.user.role
-      )
-    ) {
-      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-    }
-
-    // Vérifier que l'élève appartient à la même école
-    if (session.user.role !== "SUPER_ADMIN") {
-      const student = await prisma.studentProfile.findUnique({
-        where: { id: studentId },
-        include: { user: true },
-      });
-
-      if (!student || student.user.schoolId !== getActiveSchoolId(session)) {
-        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-      }
-    }
-
-    // Générer les prédictions
     const result = await getStudentPredictions(studentId);
-
     return NextResponse.json(result);
-  
-    } catch (error) {
+  } catch (error) {
     logger.error(" generating student predictions:", error as Error);
     return NextResponse.json(
       { error: "Erreur lors de la génération des prédictions" },
       { status: 500 }
     );
   }
-
 });
 
 /**
@@ -91,55 +64,21 @@ export const POST = createApiHandler(async (request, context) => {
  * Obtenir les prédictions existantes (si sauvegardées)
  */
 export const GET = createApiHandler(async (request, context) => {
-    try {
-        const session = context.session;
-
-    const { searchParams } = new URL(request.url);
-    const studentId = searchParams.get("studentId");
+  try {
+    const session = context.session;
+    const studentId = new URL(request.url).searchParams.get("studentId");
 
     if (!studentId) {
-      return NextResponse.json(
-        { error: "studentId est requis" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "studentId est requis" }, { status: 400 });
     }
 
-    // Vérifier les permissions (même logique que POST)
-    if (session.user.role === "STUDENT") {
-      const studentProfile = await prisma.studentProfile.findUnique({
-        where: { userId: session.user.id },
-        select: { id: true },
-      });
+    const accessError = await predictionAccessError(session, studentId);
+    if (accessError) return accessError;
 
-      if (!studentProfile || studentProfile.id !== studentId) {
-        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-      }
-    } else if (session.user.role === "PARENT") {
-      const parentProfile = await prisma.parentProfile.findUnique({
-        where: { userId: session.user.id },
-        include: {
-          parentStudents: {
-            select: { studentId: true },
-          },
-        },
-      });
-
-      if (
-        !parentProfile ||
-        !parentProfile.parentStudents.some((c) => c.studentId === studentId)
-      ) {
-        return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
-      }
-    }
-
-    // Générer les prédictions en temps réel
     const result = await getStudentPredictions(studentId);
-
     return NextResponse.json(result);
-  
-    } catch (error) {
+  } catch (error) {
     logger.error(" fetching predictions:", error as Error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
-
 });

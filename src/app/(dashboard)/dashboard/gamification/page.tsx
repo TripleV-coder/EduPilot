@@ -89,6 +89,15 @@ interface ApiAchievement {
 }
 
 export default function GamificationPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_READ} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]} >
+            <GamificationPageContent />
+        </PageGuard>
+    );
+}
+
+function GamificationPageContent() {
     const { data: session, status } = useSession();
     const role = session?.user?.role ?? null;
     const canListStudents = role !== null && !["STUDENT", "PARENT"].includes(role);
@@ -168,10 +177,7 @@ export default function GamificationPage() {
     };
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_READ}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "TEACHER", "STUDENT", "PARENT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Gamification & récompenses"
@@ -298,7 +304,7 @@ export default function GamificationPage() {
                                 Badges disponibles
                             </h2>
                         </div>
-                        <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu de quelques récompenses</p>
+                        <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>Aperçu de quelques récompenses</p>
                         <div className="flex flex-col gap-3">
                             {SHOWCASE_ACHIEVEMENTS.map((a) => (
                                 <div
@@ -333,7 +339,7 @@ export default function GamificationPage() {
                                         </div>
                                         <div
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: "var(--eduflow-text-tertiary)",
                                                 marginTop: 2,
                                             }}
@@ -350,7 +356,7 @@ export default function GamificationPage() {
                     </Card>
                 </div>
             </PageShell>
-        </PageGuard>
+        </>
     );
 }
 
@@ -417,7 +423,7 @@ function LeaderboardRow({
                 </div>
                 <div
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                     }}
                 >
@@ -438,7 +444,7 @@ function LeaderboardRow({
                 </div>
                 <div
                     style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--eduflow-text-tertiary)",
                         marginTop: 2,
                     }}
@@ -468,7 +474,7 @@ function FieldSelect({
             <span
                 style={{
                     display: "block",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--eduflow-text-tertiary)",
                     marginBottom: 6,

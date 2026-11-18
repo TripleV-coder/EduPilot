@@ -154,8 +154,11 @@ function stripAccents(s: string): string {
     return s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
-function tokenize(text: string): Token[] {
+function tokenize(text: string, strictComma = false): Token[] {
     const tokens: Token[] = [];
+    // Parenthèses ouvertes : true = appel de fonction (où « , » sépare aussi
+    // les arguments), false = simple regroupement.
+    const parens: boolean[] = [];
     let i = 0;
     while (i < text.length) {
         const c = text[i];
@@ -166,6 +169,14 @@ function tokenize(text: string): Token[] {
         if (/\d/.test(c)) {
             // Décimale : 12.5 ou 12,5 (virgule collée entre deux chiffres)
             const m = /^\d+(?:[.,]\d+)?/.exec(text.slice(i))!;
+            // DEF-009 : dans un appel, « max(12,5) » peut se lire 12,5 ou
+            // 12 ; 5. À l'enregistrement (strictComma), on demande d'écrire
+            // sans ambiguïté ; une formule déjà enregistrée garde sa lecture.
+            if (strictComma && m[0].includes(",") && parens[parens.length - 1] === true) {
+                throw new FormulaError(
+                    `« ${m[0]} » est ambigu dans une fonction (position ${i + 1}) : écrivez ${m[0].replace(",", ".")} pour un nombre décimal, ou ${m[0].replace(",", " ; ")} pour deux nombres.`,
+                );
+            }
             tokens.push({ t: "num", v: Rational.from(m[0].replace(",", ".")), pos: i });
             i += m[0].length;
             continue;
@@ -178,6 +189,8 @@ function tokenize(text: string): Token[] {
             continue;
         }
         const op = (c === "×" ? "*" : c === "÷" ? "/" : c === "," ? ";" : c) as OpChar;
+        if (op === "(") parens.push(tokens[tokens.length - 1]?.t === "id");
+        if (op === ")") parens.pop();
         if (OPERATORS.includes(op)) {
             tokens.push({ t: "op", v: op, pos: i });
             i++;
@@ -189,11 +202,11 @@ function tokenize(text: string): Token[] {
 }
 
 /** Analyse une formule ; lève FormulaError avec un message en français. */
-export function parseFormula(text: string): FormulaNode {
+export function parseFormula(text: string, options: { strictComma?: boolean } = {}): FormulaNode {
     const source = (text ?? "").trim();
     if (!source) throw new FormulaError("La formule est vide.");
     if (source.length > MAX_LENGTH) throw new FormulaError(`La formule dépasse ${MAX_LENGTH} caractères.`);
-    const tokens = tokenize(source);
+    const tokens = tokenize(source, options.strictComma === true);
     let p = 0;
     const peek = (): Token | undefined => tokens[p];
     const isOp = (v: OpChar) => {
@@ -428,13 +441,20 @@ function sampleCases(scope: FormulaScope, periods: number): SampleCase[] {
             kept.forEach((x, i) => (v[`P${i + 1}`] = R(x)));
             return v;
         };
-        return [
+        const annual: SampleCase[] = [
             { name: "toutes les périodes à 20", values: make([20, 20, 20]), expect: 20 },
             { name: "toutes les périodes à 0", values: make([0, 0, 0]), expect: 0 },
             { name: "périodes 8 ; 12,5 ; 17", values: make([8, 12.5, 17]) },
             { name: "périodes 20 ; 0 ; 20", values: make([20, 0, 20]) },
             { name: "périodes 0 ; 20 ; 0", values: make([0, 20, 0]) },
         ];
+        // DEF-008 : grille au demi-point et tirages reproductibles
+        for (const x of GRID) annual.push({ name: "grille", values: make([x, x, x]) });
+        const rnd = seededRandom(20261118);
+        for (let k = 0; k < RANDOM_CASES; k++) {
+            annual.push({ name: "tirage", values: make([halfPoint(rnd), halfPoint(rnd), halfPoint(rnd)]) });
+        }
+        return annual;
     }
     const make = (i: number[], d: number[], c: number[]): FormulaValues => {
         const I = i.map(R);
@@ -458,7 +478,41 @@ function sampleCases(scope: FormulaScope, periods: number): SampleCase[] {
     for (const i of sets) for (const d of sets) for (const c of [[], [0], [20], [12]]) {
         cases.push({ name: "cas mixte", values: make(i, d, c) });
     }
+    // DEF-008 : grille de 0 à 20 par demi-point (une même note partout, puis
+    // chaque famille seule) et tirages pseudo-aléatoires reproductibles.
+    for (const x of GRID) {
+        cases.push({ name: "grille", values: make([x], [x], [x]) });
+        cases.push({ name: "grille", values: make([x], [], []) });
+        cases.push({ name: "grille", values: make([], [x], []) });
+        cases.push({ name: "grille", values: make([], [], [x]) });
+    }
+    const rnd = seededRandom(20261118);
+    const list = () => Array.from({ length: Math.floor(rnd() * 4) }, () => halfPoint(rnd));
+    for (let k = 0; k < RANDOM_CASES; k++) {
+        cases.push({ name: "tirage", values: make(list(), list(), list()) });
+    }
     return cases;
+}
+
+/** 0 ; 0,5 ; 1 ; … ; 20 */
+const GRID: number[] = Array.from({ length: 41 }, (_, k) => k / 2);
+const RANDOM_CASES = 400;
+
+/** Générateur déterministe (mulberry32) : même graine, mêmes cas, résultat reproductible. */
+function seededRandom(seed: number): () => number {
+    let a = seed >>> 0;
+    return () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/** Note au demi-point entre 0 et 20. */
+function halfPoint(rnd: () => number): number {
+    return Math.floor(rnd() * 41) / 2;
 }
 
 export type FormulaCheck = { ok: true; text: string } | { ok: false; error: string };
@@ -471,7 +525,7 @@ export type FormulaCheck = { ok: true; text: string } | { ok: false; error: stri
 export function validateFormula(text: string, scope: FormulaScope, periods = 3): FormulaCheck {
     try {
         const source = (text ?? "").trim();
-        const tree = parseFormula(source);
+        const tree = parseFormula(source, { strictComma: true });
         const used = new Set<string>();
         typeCheck(tree, scope, used);
         if (used.size === 0) {

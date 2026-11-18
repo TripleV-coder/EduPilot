@@ -115,6 +115,15 @@ function periodLabel(start: string, end: string | null): string {
 }
 
 export default function ScholarshipsPage() {
+    // Garde avant chargement (TD-024) : aucune requête tant que le rôle n'est pas admis.
+    return (
+        <PageGuard permission={Permission.SCHOOL_UPDATE} roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]} >
+            <ScholarshipsPageContent />
+        </PageGuard>
+    );
+}
+
+function ScholarshipsPageContent() {
     const [scholarships, setScholarships] = useState<Scholarship[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -216,10 +225,7 @@ export default function ScholarshipsPage() {
     }, [scholarships]);
 
     return (
-        <PageGuard
-            permission={Permission.SCHOOL_UPDATE}
-            roles={["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "ACCOUNTANT"]}
-        >
+        <>
             <PageShell>
                 <PageHeader
                     title="Bourses & aides scolaires"
@@ -242,7 +248,7 @@ export default function ScholarshipsPage() {
                     }
                 />
 
-                {error ? <PageError message={error} /> : null}
+                {error ? <PageError error={error} message={error} /> : null}
 
                 <div
                     style={{
@@ -357,7 +363,7 @@ export default function ScholarshipsPage() {
                                                     style={{
                                                         padding: "10px 14px",
                                                         textAlign: "left",
-                                                        fontSize: 11,
+                                                        fontSize: 12,
                                                         fontWeight: 700,
                                                         color:
                                                             "var(--eduflow-text-tertiary)",
@@ -427,7 +433,7 @@ export default function ScholarshipsPage() {
                                                                     {klass ? (
                                                                         <div
                                                                             style={{
-                                                                                fontSize: 11,
+                                                                                fontSize: 12,
                                                                                 color:
                                                                                     "var(--eduflow-text-tertiary)",
                                                                             }}
@@ -466,7 +472,7 @@ export default function ScholarshipsPage() {
                                                             </span>{" "}
                                                             <span
                                                                 style={{
-                                                                    fontSize: 11,
+                                                                    fontSize: 12,
                                                                     color:
                                                                         "var(--eduflow-text-tertiary)",
                                                                 }}
@@ -476,7 +482,7 @@ export default function ScholarshipsPage() {
                                                             {s.percentage ? (
                                                                 <div
                                                                     style={{
-                                                                        fontSize: 11,
+                                                                        fontSize: 12,
                                                                         color:
                                                                             "var(--eduflow-text-tertiary)",
                                                                     }}
@@ -499,7 +505,7 @@ export default function ScholarshipsPage() {
                                                                 padding: "12px 14px",
                                                                 color:
                                                                     "var(--eduflow-text-secondary)",
-                                                                fontSize: 11,
+                                                                fontSize: 12,
                                                                 maxWidth: 220,
                                                                 overflow: "hidden",
                                                                 textOverflow: "ellipsis",
@@ -537,7 +543,7 @@ export default function ScholarshipsPage() {
 
                         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                             <Card>
-                                <p className="mb-2.5 text-[11px] font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
+                                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--eduflow-text-tertiary)" }}>
                                     Répartition par type · {compactAmount(totalBudget)} FCFA
                                 </p>
                                 {distribution.length === 0 ? (
@@ -649,6 +655,6 @@ export default function ScholarshipsPage() {
                     }
                 }
             `}</style>
-        </PageGuard>
+        </>
     );
 }

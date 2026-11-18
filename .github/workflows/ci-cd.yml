@@ -44,7 +44,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   docker:
     name: Docker Build & Push
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: >-
       ${{
         github.event_name == 'workflow_dispatch' ||
@@ -114,7 +114,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   image-scan:
     name: Trivy Image Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [docker]
     permissions:
       contents: read
@@ -146,7 +146,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   lighthouse:
     name: Lighthouse CI
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [docker]
     if: >-
       ${{
@@ -177,7 +177,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   deploy-staging:
     name: Deploy → Staging
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [image-scan]
     if: >-
       ${{
@@ -230,7 +230,7 @@ jobs:
 
   deploy-production:
     name: Deploy → Production
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [deploy-staging]
     # Production: déclenchement manuel uniquement (workflow_dispatch + environment=production).
     # Le push sur tag passe par CI puis CD via workflow_run; pour pousser en prod, lancer
@@ -278,11 +278,3 @@ jobs:
           done
           exit 1
 
-      - name: Notify Sentry of release
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.SENTRY_AUTH_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            "https://sentry.io/api/0/organizations/${{ vars.SENTRY_ORG }}/releases/" \
-            -d '{"version":"${{ env.DEPLOY_SHA }}","projects":["${{ vars.SENTRY_PROJECT }}"]}'
-        continue-on-error: true

@@ -2,6 +2,7 @@
 
 import { SWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
+import { isPermanentHttpError } from "@/lib/http-error";
 
 export function SWRProvider({ children }: { children: React.ReactNode }) {
   return (
@@ -20,8 +21,9 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
         errorRetryCount: 2,
         errorRetryInterval: 1500,
         shouldRetryOnError: (err) => {
+          // Session expirée, refus, absence, requête invalide : réessayer ne change rien.
+          if (isPermanentHttpError(err)) return false;
           const message = (err as Error | undefined)?.message ?? "";
-          // Ne pas retry si c'est clairement un refus d'accès/erreur logique.
           return !/Accès refusé|Non authentifié|MFA_REQUIRED/i.test(message);
         },
         // On garde une UI réactive en évitant des revalidations agressives.

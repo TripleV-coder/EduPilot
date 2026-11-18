@@ -137,10 +137,20 @@ async function main() {
                     weekStart: daysAgo((pulseRows.length - i) * 7),
                     averageScore: p.value,
                     responses: p.responses,
+                    // Compteurs cohérents avec la moyenne et les % (lib/wellbeing/pulse)
+                    scoreSum: p.value * p.responses,
                     pctSafety: i === pulseRows.length - 1 ? 88 : null,
                     pctFriend: i === pulseRows.length - 1 ? 92 : null,
                     pctAdultListens: i === pulseRows.length - 1 ? 74 : null,
                     pctHarassWitness: i === pulseRows.length - 1 ? 12 : null,
+                    ...(i === pulseRows.length - 1
+                        ? {
+                              safetyYes: Math.round(0.88 * p.responses),
+                              friendYes: Math.round(0.92 * p.responses),
+                              adultYes: Math.round(0.74 * p.responses),
+                              harassYes: Math.round(0.12 * p.responses),
+                          }
+                        : {}),
                 },
             });
         }
