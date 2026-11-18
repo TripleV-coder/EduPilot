@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prismaBase } from "@/lib/prisma";
@@ -16,7 +17,7 @@ const bodySchema = z.object({ to: z.string().trim().min(8).max(20) });
  * « Accepté par Meta » ne prouve pas la remise : le statut (livré, échoué)
  * arrive ensuite par le webhook.
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     const session = await auth();
     const guard = requireRoot(session, session?.user?.email, session?.user?.id);
     if (guard) return guard;
@@ -45,3 +46,7 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ accepted: true, messageId: result.messageId ?? null });
 }
+
+// Passage central (limite de débit, contrôle CSRF, 2FA, journalisation) ;
+// requireRoot reste appliqué dans chaque fonction.
+export const POST = createApiHandler((request) => handlePost(request), { allowedRoles: ["SUPER_ADMIN"] });

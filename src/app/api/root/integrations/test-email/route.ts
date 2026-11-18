@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { auth } from "@/lib/auth";
 import { prismaBase } from "@/lib/prisma";
 import { requireRoot } from "@/lib/security/require-root";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
  * du super-administrateur connecté, avec les réglages en vigueur. Seule preuve
  * fiable qu'une réinitialisation de mot de passe partira réellement.
  */
-export async function POST() {
+async function handlePost() {
     const session = await auth();
     const guard = requireRoot(session, session?.user?.email, session?.user?.id);
     if (guard) return guard;
@@ -42,3 +43,7 @@ export async function POST() {
     }
     return NextResponse.json({ sent: true, to, provider });
 }
+
+// Passage central (limite de débit, contrôle CSRF, 2FA, journalisation) ;
+// requireRoot reste appliqué dans chaque fonction.
+export const POST = createApiHandler(() => handlePost(), { allowedRoles: ["SUPER_ADMIN"] });

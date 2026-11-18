@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { auth } from "@/lib/auth";
 import { requireRoot } from "@/lib/security/require-root";
 import prisma from "@/lib/prisma";
@@ -19,7 +20,7 @@ const MAX_MESSAGE_LENGTH = 500;
  * GET /api/root/system/maintenance
  * Retourne l'état du mode maintenance + le message personnalisé courant.
  */
-export async function GET() {
+async function handleGet() {
   const session = await auth();
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
@@ -33,7 +34,7 @@ export async function GET() {
  * Active ou désactive le mode maintenance et persiste un message optionnel.
  * Body: { enabled: boolean, message?: string }
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   const session = await auth();
   const guard = requireRoot(session, session?.user?.email, session?.user?.id);
   if (guard) return guard;
@@ -77,3 +78,8 @@ export async function POST(request: NextRequest) {
     defaultMessage: DEFAULT_MAINTENANCE_MESSAGE,
   });
 }
+
+// Passage central (limite de débit, contrôle CSRF, 2FA, journalisation) ;
+// requireRoot reste appliqué dans chaque fonction.
+export const GET = createApiHandler(() => handleGet(), { allowedRoles: ["SUPER_ADMIN"] });
+export const POST = createApiHandler((request) => handlePost(request), { allowedRoles: ["SUPER_ADMIN"] });

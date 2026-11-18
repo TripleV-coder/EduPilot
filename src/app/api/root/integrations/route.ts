@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createApiHandler } from "@/lib/api/api-helpers";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prismaBase } from "@/lib/prisma";
@@ -39,7 +40,7 @@ export const dynamic = "force-dynamic";
  * PUT : { values: { NOM: "valeur" | "" } } — chaîne vide = effacement ; un
  *       nom absent n'est pas modifié. Action tracée (noms, jamais les valeurs).
  */
-export async function GET() {
+async function handleGet() {
     const session = await auth();
     const guard = requireRoot(session, session?.user?.email, session?.user?.id);
     if (guard) return guard;
@@ -52,7 +53,7 @@ const bodySchema = z.object({
     values: z.record(z.string(), z.string().max(2000).nullable()),
 });
 
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
     const session = await auth();
     const guard = requireRoot(session, session?.user?.email, session?.user?.id);
     if (guard) return guard;
@@ -79,3 +80,8 @@ export async function PUT(request: NextRequest) {
     });
     return NextResponse.json({ settings: integrationSettingsView(), whatsappWebhook: whatsappWebhookInfo() });
 }
+
+// Passage central (limite de débit, contrôle CSRF, 2FA, journalisation) ;
+// requireRoot reste appliqué dans chaque fonction.
+export const GET = createApiHandler(() => handleGet(), { allowedRoles: ["SUPER_ADMIN"] });
+export const PUT = createApiHandler((request) => handlePut(request), { allowedRoles: ["SUPER_ADMIN"] });

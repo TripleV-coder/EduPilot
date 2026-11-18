@@ -16715,17 +16715,27 @@
     "/api/root/integrations": {
       "get": {
         "summary": "GET /api/root/integrations",
-        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "description": "Session requise. Rôles : SUPER_ADMIN.",
         "tags": [
           "root"
         ],
-        "security": [],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Succès."
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -16737,11 +16747,15 @@
       },
       "put": {
         "summary": "PUT /api/root/integrations",
-        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "description": "Session requise. Rôles : SUPER_ADMIN.",
         "tags": [
           "root"
         ],
-        "security": [],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Succès."
@@ -16749,8 +16763,11 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -16764,17 +16781,27 @@
     "/api/root/integrations/test-email": {
       "post": {
         "summary": "POST /api/root/integrations/test-email",
-        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "description": "Session requise. Rôles : SUPER_ADMIN.",
         "tags": [
           "root"
         ],
-        "security": [],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Succès."
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -16788,11 +16815,15 @@
     "/api/root/integrations/test-whatsapp": {
       "post": {
         "summary": "POST /api/root/integrations/test-whatsapp",
-        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "description": "Session requise. Rôles : SUPER_ADMIN.",
         "tags": [
           "root"
         ],
-        "security": [],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Succès."
@@ -16800,8 +16831,11 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
-          "413": {
-            "$ref": "#/components/responses/PayloadTooLarge"
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -17175,17 +17209,27 @@
     "/api/root/system/maintenance": {
       "get": {
         "summary": "GET /api/root/system/maintenance",
-        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "description": "Session requise. Rôles : SUPER_ADMIN.",
         "tags": [
           "root"
         ],
-        "security": [],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Succès."
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -17197,17 +17241,27 @@
       },
       "post": {
         "summary": "POST /api/root/system/maintenance",
-        "description": "Route sans `createApiHandler` : ses garanties ne sont pas lisibles dans les options et doivent être vérifiées dans le code.",
+        "description": "Session requise. Rôles : SUPER_ADMIN.",
         "tags": [
           "root"
         ],
-        "security": [],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Succès."
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"

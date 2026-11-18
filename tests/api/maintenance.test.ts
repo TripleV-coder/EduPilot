@@ -28,7 +28,7 @@ beforeEach(() => {
 describe("GET /api/root/system/maintenance", () => {
     it("retourne l'état et le message par défaut", async () => {
         vi.mocked(prisma.systemSetting.findMany).mockResolvedValue([] as never);
-        const res = await GET();
+        const res = await GET(makeRequest("http://localhost:3000/api/root/system/maintenance"));
         const body = await res.json();
         expect(res.status).toBe(200);
         expect(body).toEqual({ enabled: false, message: DEFAULT_MAINTENANCE_MESSAGE });
