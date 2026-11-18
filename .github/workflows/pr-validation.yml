@@ -2,9 +2,9 @@ name: PR Validation
 
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
   pull_request_target:
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   pull-requests: write
@@ -16,7 +16,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   semantic-title:
     name: Semantic PR title
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: amannn/action-semantic-pull-request@v5
         env:
@@ -44,7 +44,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   size-check:
     name: PR size guardrail
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,8 +66,14 @@ jobs:
           echo "lines=$changed" >> "$GITHUB_OUTPUT"
           echo "PR changes $changed lines (non-generated)"
 
+      # Exception explicite : label « size/exception » posé à la main sur une
+      # PR qui ne peut plus être découpée (ex. rattrapage d'une longue branche).
+      - name: Size exception (label)
+        if: ${{ steps.size.outputs.lines > 1500 && contains(github.event.pull_request.labels.*.name, 'size/exception') }}
+        run: echo "::warning::PR de ${{ steps.size.outputs.lines }} lignes acceptée par le label size/exception."
+
       - name: Fail if PR is too large
-        if: ${{ steps.size.outputs.lines > 1500 }}
+        if: ${{ steps.size.outputs.lines > 1500 && !contains(github.event.pull_request.labels.*.name, 'size/exception') }}
         run: |
           echo "PR exceeds 1500 lines of changes — please split."
           exit 1
@@ -85,7 +91,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   secrets-scan:
     name: Secret scan (Gitleaks)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4

@@ -80,3 +80,6 @@ design_handoff_edupilot/
 
 # Vidéos et rapports du tournage (e2e/tour) : régénérables, trop lourds pour git
 e2e/tour/output/
+
+# Configuration locale de Claude Code (propre à chaque poste)
+.claude/
