@@ -23,11 +23,16 @@ type InstallPromptEvent = Event & {
     userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
+// Reflet EXACT de src/lib/pwa/cache-policy.ts (audit OFF-02, 2026-11-24) :
+// seules les ressources statiques sont conservées ; aucune donnée scolaire
+// n'est mise en cache (appareils partagés, MS-03). Ne rien annoncer de plus.
 const OFFLINE_FEATURES: { label: string; supported: boolean }[] = [
-    { label: "Consultation dossier élève", supported: true },
+    { label: "Ouverture de l'application (affichage, icônes)", supported: true },
+    { label: "Données déjà affichées dans un onglet resté ouvert", supported: true },
+    { label: "Consultation dossier élève sans réseau", supported: false },
     { label: "Saisie notes (file d'attente locale)", supported: false },
     { label: "Faire l'appel (file d'attente locale)", supported: false },
-    { label: "Cahier de liaison · lecture", supported: true },
+    { label: "Cahier de liaison · lecture", supported: false },
     { label: "Cahier de liaison · écriture", supported: false },
     { label: "Paiement Mobile Money", supported: false },
     { label: "SMS sortants", supported: false },
