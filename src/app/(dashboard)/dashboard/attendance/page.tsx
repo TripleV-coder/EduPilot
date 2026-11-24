@@ -19,6 +19,10 @@ import { PageEmpty, PageLoading, PageError } from "@/components/layout/page-stat
 import { FamilyAttendance } from "@/components/attendance/family-attendance";
 import { canSaveAttendanceCall } from "@/lib/attendance/can-save-call";
 import { PendingJustifications } from "@/components/attendance/pending-justifications";
+import { OfflineOutboxNotice } from "@/components/offline/offline-outbox";
+import { useOfflineOutbox } from "@/hooks/use-offline-outbox";
+import { isNetworkError } from "@/lib/offline/outbox";
+import type { AttendancePayload } from "@/lib/offline/senders";
 
 type RawStudent = {
     id: string;
@@ -99,6 +103,7 @@ function RollCallPage() {
     const { data: session } = useSession();
     const canReviewJustifications = ["SUPER_ADMIN", "SCHOOL_ADMIN", "DIRECTOR", "STAFF", "TEACHER"].includes(session?.user?.role ?? "");
     const { isFocusMode } = useSidebar();
+    const outbox = useOfflineOutbox();
 
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [selectedClassId, setSelectedClassId] = useState("");
@@ -207,15 +212,36 @@ function RollCallPage() {
                 notes: rec.notes,
             }));
 
-            const res = await fetch("/api/attendance/bulk", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    classId: selectedClassId,
-                    date: selectedDate,
-                    records,
-                }),
-            });
+            const payload: AttendancePayload = { classId: selectedClassId, date: selectedDate, records };
+            // OFF-01 : sans réseau, l'appel est gardé sur l'appareil et part au retour du réseau
+            const keepOffline = async () => {
+                const className = classes.find((c) => c.id === selectedClassId)?.name ?? "classe";
+                await outbox.enqueue("attendance", `Appel ${className} du ${new Date(selectedDate).toLocaleDateString("fr-FR")}`, payload);
+                setInitialAttendanceData(attendanceData);
+                setCallRecorded(true);
+                toast({
+                    title: "Appel gardé sur cet appareil",
+                    description: "Pas de réseau : il sera envoyé automatiquement dès le retour de la connexion. Ne vous déconnectez pas d'ici là.",
+                });
+            };
+            if (typeof navigator !== "undefined" && !navigator.onLine) {
+                await keepOffline();
+                return;
+            }
+            let res: Response;
+            try {
+                res = await fetch("/api/attendance/bulk", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+            } catch (error) {
+                if (isNetworkError(error)) {
+                    await keepOffline();
+                    return;
+                }
+                throw error;
+            }
 
             if (!res.ok) throw new Error("Erreur de sauvegarde");
             setInitialAttendanceData(attendanceData);
@@ -322,6 +348,8 @@ function RollCallPage() {
                         ) : undefined
                     }
                 />
+
+                <OfflineOutboxNotice kind="attendance" />
 
                 {canReviewJustifications && !isFocusMode ? <PendingJustifications /> : null}
 

@@ -8,6 +8,7 @@ import useSWR from "swr";
 import { usePathname } from "next/navigation";
 import { fetcher } from "@/lib/fetcher";
 import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
+import { OfflineOutboxSync } from "@/components/offline/offline-outbox";
 import { ModuleGuard } from "@/components/guard/module-guard";
 import { SchoolScopedContent } from "@/components/dashboard/school-scoped-content";
 import { isThemeValue, persistTheme, readStoredTheme, type ThemeValue } from "@/lib/theme";
@@ -244,6 +245,8 @@ export function DashboardLayoutClient({
 
     return (
         <SidebarContext.Provider value={contextValue}>
+            {/* OFF-01 : envoi des saisies gardées hors ligne au retour du réseau */}
+            <OfflineOutboxSync />
             <div
                 className={cn(
                     // Coque d'application : l'écran ne défile pas, seul <main> défile.

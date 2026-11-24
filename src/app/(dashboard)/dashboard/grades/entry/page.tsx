@@ -32,6 +32,9 @@ import {
 import { AppreciationButton } from "@/components/ai/appreciation-button";
 import { SubjectFormulaCard } from "@/components/grades/subject-formula-card";
 import { StudentAdjustPanel } from "@/components/grades/student-adjust-panel";
+import { useOfflineOutbox } from "@/hooks/use-offline-outbox";
+import { isNetworkError } from "@/lib/offline/outbox";
+import { OfflineOutboxNotice } from "@/components/offline/offline-outbox";
 import {
     computeCellState,
     StateBadge,
@@ -128,6 +131,9 @@ function GradesEntryPageContent() {
     const [generatingComments, setGeneratingComments] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    // OFF-01 : grille gardée sur l'appareil faute de réseau (jamais présentée comme publiée)
+    const [savedOffline, setSavedOffline] = useState(false);
+    const outbox = useOfflineOutbox();
 
     // Mode « modifier les notes » d'une évaluation existante (?evaluationId=) :
     // correction d'une note, recomposition d'un élève absent, absence justifiée.
@@ -415,7 +421,39 @@ function GradesEntryPageContent() {
         }
         setSaving(true);
         setError(null);
+        const offline = typeof navigator !== "undefined" && !navigator.onLine;
+        if (offline && editEvaluationId) {
+            setError("Pas de réseau : modifier une évaluation déjà enregistrée demande la connexion. Votre brouillon reste sur cet appareil.");
+            setSaving(false);
+            return;
+        }
+        // OFF-01 : clé d'idempotence de la nouvelle évaluation (un renvoi ne la crée qu'une fois)
+        const evaluationPayload = {
+            classSubjectId: selectedSubject,
+            periodId,
+            typeId,
+            title: title || undefined,
+            date: new Date(date).toISOString(),
+            maxGrade,
+            clientKey: crypto.randomUUID(),
+        };
+        const keepOffline = async () => {
+            const subjectName = classSubjects.find((cs) => cs.id === selectedSubject)?.subject?.name ?? "Notes";
+            await outbox.enqueue(
+                "grades",
+                `${subjectName} du ${new Date(date).toLocaleDateString("fr-FR")}`,
+                { evaluation: evaluationPayload, grades: gradeList },
+                evaluationPayload.clientKey,
+            );
+            if (draftKey && typeof window !== "undefined") localStorage.removeItem(draftKey);
+            setSavedOffline(true);
+            setSuccess(true);
+        };
         try {
+            if (offline) {
+                await keepOffline();
+                return;
+            }
             let evaluation: { id: string };
             if (editEvaluationId) {
                 evaluation = { id: editEvaluationId };
@@ -423,14 +461,7 @@ function GradesEntryPageContent() {
                 const evalRes = await fetch("/api/evaluations", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        classSubjectId: selectedSubject,
-                        periodId,
-                        typeId,
-                        title: title || undefined,
-                        date: new Date(date).toISOString(),
-                        maxGrade,
-                    }),
+                    body: JSON.stringify(evaluationPayload),
                 });
                 if (!evalRes.ok) {
                     const data = await evalRes.json();
@@ -464,6 +495,14 @@ function GradesEntryPageContent() {
             }
             document.getElementById("main-content")?.scrollTo({ top: 0 });
         } catch (err) {
+            // Réseau perdu en cours d'envoi d'une nouvelle grille : gardée sur l'appareil,
+            // renvoyée avec la même clé (aucune évaluation en double)
+            if (isNetworkError(err) && !editEvaluationId) {
+                await keepOffline().catch((offlineError) =>
+                    setError(offlineError instanceof Error ? offlineError.message : "Enregistrement sur l'appareil impossible"),
+                );
+                return;
+            }
             setError(err instanceof Error ? err.message : "Erreur inconnue");
         } finally {
             setSaving(false);
@@ -590,7 +629,7 @@ function GradesEntryPageContent() {
                                 letterSpacing: "-0.02em",
                             }}
                         >
-                            Grille enregistrée avec succès !
+                            {savedOffline ? "Grille gardée sur cet appareil" : "Grille enregistrée avec succès !"}
                         </h2>
                         <p
                             style={{
@@ -601,14 +640,16 @@ function GradesEntryPageContent() {
                                 lineHeight: 1.55,
                             }}
                         >
-                            Les notes ont été publiées et les moyennes de la classe ont été
-                            mises à jour en temps réel.
+                            {savedOffline
+                                ? "Pas de réseau : les notes ne sont pas encore publiées. Elles seront envoyées automatiquement dès le retour de la connexion. Ne vous déconnectez pas d'ici là."
+                                : "Les notes ont été publiées et les moyennes de la classe ont été mises à jour en temps réel."}
                         </p>
                         <div className="mt-2 flex gap-2">
                             <Button
                                 variant="secondary"
                                 onClick={() => {
                                     setSuccess(false);
+                                    setSavedOffline(false);
                                     setGrades({});
                                 }}
                             >
@@ -672,6 +713,8 @@ function GradesEntryPageContent() {
                         ]}
                     />
                 </div>
+
+                <OfflineOutboxNotice kind="grades" />
 
                 {error ? (
                     <Card

@@ -415,6 +415,11 @@
             "type": "number",
             "minimum": 0.1,
             "maximum": 10
+          },
+          "clientKey": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           }
         },
         "required": [
@@ -2735,6 +2740,40 @@
       "get": {
         "summary": "GET /api/accounting/overview",
         "description": "Session requise. Rôles : SUPER_ADMIN, SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
+        "tags": [
+          "accounting"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/accounting/sync-payments": {
+      "post": {
+        "summary": "POST /api/accounting/sync-payments",
+        "description": "Session requise. Rôles : SCHOOL_ADMIN, DIRECTOR, ACCOUNTANT.",
         "tags": [
           "accounting"
         ],

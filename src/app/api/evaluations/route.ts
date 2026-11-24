@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { evaluationSchema } from "@/lib/validations/evaluation";
 
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
 import { API_ERRORS } from "@/lib/constants/api-messages";
 import { guardPeriodWritable } from "@/lib/academic/year-lock";
@@ -254,6 +254,22 @@ export const POST = createApiHandler(
     // par période. Il était configurable mais jamais appliqué (recette du
     // 2026-10-26). Comptage et création sous verrou : deux envois simultanés ne
     // dépassent pas le plafond.
+    const evaluationInclude = {
+      classSubject: { include: { class: { include: { classLevel: true } }, subject: true } },
+      period: true,
+      type: true,
+    } as const;
+    // OFF-01 : envoi rejoué (saisie hors ligne, réponse perdue) → l'évaluation
+    // déjà créée est renvoyée, avant tout contrôle de plafond (qui la compterait).
+    if (validatedData.clientKey) {
+      const replay = await prisma.evaluation.findUnique({ where: { clientKey: validatedData.clientKey }, include: evaluationInclude });
+      if (replay) {
+        if (replay.classSubjectId !== validatedData.classSubjectId) {
+          return NextResponse.json({ error: "Clé d'envoi déjà utilisée pour une autre matière." }, { status: 409 });
+        }
+        return NextResponse.json(replay, { status: 200 });
+      }
+    }
     const evaluation = await prisma.$transaction(async (tx) => {
       if (evalType.maxCount) {
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`evaluation-cap:${validatedData.classSubjectId}:${validatedData.periodId}:${validatedData.typeId}`}))::text`;
@@ -271,21 +287,21 @@ export const POST = createApiHandler(
         date: validatedData.date,
         maxGrade: validatedData.maxGrade,
         coefficient: validatedData.coefficient,
+        clientKey: validatedData.clientKey,
       },
-      include: {
-        classSubject: {
-          include: {
-            class: {
-              include: { classLevel: true },
-            },
-            subject: true,
-          },
-        },
-        period: true,
-        type: true,
-      },
+      include: evaluationInclude,
     });
+    }).catch((error: unknown) => {
+      // Deux envois simultanés de la même clé : le second est un rejeu
+      if (validatedData.clientKey && error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return "DUPLICATE" as const;
+      }
+      throw error;
     });
+    if (evaluation === "DUPLICATE") {
+      const replay = await prisma.evaluation.findUnique({ where: { clientKey: validatedData.clientKey }, include: evaluationInclude });
+      return NextResponse.json(replay, { status: 200 });
+    }
 
     if (!evaluation) {
       return NextResponse.json(

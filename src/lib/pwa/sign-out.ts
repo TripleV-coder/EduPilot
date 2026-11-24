@@ -1,8 +1,10 @@
 "use client";
 
-import { signOut } from "next-auth/react";
+import { getSession, signOut } from "next-auth/react";
 import { purgePrivateCaches } from "./cache-policy";
 import { unsubscribeThisDevice } from "./push-client";
+import { browserOutbox, flushOutbox, pendingFor } from "@/lib/offline/outbox";
+import { sendOutboxOp } from "@/lib/offline/senders";
 
 /**
  * Efface du navigateur les réponses privées que d'anciennes versions du
@@ -35,8 +37,36 @@ async function stopPushOnThisDevice(): Promise<void> {
     }
 }
 
-/** Déconnexion : arrêt du push sur cet appareil, purge des caches privés, puis fin de session. */
-export async function signOutAndPurge(options?: Parameters<typeof signOut>[0]) {
+/**
+ * OFF-01 : saisies gardées hors ligne. On tente de les envoyer (session encore
+ * valide) ; s'il en reste, la personne confirme qu'elles seront effacées de
+ * l'appareil (appareil partagé : rien ne doit rester derrière elle). Renvoie
+ * false si elle préfère rester connectée.
+ */
+async function settleOfflineOutbox(knownUserId: string | undefined): Promise<boolean> {
+    const store = browserOutbox();
+    if (!store) return true;
+    try {
+        if ((await store.all()).length === 0) return true;
+        const userId = knownUserId ?? (await getSession().catch(() => null))?.user?.id;
+        if (userId && navigator.onLine) await flushOutbox(store, userId, sendOutboxOp);
+        const left = userId ? await pendingFor(store, userId) : await store.all();
+        if (left.length > 0) {
+            const ok = window.confirm(
+                `${left.length === 1 ? "1 saisie faite" : `${left.length} saisies faites`} hors connexion ${left.length === 1 ? "n'a" : "n'ont"} pas encore été ${left.length === 1 ? "envoyée" : "envoyées"} (${left.map((op) => op.label).join(", ")}).\n\nSi vous vous déconnectez, ${left.length === 1 ? "elle sera effacée" : "elles seront effacées"} de cet appareil. Se déconnecter quand même ?`,
+            );
+            if (!ok) return false;
+        }
+        await store.clear();
+    } catch {
+        // Stockage indisponible : rien à envoyer ni à effacer
+    }
+    return true;
+}
+
+/** Déconnexion : file hors ligne réglée, arrêt du push sur cet appareil, purge des caches privés, puis fin de session. */
+export async function signOutAndPurge(options?: Parameters<typeof signOut>[0], userId?: string) {
+    if (!(await settleOfflineOutbox(userId))) return;
     await stopPushOnThisDevice();
     await purgeBrowserPrivateCaches();
     return signOut(options);

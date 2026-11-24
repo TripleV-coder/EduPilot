@@ -17,6 +17,8 @@ export const evaluationSchema = z.object({
   date: z.coerce.date(),
   maxGrade: z.coerce.number().min(1).max(100).default(20),
   coefficient: z.coerce.number().min(0.1).max(10).default(1),
+  /** OFF-01 : clé d'idempotence (UUID généré par l'appareil). */
+  clientKey: z.string().uuid().optional(),
 });
 
 /**

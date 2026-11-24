@@ -30,8 +30,10 @@ const OFFLINE_FEATURES: { label: string; supported: boolean }[] = [
     { label: "Ouverture de l'application (affichage, icônes)", supported: true },
     { label: "Données déjà affichées dans un onglet resté ouvert", supported: true },
     { label: "Consultation dossier élève sans réseau", supported: false },
-    { label: "Saisie notes (file d'attente locale)", supported: false },
-    { label: "Faire l'appel (file d'attente locale)", supported: false },
+    // OFF-01 : page ouverte avant la coupure ; envoi automatique au retour du réseau
+    { label: "Faire l'appel (gardé sur l'appareil, envoyé au retour du réseau)", supported: true },
+    { label: "Nouvelle grille de notes (gardée sur l'appareil, envoyée au retour du réseau)", supported: true },
+    { label: "Modifier une grille déjà enregistrée", supported: false },
     { label: "Cahier de liaison · lecture", supported: false },
     { label: "Cahier de liaison · écriture", supported: false },
     { label: "Paiement Mobile Money", supported: false },

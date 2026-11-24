@@ -833,6 +833,9 @@ model Evaluation {
   date               DateTime
   maxGrade           Decimal                  @default(20) @db.Decimal(5, 2)
   coefficient        Decimal                  @default(1) @db.Decimal(5, 2)
+  /// OFF-01 : clé d'idempotence générée par l'appareil (saisie hors ligne
+  /// rejouée au retour du réseau) : un même envoi ne crée qu'une évaluation.
+  clientKey          String?                  @unique
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
   classSubject       ClassSubject             @relation(fields: [classSubjectId], references: [id], onDelete: Cascade)

@@ -267,8 +267,10 @@ export function SchoolProvider({ children }: { children: React.ReactNode }) {
     return (
         <SchoolContext.Provider value={value}>
             {isOffline && (
-                <div className="fixed top-0 left-0 right-0 z-[9999] bg-orange-500 text-white text-xs font-bold py-1 text-center">
-                    Mode Hors-Ligne &middot; Affichage des données en cache
+                // OFF-02 : aucune donnée scolaire n'est mise en cache (MS-03) ; seuls
+                // l'appel et une nouvelle grille de notes sont gardés sur l'appareil (OFF-01)
+                <div role="status" className="fixed top-0 left-0 right-0 z-[9999] bg-orange-600 text-white text-xs font-bold py-1 text-center">
+                    Hors connexion &middot; l&apos;appel et les nouvelles notes sont gardés sur cet appareil
                 </div>
             )}
             {children}

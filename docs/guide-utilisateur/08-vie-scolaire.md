@@ -70,3 +70,12 @@ Fiches de santé, antécédents, allergies, vaccinations, contacts d'urgence. Le
 
 ## 8.7 Calendrier et événements ✅
 *Calendrier* : vacances, jours fériés, dates clés, conseils de classe. *Agenda & événements* : sorties, fêtes, réunions, avec inscription des élèves. L'élève s'inscrit lui-même ; le parent inscrit son enfant et voit qui est inscrit. Une inscription s'annule tant que l'événement n'a pas commencé.
+
+## Sans réseau : appel et notes ✅
+Si la connexion tombe pendant que la page est ouverte :
+- **L'appel** et **une nouvelle grille de notes** s'enregistrent quand même : ils sont gardés sur l'appareil, et un bandeau orange l'indique.
+- Ils partent **tout seuls** dès que le réseau revient (ou avec le bouton **Réessayer maintenant**). Un envoi répété ne crée jamais de doublon.
+- Si l'école refuse une saisie (par exemple une année clôturée), le bandeau l'explique ; il faut la ressaisir après correction.
+- **Modifier une grille déjà enregistrée** demande le réseau.
+- À la **déconnexion**, l'application tente d'abord d'envoyer ce qui reste. Si c'est impossible, elle demande confirmation avant d'effacer ces saisies de l'appareil (appareil partagé).
+- Ce qui n'est pas possible sans réseau : ouvrir une page qui n'était pas déjà affichée, consulter des dossiers, payer.
