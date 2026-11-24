@@ -9,7 +9,7 @@
 |---|---|---|---|---|---|
 | FIN-01 | Bourses ignorées sans échéancier, jamais recalculées, montant fixe déduit plusieurs fois | `lib/finance/scholarships.ts`, `online-payments.ts`, `expected-fees.ts`, `payment-notices.ts`, routes `scholarships`, `payment-plans`, dialogue | 13 unitaires + 10 sur base réelle (dont concurrence) ; dû identique partout | 2 | ✅ |
 | QA-01 | CI `main` rouge (axe 4.14) | `EduTopBar.tsx` | 0 violation axe sur 6 pages ; test composant | 0,2 | ✅ (à pousser) |
-| OPS-01 | CD jamais déployée (Lighthouse `staticDistDir`, chemin d'outil Trivy) | `.github/workflows/ci-cd.yml`, `lighthouse-ci.yml` | Une exécution CD verte jusqu'au déploiement | 0,5 | à faire |
+| OPS-01 | CD jamais déployée : job Lighthouse sans serveur, `trivy-action@master` cassé, **étiquette d'image `sha-` jamais produite** (type=sha ignore `value`), références d'image en majuscules | `.github/workflows/ci-cd.yml`, `ci.yml` | Une exécution CD verte jusqu'au déploiement (vérifiable au prochain passage sur `main`) ; secrets `STAGING_DEPLOY_COMMAND` / `*_DATABASE_URL` requis | 0,5 | ✅ corrigé, à confirmer sur `main` |
 
 ## P1 — fiabilité du cœur et expérience
 
