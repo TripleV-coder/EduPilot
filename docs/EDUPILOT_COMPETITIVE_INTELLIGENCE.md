@@ -62,6 +62,33 @@ Logesco. C'est le seul moyen de passer de « déclaré » à « testé ».
 | **API publique** | **Aucune documentée** | [ND] |
 | Format d'import | Non publié. Un projet tiers ([Mon école — Bénin](https://aimefachola200-bit.github.io/monecole-benin/)) importe des listes au format Excel/CSV EducMaster | [Tiers] |
 
+**Visite des portails publics (2026-11-24, sans connexion)** [Doc] :
+- [educmaster.bj](https://educmaster.bj/) fédère [EducMaster-Primaire](https://emp.educmaster.bj/) (2,1 M
+  apprenants, 18 332 écoles) et [EducMaster-Secondaire](https://secondaire.educmaster.bj/) (176 718
+  apprenants, 3 561 établissements). Financé par l'État, l'AFD, le PME et l'UNICEF.
+- **Éditeur : Tics Master SARL**. Son domaine `ticmaster.com` est **à vendre** (page parquée) : il
+  n'y a pas de canal partenaire public, il faut passer par les ministères (MESTFP, MEMP).
+- **Identifiant élève = « matricule » EducMaster**, imprimé sur le bulletin et la carte scolaire ;
+  il est demandé, avec la date de naissance, pour **payer la contribution scolaire** en ligne
+  (`/payer-contribution-scolaire`).
+- **Documents vérifiables** par référence ou QR : reçus, résultats d'examen, relevés de notes,
+  **bulletins scolaires** (`/verifier-un-document`).
+- Autres services publics : affectation, vérification d'inscription, **banque des épreuves**,
+  données ouvertes (`/explorer-les-donnees`), **demandes d'autorisation** de création ou
+  d'extension d'un établissement privé.
+- Tout le reste se fait derrière une connexion (identifiant + mot de passe). **Aucune API, aucun
+  gabarit d'import public.**
+
+**Ce que cela change pour EduPilot** :
+1. Le matricule EducMaster est **l'identifiant de correspondance** : il est stocké depuis le
+   2026-11-24 (`StudentProfile.educmasterMatricule`, unique par école, saisi sur la fiche ou à
+   l'import, imprimé sur le bulletin). Le code officiel de l'établissement existe déjà
+   (`School.mempCode`).
+2. EducMaster vérifie déjà bulletins et reçus par QR : les reçus vérifiables d'EduPilot (REC-01)
+   doivent suivre ce modèle (référence imprimée + QR + page publique sans donnée personnelle).
+3. Le Secondaire encaisse une **contribution scolaire** : EduPilot ne la remplace pas. Il encaisse
+   les frais propres à l'école privée sur le compte de l'école.
+
 **Stratégie d'intégration recommandée, sans accès non autorisé** :
 
 1. Stocker le **NPI** de l'élève et l'identifiant EducMaster de l'école (champ de correspondance).

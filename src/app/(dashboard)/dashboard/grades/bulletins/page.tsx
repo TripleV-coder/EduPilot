@@ -47,6 +47,7 @@ type BulletinData = {
     student: {
         id: string;
         matricule: string;
+        educmasterMatricule?: string | null;
         firstName: string;
         lastName: string;
         dateOfBirth: string | null;
@@ -700,6 +701,11 @@ function BulletinDocument({ bulletin }: { bulletin: BulletinData }) {
                     >
                         {bulletin.student.matricule}
                     </div>
+                    {bulletin.student.educmasterMatricule ? (
+                        <div style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}>
+                            EducMaster : <span className="eduflow-mono">{bulletin.student.educmasterMatricule}</span>
+                        </div>
+                    ) : null}
                     <div style={{ fontSize: 12, color: "var(--eduflow-text-secondary)" }}>
                         Année {bulletin.academicYear}
                     </div>

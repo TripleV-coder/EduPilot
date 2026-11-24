@@ -20,7 +20,9 @@ import {
     FormField,
     FormItem,
     FormLabel,
+    FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +36,7 @@ interface StudentEditDialogData {
     gender?: "MALE" | "FEMALE" | null;
     nationality?: string | null;
     address?: string | null;
+    educmasterMatricule?: string | null;
     user?: {
         firstName?: string | null;
         lastName?: string | null;
@@ -71,6 +74,7 @@ export function StudentEditDialog({ student, open, onOpenChange, onSuccess }: St
             gender: student?.gender || "MALE",
             nationality: student?.nationality || "Beninoise",
             address: student?.address || "",
+            educmasterMatricule: student?.educmasterMatricule || "",
             isActive: student?.user?.isActive ?? true,
         },
     });
@@ -115,6 +119,23 @@ export function StudentEditDialog({ student, open, onOpenChange, onSuccess }: St
                             <StudentIdentityFields showDescriptions={false} />
                             <StudentContactFields showDescriptions={false} />
                         </div>
+
+                        <FormField
+                            control={form.control}
+                            name="educmasterMatricule"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Matricule EducMaster</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} value={field.value ?? ""} placeholder="Tel qu'imprimé sur le bulletin officiel" autoComplete="off" />
+                                    </FormControl>
+                                    <div className="text-xs text-muted-foreground">
+                                        Identifiant national de l&apos;élève dans EducMaster. Il permet de rapprocher les listes et notes avec la plateforme du ministère.
+                                    </div>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
                         <FormField
                             control={form.control}

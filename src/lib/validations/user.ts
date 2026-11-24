@@ -112,6 +112,20 @@ export const enrollmentSchema = z.object({
   status: z.enum(["ACTIVE", "TRANSFERRED", "GRADUATED", "DROPPED", "SUSPENDED", "COMPLETED"]).default("ACTIVE"),
 });
 
+/**
+ * Matricule EducMaster (INT-01) : lettres, chiffres, tiret ou barre, 30 au plus,
+ * en majuscules ; vide = non renseigné (null). Le format officiel n'est pas
+ * publié : on n'impose que ce qui évite les erreurs de saisie évidentes.
+ */
+export const educmasterMatriculeSchema = z
+  .string()
+  .trim()
+  .max(30, "30 caractères au plus")
+  .regex(/^[A-Za-z0-9\-/]*$/, "Lettres, chiffres, tiret ou barre uniquement")
+  .transform((value) => (value === "" ? null : value.toUpperCase()))
+  .nullable()
+  .optional();
+
 export const studentUpdateSchema = z.object({
   email: z.string().email("Email invalide").toLowerCase().trim().optional(),
   firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères").trim().optional(),
@@ -123,6 +137,7 @@ export const studentUpdateSchema = z.object({
   birthPlace: z.string().max(100).optional(),
   nationality: z.string().max(50).optional(),
   address: z.string().max(255).optional(),
+  educmasterMatricule: educmasterMatriculeSchema,
   isActive: z.boolean().optional(),
 });
 

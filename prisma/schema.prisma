@@ -502,6 +502,10 @@ model StudentProfile {
   gender                  Gender?
   birthPlace              String?
   nationality             String?
+  /// Matricule national EducMaster (imprimé sur le bulletin et la carte
+  /// scolaire officiels) : identifiant de correspondance avec le SIGE (INT-01).
+  /// Unique par école parmi les élèves non supprimés (index partiel en SQL).
+  educmasterMatricule     String?
   address                 String?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
@@ -541,6 +545,7 @@ model StudentProfile {
   clubMemberships ClubMembership[]
 
   @@index([schoolId, matricule]) // Fixed Edge Case: Removed unique to allow soft deletes to free the matricule
+  @@index([schoolId, educmasterMatricule])
   @@index([schoolId])
   @@index([matricule])
   @@index([schoolId, createdAt])

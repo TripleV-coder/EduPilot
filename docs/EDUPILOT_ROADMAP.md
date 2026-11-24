@@ -29,7 +29,8 @@
 | FIN-02 | Journal des événements fournisseur | — | 1,5 |
 | REC-01 | Reçus vérifiables par QR (page publique de vérification sans donnée personnelle) | — | 2 |
 | FIN-05 | Paiement de plusieurs enfants en une transaction (répartition serveur, un verrou par élève et par frais) | FIN-02 conseillé | 4 |
-| INT-01 | Export EducMaster + NPI | **Gabarit officiel** | 3-5 |
+| INT-01a | Matricule EducMaster de l'élève (fiche, import, bulletin, unicité) | — | ✅ 2026-11-24 |
+| INT-01b | Export des notes au gabarit EducMaster + import des listes | **Gabarit officiel** (à obtenir d'une école pilote ou du MESTFP) | 3-5 |
 | BIZ-01 | Grille tarifaire publique + essai de 30 jours | Décision fondateur | 1 |
 | PIL-01 | 1 à 3 écoles pilotes avec indicateurs avant/après | Commercial | — |
 | SEC-02 | Cumul de rôles sûr | Décision produit | 2 |
