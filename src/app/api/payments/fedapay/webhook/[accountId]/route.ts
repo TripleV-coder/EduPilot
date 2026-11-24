@@ -7,6 +7,7 @@ import { verifyAccountWebhook } from "@/lib/payments/fedapay-account-client";
 import { accountWebhookSecret, SCHOOL_PAYMENT_PROVIDER } from "@/lib/payments/school-accounts";
 import { PaymentSecretsUnavailableError } from "@/lib/payments/secret-box";
 import { confirmOnlinePayment, failOnlinePayment, parseProviderAmount, parseProviderCurrency } from "@/lib/finance/online-payments";
+import { recordProviderEvent, recordProviderEventOutcome } from "@/lib/finance/provider-events";
 
 /**
  * POST /api/payments/fedapay/webhook/<compte> — webhook du compte FedaPay d'UNE
@@ -67,8 +68,24 @@ export const POST = createApiHandler(async (request, { params }) => {
 
         const reference = typeof event.entity?.merchant_reference === "string" ? event.entity.merchant_reference : null;
         const fedapayId = event.entity?.id != null ? String(event.entity.id) : "";
+        // FIN-02 : événement authentifié journalisé avant tout traitement
+        const eventId = await recordProviderEvent({
+            provider: "FEDAPAY",
+            eventName: event.name,
+            rawBody,
+            schoolId: account.schoolId,
+            paymentAccountId: account.id,
+            reference,
+            transactionId: fedapayId || null,
+            amount: parseProviderAmount(event.entity?.amount, "FEDAPAY"),
+            currency: parseProviderCurrency(event.entity?.currency),
+            providerStatus: typeof event.entity?.status === "string" ? event.entity.status : null,
+        });
         // Événement sans référence marchande (ex. test) : acquitté sans action
-        if (!reference) return NextResponse.json({ received: true, reconciled: 0 });
+        if (!reference) {
+            await recordProviderEventOutcome(eventId, "IGNORED_NO_REFERENCE");
+            return NextResponse.json({ received: true, reconciled: 0 });
+        }
 
         try {
             if (APPROVED.has(event.name)) {
@@ -82,6 +99,7 @@ export const POST = createApiHandler(async (request, { params }) => {
                     source: `FedaPay compte ${account.id} txn ${fedapayId}`,
                 });
                 logger.info("Webhook FedaPay (compte d'école) : confirmation traitée", { accountId, reference, fedapayId, outcome: result.outcome });
+                await recordProviderEventOutcome(eventId, result.outcome);
                 return NextResponse.json({ received: true, reconciled: result.outcome === "CONFIRMED" ? 1 : 0, outcome: result.outcome });
             }
             if (CANCELLED.has(event.name)) {
@@ -89,12 +107,15 @@ export const POST = createApiHandler(async (request, { params }) => {
                     provider: "FEDAPAY",
                     paymentAccountId: account.id,
                 });
+                await recordProviderEventOutcome(eventId, cancelled ? "CANCELLED" : "CANCEL_NO_EFFECT");
                 return NextResponse.json({ received: true, cancelled });
             }
             // Autres événements (created, pending…) : acquittés sans changement d'état
+            await recordProviderEventOutcome(eventId, "ACKNOWLEDGED");
             return NextResponse.json({ received: true });
         } catch (error) {
             logger.error("Webhook FedaPay (compte d'école) : erreur de traitement", error as Error, { accountId });
+            await recordProviderEventOutcome(eventId, "ERROR");
             return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
         }
     });

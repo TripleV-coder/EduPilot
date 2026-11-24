@@ -26,7 +26,7 @@
 
 | ID | Sujet | Dépendances | Effort |
 |---|---|---|---|
-| FIN-02 | Journal des événements fournisseur | — | 1,5 |
+| FIN-02 | Journal des événements fournisseur | — | ✅ 2026-11-24 (`payment_provider_events`) |
 | REC-01 | Reçus vérifiables par QR (page publique de vérification sans donnée personnelle) | — | 2 |
 | FIN-05 | Paiement de plusieurs enfants en une transaction (répartition serveur, un verrou par élève et par frais) | FIN-02 conseillé | 4 |
 | INT-01a | Matricule EducMaster de l'élève (fiche, import, bulletin, unicité) | — | ✅ 2026-11-24 |

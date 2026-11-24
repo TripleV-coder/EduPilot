@@ -102,9 +102,13 @@ validation juridique (activité réglementée).
 
 ## 7. Journal et traçabilité (évolutions)
 
-- **FIN-02** : table `PaymentProviderEvent` (fournisseur, identifiant d'événement unique, signature
-  vérifiée, charge utile, résultat du traitement), écrite avant le traitement. Un webhook rejoué
-  est alors visible et rejouable.
+- **FIN-02 (fait le 2026-11-24)** : table `payment_provider_events` (`src/lib/finance/provider-events.ts`).
+  - Une ligne par événement **authentifié**, écrite avant le traitement : clé = événement +
+    transaction + référence.
+  - Contenu minimisé : montant, devise, statut fournisseur, sans téléphone ni e-mail.
+  - Un rejeu compte une réception de plus et est retraité de façon idempotente ; `outcome` garde le
+    dernier résultat.
+  - Une signature invalide n'écrit rien.
 - **FIN-04** : écritures OHADA générées automatiquement à la validation, à l'annulation et au
   remboursement des frais de scolarité, dans la même transaction. Le plan de comptes est à valider
   avec un comptable (prérequis).

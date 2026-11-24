@@ -969,6 +969,36 @@ model Payment {
   @@map("payments")
 }
 
+/// Journal des événements reçus des fournisseurs de paiement (FIN-02,
+/// 2026-11-24) : un par événement AUTHENTIFIÉ (signature valide), écrit avant
+/// le traitement, jamais supprimé par l'application. Contenu minimisé (APDP) :
+/// ni téléphone ni e-mail du payeur. Un rejeu incrémente `receivedCount` et
+/// est retraité (le traitement est idempotent) ; `outcome` garde le dernier
+/// résultat. Sert au rapprochement et à l'instruction d'un litige.
+model PaymentProviderEvent {
+  id              String    @id @default(cuid())
+  provider        String
+  /// Clé de l'événement : nom + transaction + référence (ou empreinte du corps)
+  eventKey        String
+  eventName       String
+  schoolId        String?
+  paymentAccountId String?
+  reference       String?
+  transactionId   String?
+  amount          Int?
+  currency        String?
+  providerStatus  String?
+  receivedCount   Int       @default(1)
+  outcome         String?
+  firstReceivedAt DateTime  @default(now())
+  lastReceivedAt  DateTime  @default(now())
+
+  @@unique([provider, eventKey])
+  @@index([reference])
+  @@index([schoolId, firstReceivedAt])
+  @@map("payment_provider_events")
+}
+
 /// Compte marchand propre à une école (S7, ADR-0011). Les fonds d'une école
 /// sont encaissés sur SON compte ; aucun compte global ne sert de repli.
 /// Secrets chiffrés (AES-256-GCM, clé PAYMENT_SECRETS_KEY), liés à l'école et
