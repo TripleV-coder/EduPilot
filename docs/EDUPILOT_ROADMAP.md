@@ -16,11 +16,11 @@
 | ID | Problème | Fichiers | Dépendances | Acceptation | Effort |
 |---|---|---|---|---|---|
 | OFF-02 | Page hors ligne mensongère | `dashboard/offline/page.tsx` | — | Liste conforme à `cache-policy.ts` | ✅ |
-| SEC-03 | Balayage IDOR à rejouer sur les routes récentes | `tests/integration-db/` | — | Toute route `[id]` refuse une autre école | 1 |
+| SEC-03 | Balayage IDOR à rejouer sur les routes récentes | `tenant-isolation-sweep.test.ts`, `fixtures/tenant-graph.ts` | — | Toute route `[id]` refuse une autre école | ✅ 20 routes ajoutées (98 balayées, 0 fuite) + test de complétude |
 | FIN-04 | Encaissements absents de la comptabilité | `lib/accounting`, `online-payments.ts`, `collection.ts`, `refunds.ts` | Plan de comptes validé | Écriture équilibrée par validation, annulation et remboursement ; somme compta = encaissé | 3 |
 | OFF-01 | Appel et notes hors ligne | nouveau `lib/offline/`, pages appel et notes, routes avec clé d'idempotence | — | Coupure réseau simulée : aucune saisie perdue, conflits présentés, aucun doublon | 5-8 |
 | PERF-01 | Mobile : TBT 0,6 à 1,8 s | écrans dashboard, students, finance | — | TBT < 300 ms, LCP < 2,5 s en 4G lente | 3-5 |
-| FIN-03 | Transitions de paiement implicites | `lib/finance/payment-state.ts` + migration trigger | — | Transition illégale refusée en base ; 150+ tests toujours verts | 1,5 |
+| FIN-03 / FIN-06 | Transitions de paiement implicites ; **validation manuelle d'un paiement en ligne possible (200)** | `lib/finance/payment-state.ts`, `finance/payments/[id]`, trigger `payments_no_return_to_pending` | — | Validation manuelle en ligne et retour à PENDING refusés, y compris en SQL direct | ✅ |
 
 ## P2 — différenciation
 

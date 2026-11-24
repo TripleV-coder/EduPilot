@@ -67,6 +67,19 @@ Chaque constat porte sa gravité, sa probabilité, sa preuve, son coût de corre
 - **Reste** : pousser, puis réparer la CD (Lighthouse `staticDistDir`, chemin d'outil Trivy). La CD
   n'a encore jamais déployé.
 
+### FIN-06 — Un paiement en ligne pouvait être validé à la main · **P0** · **corrigé le 2026-11-24**
+
+- **Preuve [M]** : `PUT /api/finance/payments/[id]` avec `{ status: "VERIFIED" }` sur un paiement
+  FedaPay en attente répondait **200**. L'argent était compté comme encaissé sans aucune
+  confirmation du fournisseur. Un paiement annulé ou validé pouvait aussi repasser « en attente »
+  (200). Les statuts `COMPLETED` et `FAILED`, inexistants en base, provoquaient une 500.
+- **Correction** : règles de transition manuelles centralisées (`src/lib/finance/payment-state.ts`).
+  Un paiement en ligne n'est validé que par le fournisseur, et le retour à PENDING est interdit,
+  aussi par un **trigger en base** (`payments_no_return_to_pending`). Le schéma est limité aux
+  statuts réels.
+- **Tests** : 4 cas dans `provider-bound-edits.test.ts` (échec vérifié avant le correctif), dont
+  une écriture SQL directe refusée.
+
 ### FIN-02 — Pas de journal des événements fournisseur · **P2**
 
 - **Preuve [C]** : aucune table d'événements webhook. Rejouer une notification est sans danger : les

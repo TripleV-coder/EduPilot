@@ -17,12 +17,14 @@ import { superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { fcfaAmountSchema } from "@/lib/finance/money";
+import { MANUAL_PAYMENT_STATUSES, manualStatusRefusal } from "@/lib/finance/payment-state";
 
 const paymentUpdateSchema = z.object({
     amount: fcfaAmountSchema.optional(),
     method: z.string().optional(),
     reference: z.string().optional(),
-    status: z.enum(["PENDING", "COMPLETED", "FAILED", "CANCELLED", "VERIFIED", "RECONCILED"]).optional(),
+    // Statuts réels de la base uniquement (COMPLETED/FAILED donnaient une 500)
+    status: z.enum(MANUAL_PAYMENT_STATUSES).optional(),
     notes: z.string().optional(),
     paidAt: z.string().optional().or(z.date().optional()),
 });
@@ -82,6 +84,10 @@ export const PUT = createApiHandler(
                 if (["VERIFIED", "RECONCILED"].includes(current.status) && session.user.role !== "SUPER_ADMIN") {
                     refuse(403, "Ce paiement est verrouillé (Vérifié/Réconcilié) et ne peut être modifié.");
                 }
+                // FIN-06 : jamais de retour « en attente », jamais de validation
+                // manuelle d'un paiement en ligne (règles de payment-state.ts)
+                const transitionRefusal = manualStatusRefusal(current, nextStatus);
+                if (transitionRefusal) refuse(409, transitionRefusal);
                 const finalStatus = (nextStatus as PaymentStatus | undefined) ?? current.status;
                 const finalAmount = validatedData.amount ?? Number(current.amount);
                 if (wouldWeigh(finalStatus)) {

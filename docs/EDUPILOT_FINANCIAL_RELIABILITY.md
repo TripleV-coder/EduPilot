@@ -76,8 +76,11 @@ VERIFIED / RECONCILED ──(remboursement)──▶ extourne : ligne négative 
 | CANCELLED, EXPIRED | aucun (réservation libérée) |
 | Extourne (montant négatif) | réduit l'encaissé |
 
-**Évolution proposée (FIN-03, P2)** : une table des transitions autorisées et
-`assertPaymentTransition(from, to)`, appelée par chaque écriture, plus un trigger en base.
+**Transitions manuelles (FIN-03 / FIN-06, fait le 2026-11-24)** : `src/lib/finance/payment-state.ts`.
+1. Aucun paiement ne revient à PENDING, garanti aussi par un trigger en base.
+2. Un paiement en ligne n'est jamais validé à la main ; il n'est rapproché qu'une fois validé.
+3. L'annulation manuelle reste possible (lot 3b) : une confirmation authentique tardive revalide
+   alors le paiement et alerte la comptabilité.
 REFUNDED et DISPUTED restent modélisés par l'extourne et la note « à rapprocher », plutôt que par
 de nouveaux états : cela évite de toucher plus de 150 tests verts pour un gain nul.
 

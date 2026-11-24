@@ -1522,6 +1522,19 @@
           "code"
         ]
       },
+      "educmasterMatriculeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 30,
+            "pattern": "^[A-Za-z0-9\\-/]*$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "enrollmentSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1763,6 +1776,18 @@
           "address": {
             "type": "string",
             "maxLength": 255
+          },
+          "educmasterMatricule": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30,
+                "pattern": "^[A-Za-z0-9\\-/]*$"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "isActive": {
             "type": "boolean"
