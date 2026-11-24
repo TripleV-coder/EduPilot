@@ -3,6 +3,12 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, FIXTURES } from "./test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
+// Bourses (FIN-01) : prouvées par scholarships.test.ts et scholarships-due.test.ts ;
+// ici aucun élève boursier.
+vi.mock("@/lib/finance/scholarships", () => ({
+    loadScholarshipDiscounts: vi.fn(async () => new Map()),
+    loadScholarshipDiscountsFor: vi.fn(async () => new Map()),
+}));
 vi.mock("@/lib/prisma", () => ({
   default: {
     fee: { findUnique: vi.fn() },
@@ -10,6 +16,8 @@ vi.mock("@/lib/prisma", () => ({
     academicYear: { findFirst: vi.fn() },
     enrollment: { findMany: vi.fn() },
     payment: { groupBy: vi.fn() },
+    // Échéanciers en vigueur (FIN-01) : aucun dans ces cas
+    paymentPlan: { findMany: vi.fn(async () => []) },
   },
 }));
 

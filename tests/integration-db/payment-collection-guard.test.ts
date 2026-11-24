@@ -131,7 +131,10 @@ describe("A — Plafond : reste dû relu, avec ou sans échéancier", () => {
         expect((await prisma.paymentPlan.findFirstOrThrow({ where: { studentId: s, feeId: f } })).status).toBe("COMPLETED");
     });
 
-    it("bourse active sans échéancier : comportement actuel conservé (montant plein du frais)", async () => {
+    // FIN-01 : une bourse vaut pour l'année de l'inscription en cours. Élève sans
+    // inscription en cours : aucune année de référence, montant plein. Les cas
+    // avec inscription sont couverts par scholarships-due.test.ts.
+    it("bourse active, élève sans inscription en cours : montant plein du frais", async () => {
         const s = await newStudent();
         const f = await newFee(50000);
         await prisma.scholarship.create({ data: { studentId: s, name: "Bourse 50 %", type: "PARTIAL", amount: 0, percentage: 50, startDate: new Date(Date.now() - 86_400_000) } });

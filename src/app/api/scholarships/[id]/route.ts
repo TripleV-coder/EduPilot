@@ -7,7 +7,20 @@ import { fcfaAmountSchema } from "@/lib/finance/money";
 import { logger } from "@/lib/utils/logger";
 import { assertModelAccess } from "@/lib/security/tenant";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { invalidScholarshipFeeIds, overpaymentMessage, syncScholarshipPlans, type PlanAdjustment } from "@/lib/finance/scholarships";
+import { alertFinanceStaff } from "@/lib/finance/online-payments";
 import { createApiHandler } from "@/lib/api/api-helpers";
+
+/** Règle 5 de scholarships.ts : un trop-perçu est signalé, jamais effacé. */
+async function reportOverpayments(
+  student: { schoolId: string; user: { firstName: string; lastName: string } },
+  adjustments: PlanAdjustment[],
+): Promise<void> {
+  const name = `${student.user.firstName} ${student.user.lastName}`;
+  for (const adjustment of adjustments.filter((a) => a.overpaid > 0)) {
+    await alertFinanceStaff(student.schoolId, "Trop-perçu à rembourser", overpaymentMessage(name, adjustment));
+  }
+}
 
 const updateScholarshipSchema = z.object({
   name: z.string().min(3).max(200).optional(),
@@ -18,6 +31,10 @@ const updateScholarshipSchema = z.object({
   endDate: z.string().datetime().optional().nullable(),
   isActive: z.boolean().optional(),
   notes: z.string().optional().nullable(),
+  /** Frais visés (choix de l'école) ; vide = tous les frais obligatoires. */
+  feeIds: z.array(z.string().cuid()).max(50).optional(),
+}).refine((data) => !(data.amount !== undefined && data.percentage !== undefined), {
+  message: "Indiquez soit un montant, soit un pourcentage (pas les deux)",
 });
 
 // GET /api/scholarships/[id] - Get scholarship details
@@ -147,8 +164,22 @@ export const PATCH = createApiHandler(
       const updateData: Prisma.ScholarshipUpdateInput = {};
       if (validatedData.name !== undefined) updateData.name = validatedData.name;
       if (validatedData.type !== undefined) updateData.type = validatedData.type as Prisma.ScholarshipUpdateInput["type"];
-      if (validatedData.amount !== undefined) updateData.amount = validatedData.amount;
-      if (validatedData.percentage !== undefined) updateData.percentage = validatedData.percentage;
+      // Passer d'un pourcentage à un montant (ou l'inverse) efface l'autre
+      // forme : sinon le pourcentage resterait appliqué (FIN-01).
+      if (validatedData.amount !== undefined) {
+        updateData.amount = validatedData.amount;
+        updateData.percentage = null;
+      }
+      if (validatedData.percentage !== undefined) {
+        updateData.percentage = validatedData.percentage;
+        updateData.amount = 0;
+      }
+      if (validatedData.feeIds !== undefined) {
+        if (await invalidScholarshipFeeIds(prisma, scholarship.student.schoolId, validatedData.feeIds)) {
+          return NextResponse.json({ error: "Frais visés invalides : choisissez des frais de l'établissement de l'élève." }, { status: 400 });
+        }
+        updateData.feeIds = [...new Set(validatedData.feeIds)];
+      }
       if (validatedData.startDate !== undefined) updateData.startDate = new Date(validatedData.startDate);
       if (validatedData.endDate !== undefined) {
         updateData.endDate = validatedData.endDate ? new Date(validatedData.endDate) : null;
@@ -156,10 +187,11 @@ export const PATCH = createApiHandler(
       if (validatedData.isActive !== undefined) updateData.isActive = validatedData.isActive;
       if (validatedData.notes !== undefined) updateData.notes = validatedData.notes;
 
-      const updatedScholarship = await prisma.scholarship.update({
-        where: { id: id },
-        data: updateData,
+      const { updatedScholarship, adjustments } = await prisma.$transaction(async (tx) => {
+        const updated = await tx.scholarship.update({ where: { id: id }, data: updateData });
+        return { updatedScholarship: updated, adjustments: await syncScholarshipPlans(tx, scholarship.studentId) };
       });
+      await reportOverpayments(scholarship.student, adjustments);
 
       // Log audit
       await prisma.auditLog.create({
@@ -200,7 +232,7 @@ export const PATCH = createApiHandler(
         }
       }
 
-      return NextResponse.json(updatedScholarship);
+      return NextResponse.json({ ...updatedScholarship, planAdjustments: adjustments });
     } catch (error) {
       if (isZodError(error)) {
         return NextResponse.json({ error: "Données invalides", details: error.issues }, { status: 400 });
@@ -253,9 +285,12 @@ export const DELETE = createApiHandler(
         return NextResponse.json({ error: "Bourse non trouvée" }, { status: 404 });
       }
 
-      await prisma.scholarship.delete({
-        where: { id: id },
+      // Suppression et recalcul des échéanciers dans la même transaction (FIN-01)
+      const adjustments = await prisma.$transaction(async (tx) => {
+        await tx.scholarship.delete({ where: { id: id } });
+        return syncScholarshipPlans(tx, scholarship.studentId);
       });
+      await reportOverpayments(scholarship.student, adjustments);
 
       // Log audit
       await prisma.auditLog.create({

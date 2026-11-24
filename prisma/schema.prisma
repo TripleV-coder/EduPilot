@@ -1048,6 +1048,9 @@ model Scholarship {
   endDate    DateTime?
   isActive   Boolean         @default(true)
   notes      String?
+  /// Frais auxquels la bourse s'applique (choix de l'école). Vide = tous les
+  /// frais obligatoires de l'élève. Règles : src/lib/finance/scholarships.ts
+  feeIds     String[]        @default([])
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
   student    StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Cascade)
