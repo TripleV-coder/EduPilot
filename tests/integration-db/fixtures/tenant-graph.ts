@@ -114,6 +114,23 @@ export async function seedTenantGraph(prefix: string) {
   // Lot E (2026-11-06) : portefeuille déclaré, agenda de la cellule d'écoute
   const walletAccount = await prisma.walletAccount.create({ data: { schoolId, name: "Ecobank", kind: "BANK", accountRef: "BJ0000000001" } });
   const psyAppointment = await prisma.psyAppointment.create({ data: { schoolId, startAt: day("2026-12-01"), kind: "Suivi régulier" } });
+  // SEC-03 (2026-11-24) : ressources des routes [id] apparues depuis le Lot 4
+  const club = await prisma.club.create({ data: { schoolId, name: "Club science", category: "SCIENCE" } });
+  await prisma.clubMembership.create({ data: { clubId: club.id, studentId: student.id } });
+  const question = await prisma.question.create({ data: { examTemplateId: examTemplate.id, type: "TRUE_FALSE", question: "2 + 2 = 4 ?", order: 1, correctAnswer: "true" } });
+  const correction = await prisma.gradeCorrectionRequest.create({
+    data: { evaluationId: evaluation.id, studentId: student.id, requestedById: parentUser.id, reason: "Erreur de report" },
+  });
+  const contribution = await prisma.cagnotteContribution.create({ data: { cagnotteId: cagnotte.id, parentUserId: parentUser.id, amountFcfa: BigInt(5000) } });
+  const invitation = await prisma.teacherInvitation.create({
+    data: { schoolId, codeHash: uniqueCode("inv").padEnd(64, "0"), createdById: admin.id, expiresAt: day("2027-01-01") },
+  });
+  const paymentAccount = await prisma.schoolPaymentAccount.create({
+    data: {
+      schoolId, environment: "SANDBOX", secretKeyCiphertext: "x", webhookSecretCiphertext: "x",
+      encryptionKeyVersion: 1, secretKeyLast4: "0000",
+    },
+  });
   return {
     schoolId,
     adminId: admin.id,
@@ -135,6 +152,8 @@ export async function seedTenantGraph(prefix: string) {
       evaluation: evaluation.id, year: year.id, classLevel: classLevel.id, schedule: schedule.id,
       calendarEvent: calendarEvent.id, book: book.id, transportLine: transportLine.id, scanPoint: scanPoint.id,
       walletAccount: walletAccount.id, psyAppointment: psyAppointment.id, parentUser: parentUser.id,
+      fee: fee.id, classSubject: classSubject.id, club: club.id, question: question.id, correction: correction.id,
+      contribution: contribution.id, invitation: invitation.id, paymentAccount: paymentAccount.id,
     },
   };
 }

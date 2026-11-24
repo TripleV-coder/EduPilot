@@ -124,7 +124,41 @@ const ROUTES: SweptRoute[] = [
   { route: "transport/lines/[id]/students", load: () => import("@/app/api/transport/lines/[id]/students/route"), params: id("transportLine"), target: t("transportLine", "transportLine"), body: (i) => ({ studentId: i.student }), query: (i) => `studentId=${i.student}` },
   { route: "students/[id]/external-averages", load: () => import("@/app/api/students/[id]/external-averages/route"), params: id("student"), target: t("studentProfile", "student"), body: (i) => ({ periodId: i.period, average: 18, originSchool: "Piraté" }) },
   { route: "users/[id]/activation-link", load: () => import("@/app/api/users/[id]/activation-link/route"), params: id("parentUser"), target: t("user", "parentUser") },
+  // SEC-03 (2026-11-24) : routes [id] apparues depuis le Lot 4, jamais balayées
+  { route: "academic-years/[id]/status", load: () => import("@/app/api/academic-years/[id]/status/route"), params: id("year"), target: t("academicYear", "year"), body: () => ({ action: "close", force: true }) },
+  { route: "cagnottes/[cagnotteId]/contributions/[contributionId]", load: () => import("@/app/api/cagnottes/[cagnotteId]/contributions/[contributionId]/route"), params: (i) => ({ cagnotteId: i.cagnotte, contributionId: i.contribution }), target: t("cagnotteContribution", "contribution"), body: () => ({ decision: "CONFIRM" }) },
+  { route: "class-subjects/[id]/formula", load: () => import("@/app/api/class-subjects/[id]/formula/route"), params: id("classSubject"), target: t("classSubject", "classSubject"), body: () => ({ formula: "moyenne(MI ; DEVOIRS)" }) },
+  { route: "clubs/[id]", load: () => import("@/app/api/clubs/[id]/route"), params: id("club"), target: t("club", "club"), body: () => ({ name: "Piraté" }) },
+  { route: "clubs/[id]/members", load: () => import("@/app/api/clubs/[id]/members/route"), params: id("club"), target: t("club", "club"), body: (i) => ({ studentId: i.student }), query: (i) => `studentId=${i.student}` },
+  { route: "exams/[id]/questions", load: () => import("@/app/api/exams/[id]/questions/route"), params: id("examTemplate"), target: t("examTemplate", "examTemplate"), body: () => ({ type: "TRUE_FALSE", question: "Piraté ?", points: 1, correctAnswer: "true" }) },
+  { route: "exams/[id]/questions/[questionId]", load: () => import("@/app/api/exams/[id]/questions/[questionId]/route"), params: (i) => ({ id: i.examTemplate, questionId: i.question }), target: t("question", "question"), body: () => ({ question: "Piraté ?" }) },
+  { route: "fees/[id]", load: () => import("@/app/api/fees/[id]/route"), params: id("fee"), target: t("fee", "fee"), body: () => ({ name: "Piraté", amount: 1 }) },
+  { route: "finance/my-children/[studentId]", load: () => import("@/app/api/finance/my-children/[studentId]/route"), params: (i) => ({ studentId: i.student }) },
+  { route: "grades/corrections/[id]", load: () => import("@/app/api/grades/corrections/[id]/route"), params: id("correction"), target: t("gradeCorrectionRequest", "correction"), body: () => ({ decision: "APPROVE" }) },
+  { route: "homework/[id]/submit", load: () => import("@/app/api/homework/[id]/submit/route"), params: id("homework"), target: t("homework", "homework"), body: () => ({ content: "Piraté" }) },
+  { route: "me/schools/[schoolId]", load: () => import("@/app/api/me/schools/[schoolId]/route"), params: (i) => ({ schoolId: i.school }) },
+  { route: "payments/[id]/refund", load: () => import("@/app/api/payments/[id]/refund/route"), params: id("payment"), target: t("payment", "payment"), body: () => ({ amount: 1000, reason: "Piraté", method: "CASH" }) },
+  { route: "payments/[id]/verify-provider", load: () => import("@/app/api/payments/[id]/verify-provider/route"), params: id("payment"), target: t("payment", "payment"), body: () => ({ justification: "Vérification pirate demandée" }) },
+  { route: "schools/[id]/modules", load: () => import("@/app/api/schools/[id]/modules/route"), params: id("school"), target: t("school", "school"), body: () => ({ modules: [] }) },
+  { route: "schools/[id]/payment-accounts", load: () => import("@/app/api/schools/[id]/payment-accounts/route"), params: id("school"), target: t("school", "school"), body: () => ({ environment: "SANDBOX", secretKey: "sk_sandbox_pirate", webhookSecret: "wh_pirate" }) },
+  { route: "schools/[id]/payment-accounts/[accountId]", load: () => import("@/app/api/schools/[id]/payment-accounts/[accountId]/route"), params: (i) => ({ id: i.school, accountId: i.paymentAccount }), target: t("schoolPaymentAccount", "paymentAccount"), body: () => ({ status: "ACTIVE" }) },
+  { route: "students/[id]/balances", load: () => import("@/app/api/students/[id]/balances/route"), params: id("student") },
+  { route: "teacher-invitations/[invitationId]", load: () => import("@/app/api/teacher-invitations/[invitationId]/route"), params: (i) => ({ invitationId: i.invitation }), target: t("teacherInvitation", "invitation") },
+  { route: "teachers/[id]/membership", load: () => import("@/app/api/teachers/[id]/membership/route"), params: id("teacher"), target: t("teacherProfile", "teacher"), body: () => ({ isActive: false }) },
 ];
+
+/**
+ * Routes à paramètre volontairement hors de ce balayage, avec le test qui les
+ * couvre. Toute autre route `[x]` de src/app/api doit figurer dans ROUTES
+ * (test de complétude ci-dessous) : une nouvelle route ne peut plus échapper
+ * au contrôle d'isolation sans décision écrite.
+ */
+const EXCLUDED: Record<string, string> = {
+  "auth/[...nextauth]": "pas une ressource (NextAuth)",
+  "public/schools/[code]": "vitrine publique, par conception",
+  "uploads/[type]/[filename]": "fichiers : contrôle par manifeste, testé à part",
+  "payments/fedapay/webhook/[accountId]": "authentifié par signature du fournisseur, pas par session : online-payment-binding.test.ts",
+};
 
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 const WRITE = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -157,6 +191,25 @@ beforeAll(async () => {
 
 afterAll(() => {
   console.table(report);
+});
+
+describe("SEC-03 — complétude du balayage", () => {
+  it("chaque route à paramètre de src/app/api est balayée ou exclue avec un motif", async () => {
+    const { readdirSync, statSync } = await import("node:fs");
+    const { join, relative } = await import("node:path");
+    const root = join(process.cwd(), "src/app/api");
+    const found: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (name === "route.ts" && /\[[^\]]+\]/.test(dir)) found.push(relative(root, dir).split("\\").join("/"));
+      }
+    };
+    walk(root);
+    const covered = new Set([...ROUTES.map((r) => r.route), ...Object.keys(EXCLUDED)]);
+    expect(found.filter((route) => !covered.has(route)).sort(), "routes [id] ni balayées ni exclues").toEqual([]);
+  });
 });
 
 describe("Lot 4 — isolation des routes [id] : admin d'une autre école", () => {

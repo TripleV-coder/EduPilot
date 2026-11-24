@@ -23,7 +23,7 @@
 |---|---|---|
 | SEC-01 | 6 vulnérabilités élevées dans les **outils de développement** (CLI Prisma, `@serwist/build`), rien n'est livré | P3 |
 | SEC-02 | Escalade **latente** en cumul de rôles STAFF + TEACHER (aucune écriture multi-rôles aujourd'hui) [D] | P2, à traiter avant tout cumul de rôles |
-| SEC-03 | Dernier balayage IDOR complet en octobre : à rejouer sur les routes ajoutées depuis (RH, signatures, carte scolaire) | P1 |
+| SEC-03 | ✅ **Corrigé le 2026-11-24** : 20 routes `[id]` apparues depuis octobre n'étaient pas balayées (frais, remboursement, vérification fournisseur, comptes marchands, clubs, examens, corrections de notes, invitations…). Elles le sont toutes : 98 routes, 0 fuite. Un test de complétude fait désormais échouer la suite si une nouvelle route `[id]` n'est ni balayée ni exclue avec un motif | — |
 | SEC-04 | Le journal des événements fournisseur manque pour l'investigation d'un litige (FIN-02) | P2 |
 | SEC-05 | `DEF-014` (`sharp`, `source-map-js`) sans correctif amont | P3 |
 | SEC-06 | La suppression d'une bourse est **définitive** (ligne effacée). Le journal d'audit et le recalcul tracent l'effet, pas le contenu | P3 : proposer une désactivation à la place |
