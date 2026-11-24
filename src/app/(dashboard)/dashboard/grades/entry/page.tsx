@@ -101,6 +101,9 @@ function GradesEntryPageContent() {
     const [refsLoaded, setRefsLoaded] = useState({ periods: false, types: false });
     const [maxGrade, setMaxGrade] = useState(20);
     const [coefficient, setCoefficient] = useState(1);
+    // Paramètres repliés en une ligne dès qu'ils sont complets : en 390 px, les
+    // 7 champs repoussaient la liste des élèves sous la ligne de flottaison.
+    const [paramsOpen, setParamsOpen] = useState(true);
     // Règles de saisie de l'établissement : précision des notes, motif d'absence
     const { data: schoolRules } = useSWR<{
         settings: { gradeStep: string; excuseReasonRequired: boolean; calculation?: { unjustifiedAbsence?: "ZERO" | "EXCLUDE" } };
@@ -624,6 +627,18 @@ function GradesEntryPageContent() {
     const subjectName =
         classSubjects.find((cs) => cs.id === selectedSubject)?.subject?.name ?? "";
     const className = classes.find((c) => c.id === selectedClass)?.name ?? "";
+    // Mêmes champs obligatoires que handleSave : le résumé n'apparaît que si
+    // l'enregistrement est possible sans rouvrir les paramètres.
+    const paramsComplete = Boolean(selectedClass && selectedSubject && periodId && typeId && date);
+    const periodName = periods.find((p) => p.id === periodId)?.name ?? "";
+    const typeName = evalTypes.find((t) => t.id === typeId)?.name ?? "";
+    const formattedDate = date ? new Date(`${date}T00:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : "";
+    const paramsSummary = {
+        main: [className, subjectName].filter(Boolean).join(" · "),
+        detail: [title.trim() || typeName, periodName, formattedDate, `/${maxGrade}`, coefficient !== 1 ? `coef. ${coefficient}` : ""]
+            .filter(Boolean)
+            .join(" · "),
+    };
 
     return (
         <>
@@ -726,7 +741,23 @@ function GradesEntryPageContent() {
                 ) : null}
 
                 <form onSubmit={handleSave} className="flex flex-col gap-4">
-                    {/* Étape 1 — Paramètres */}
+                    {/* Étape 1 — Paramètres (résumé une ligne quand ils sont complets) */}
+                    {paramsComplete && !paramsOpen ? (
+                        <Card padding={0}>
+                            <div className="flex items-center gap-3 px-4 py-3 md:px-5">
+                                <Icon name="cards" size={18} color="var(--brand-700)" />
+                                <p className="min-w-0 flex-1 text-[14px]" style={{ margin: 0, color: "var(--eduflow-text-primary)" }}>
+                                    <span style={{ fontWeight: 600 }}>{paramsSummary.main}</span>
+                                    <span style={{ color: "var(--eduflow-text-secondary)" }}> · {paramsSummary.detail}</span>
+                                </p>
+                                {!editEvaluationId ? (
+                                    <Button variant="secondary" type="button" onClick={() => setParamsOpen(true)}>
+                                        Modifier
+                                    </Button>
+                                ) : null}
+                            </div>
+                        </Card>
+                    ) : (
                     <Card padding={0}>
                         <div
                             className="flex items-center gap-2 border-b px-5 py-4"
@@ -838,17 +869,30 @@ function GradesEntryPageContent() {
                                     disabled={Boolean(editEvaluationId)}
                                     type="number"
                                     value={String(maxGrade)}
-                                    onChange={(v) => setMaxGrade(parseInt(v) || 20)}
+                                    onChange={(v) => {
+                                        // Bornée : « 20121459 » était accepté sans erreur.
+                                        const n = parseInt(v, 10);
+                                        setMaxGrade(Number.isNaN(n) ? 20 : Math.min(100, Math.max(1, n)));
+                                    }}
                                     required
                                     min={1}
+                                    max={100}
                                 />
 
                             </div>
                         </div>
+                        {paramsComplete && !editEvaluationId ? (
+                            <div className="flex justify-end border-t px-5 py-3" style={{ borderColor: "var(--eduflow-border-subtle)" }}>
+                                <Button type="button" iconRight="arrowRight" onClick={() => setParamsOpen(false)}>
+                                    Saisir les notes
+                                </Button>
+                            </div>
+                        ) : null}
                     </Card>
+                    )}
 
                     {/* Formule de calcul de la matière (choisie par son enseignant) */}
-                    {selectedSubject ? <SubjectFormulaCard classSubjectId={selectedSubject} /> : null}
+                    {selectedSubject && paramsOpen ? <SubjectFormulaCard classSubjectId={selectedSubject} /> : null}
 
                     {adjusting && selectedClass && selectedSubject && periodId ? (
                         <StudentAdjustPanel
@@ -977,9 +1021,20 @@ function GradesEntryPageContent() {
                                                     textAlign: "left",
                                                 }}
                                             >
-                                                <Th>Élève</Th>
+                                                {/* Élève figé à gauche : le nom reste lisible quand on fait défiler
+                                                    le tableau horizontalement sur téléphone. */}
+                                                <Th
+                                                    className="sticky left-0 z-[1]"
+                                                    style={{
+                                                        background: "var(--eduflow-surface-sunken)",
+                                                        boxShadow: "inset -1px 0 0 var(--eduflow-border-subtle)",
+                                                    }}
+                                                >
+                                                    Élève
+                                                </Th>
                                                 <Th width={140}>Note (/{maxGrade})</Th>
-                                                <Th width={90}>Évolution</Th>
+                                                {/* Évolution répète la note en couleur : masquée en mobile. */}
+                                                <Th width={90} className="hidden sm:table-cell">Évolution</Th>
                                                 <Th width={120}>État</Th>
                                                 <Th width={130}>Absence</Th>
                                                 {!isFocusMode ? <Th>Appréciation</Th> : null}
@@ -1027,7 +1082,17 @@ function GradesEntryPageContent() {
                                                                 "1px solid var(--eduflow-border-subtle)",
                                                         }}
                                                     >
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        <td
+                                                            className="sticky left-0 z-[1]"
+                                                            style={{
+                                                                padding: "10px 16px",
+                                                                background: "var(--eduflow-surface-card)",
+                                                                // Le fond de la cellule figée masque la bordure de la ligne :
+                                                                // on la redessine (haut) et on marque le bord droit.
+                                                                boxShadow:
+                                                                    "inset 0 1px 0 var(--eduflow-border-subtle), inset -1px 0 0 var(--eduflow-border-subtle)",
+                                                            }}
+                                                        >
                                                             <div className="flex items-center gap-2.5">
                                                                 <Avatar name={fullName} size="xs" />
                                                                 <div className="min-w-0">
@@ -1073,7 +1138,7 @@ function GradesEntryPageContent() {
                                                                 }
                                                             />
                                                         </td>
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        <td className="hidden sm:table-cell" style={{ padding: "10px 16px" }}>
                                                             <TrendCell
                                                                 value={numericValue}
                                                                 maxGrade={maxGrade}

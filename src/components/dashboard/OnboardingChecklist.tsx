@@ -209,8 +209,9 @@ export function OnboardingChecklist() {
     return (
         <aside
             aria-label="Démarrage rapide"
-            className="edu-enter-up fixed right-6 z-50 w-[320px]"
-            style={{ bottom: "calc(1.5rem + var(--consent-banner-h, 0px))", "--edu-enter-dy": "40px", "--edu-enter-s": "0.95", "--edu-enter-d": "300ms" } as React.CSSProperties}
+            className="edu-enter-up fixed right-4 z-50 w-[min(320px,calc(100vw-2rem))] md:right-6"
+            // Au-dessus de la barre de navigation mobile : elle la recouvrait en 390 px.
+            style={{ bottom: "calc(1rem + var(--mobile-nav-h, 0px) + var(--consent-banner-h, 0px))", "--edu-enter-dy": "40px", "--edu-enter-s": "0.95", "--edu-enter-d": "300ms" } as React.CSSProperties}
         >
                 <div className="rounded-card border border-border bg-card overflow-hidden">
                     {/* Header */}

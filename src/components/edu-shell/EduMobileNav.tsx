@@ -111,10 +111,30 @@ export function EduMobileNav() {
         ];
     }, [role, enabledModules, setIsMobileOpen]);
 
+    // Hauteur publiée (--mobile-nav-h) : les éléments fixés en bas (barre
+    // « Enregistrer l'appel », « Démarrage rapide ») se placent au-dessus de la
+    // barre au lieu de la recouvrir. 0 sur ordinateur (barre masquée).
+    const navRef = React.useRef<HTMLElement>(null);
+    const hasUser = Boolean(session?.user);
+    React.useEffect(() => {
+        const node = navRef.current;
+        if (!node) return;
+        const root = document.documentElement;
+        const publish = () => root.style.setProperty("--mobile-nav-h", `${Math.ceil(node.getBoundingClientRect().height)}px`);
+        publish();
+        const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(publish) : null;
+        observer?.observe(node);
+        return () => {
+            observer?.disconnect();
+            root.style.removeProperty("--mobile-nav-h");
+        };
+    }, [hasUser]);
+
     if (!session?.user) return null;
 
     return (
         <nav
+            ref={navRef}
             aria-label="Navigation mobile"
             className="eduflow-scope edu-mobile-nav"
             style={{

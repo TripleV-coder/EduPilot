@@ -287,6 +287,7 @@ export function FieldText({
     placeholder,
     required,
     min,
+    max,
     step,
     full,
     disabled,
@@ -299,6 +300,7 @@ export function FieldText({
     placeholder?: string;
     required?: boolean;
     min?: number;
+    max?: number;
     step?: string | number;
     full?: boolean;
 }) {
@@ -322,6 +324,7 @@ export function FieldText({
                 placeholder={placeholder}
                 required={required}
                 min={min}
+                max={max}
                 step={step}
                 disabled={disabled}
                 style={{
@@ -341,10 +344,22 @@ export function FieldText({
     );
 }
 
-export function Th({ children, width }: { children: React.ReactNode; width?: number }) {
+export function Th({
+    children,
+    width,
+    className,
+    style,
+}: {
+    children: React.ReactNode;
+    width?: number;
+    className?: string;
+    style?: React.CSSProperties;
+}) {
     return (
         <th
+            className={className}
             style={{
+                ...style,
                 padding: "10px 16px",
                 fontSize: 12,
                 fontWeight: 700,

@@ -106,7 +106,7 @@ async function login(page: Page, email: string): Promise<boolean> {
     await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded" });
     await sleep(800);
     // Bannière cookies — l'accepter pour qu'elle n'intercepte pas les clics.
-    await page.getByRole("button", { name: /j.accepte/i }).click({ timeout: 2500 }).catch(() => {});
+    await page.getByRole("button", { name: /j.accepte|j.ai compris/i }).click({ timeout: 2500 }).catch(() => {});
     await sleep(300);
     await page.locator("#email").fill(email);
     await sleep(300);

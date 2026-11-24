@@ -121,7 +121,9 @@ function AiAssistantPageContent() {
 
     return (
         <PageShell className="eduflow-scope max-w-[1000px] pb-6">
-            <div style={{ minHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Hauteur visible réelle : sans retrancher bandeau cookies et barre mobile,
+                le champ de question passait sous la navigation en 390 px. */}
+            <div style={{ minHeight: "calc(100dvh - 120px - var(--consent-banner-h, 0px) - var(--mobile-nav-h, 0px))", display: "flex", flexDirection: "column", gap: 16 }}>
                 {aiOff ? (
                     <Card padding={16}>
                         <p className="text-sm">Le module Assistant IA n&apos;est pas activé pour cet établissement.</p>
