@@ -116,6 +116,28 @@ function AccountingPageContent() {
         { revalidateOnFocus: false },
     );
     const [opening, setOpening] = React.useState(false);
+    const [syncing, setSyncing] = React.useState(false);
+
+    // FIN-04 : les encaissements de scolarité sont passés au journal à chaque
+    // paiement ; ce bouton rattrape les paiements antérieurs (idempotent).
+    const syncPayments = async () => {
+        setSyncing(true);
+        try {
+            const res = await fetch("/api/accounting/sync-payments", { method: "POST" });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || "Rattrapage impossible");
+            toast.success(
+                body.entries > 0
+                    ? `${body.entries} écriture(s) passée(s) au journal pour les paiements de scolarité.`
+                    : "Tous les paiements de scolarité figurent déjà au journal.",
+            );
+            await mutate();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Rattrapage impossible");
+        } finally {
+            setSyncing(false);
+        }
+    };
 
     const openExercise = async () => {
         setOpening(true);
@@ -201,6 +223,15 @@ function AccountingPageContent() {
                             title={hasFiscalYear ? "Télécharger l'export DGI iTAS (CSV SYSCOHADA)" : "Aucun exercice fiscal actif"}
                         >
                             Export DGI · iTAS
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            icon="money"
+                            onClick={() => void syncPayments()}
+                            disabled={syncing}
+                            title="Passer au journal les paiements de scolarité enregistrés avant l'automatisation"
+                        >
+                            {syncing ? "Rattrapage…" : "Rattraper les paiements"}
                         </Button>
                         <Link href="/dashboard/accounting/entries/new">
                             <Button icon="plus">Nouvelle écriture</Button>

@@ -11,6 +11,8 @@ const CHART: Array<{ code: string; label: string; type: OhadaAccountType }> = [
     { code: "31100", label: "Stocks de fournitures", type: "ASSET" },
     { code: "41100", label: "Familles — scolarité à recevoir", type: "ASSET" },
     { code: "52100", label: "Banque", type: "ASSET" },
+    // FIN-04 : encaissements Mobile Money (FedaPay, MoMo) sur le compte marchand de l'école
+    { code: "52200", label: "Monnaie électronique (Mobile Money)", type: "ASSET" },
     { code: "57100", label: "Caisse", type: "ASSET" },
     { code: "60100", label: "Achats de fournitures", type: "EXPENSE" },
     { code: "70100", label: "Scolarité", type: "INCOME" },

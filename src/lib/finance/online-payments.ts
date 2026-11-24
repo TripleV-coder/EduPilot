@@ -46,6 +46,7 @@ import {
 import { createNotifications } from "@/lib/services/notification.service";
 import { INIT_UNCERTAIN_NOTE } from "@/lib/finance/providers/init-error";
 import { loadScholarshipDiscounts } from "@/lib/finance/scholarships";
+import { syncFeeAccounting } from "@/lib/accounting/payment-posting";
 
 export const ONLINE_PAYMENT_TTL_MS = 24 * 60 * 60 * 1000;
 export const EXPECTED_CURRENCY = "XOF";
@@ -395,6 +396,8 @@ export async function confirmOnlinePayment(params: {
             });
             // Même règle d'imputation que le guichet ; une erreur annule toute la validation
             await syncPaymentPlanLedger(tx, payment.studentId, payment.feeId);
+            // FIN-04 : encaissement passé au journal dans la même transaction
+            await syncFeeAccounting(tx, payment.studentId, payment.feeId);
             if (overpaid > 0) logger.warn("Paiement en ligne : trop-perçu", { paymentId: payment.id, overpaid, source: params.source });
             // Annulation décidée par l'école (ou d'origine inconnue) : un responsable doit le savoir
             const alert = current.status === "CANCELLED" && current.cancellationSource !== "PROVIDER" ? { origin, overpaid } : null;

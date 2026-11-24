@@ -17,6 +17,7 @@
  * Règles métier inchangées : imputation chronologique, bourses déduites à
  * la création d'un échéancier seulement, droits de modification actuels.
  */
+import { syncFeeAccounting } from "@/lib/accounting/payment-posting";
 import { Prisma, type PaymentStatus } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getFeeBalance, lockStudentFee, type FeeBalance } from "@/lib/finance/online-payments";
@@ -102,6 +103,8 @@ export async function runFeeMutation<T>(
             if (!balance) refuse(404, "Frais introuvable");
             const value = await work(tx, balance!);
             const plan = await syncPaymentPlanLedger(tx, studentId, feeId);
+            // FIN-04 : journal comptable aligné dans la même transaction
+            await syncFeeAccounting(tx, studentId, feeId);
             return { value, plan };
         });
         return { ok: true, value, plan };

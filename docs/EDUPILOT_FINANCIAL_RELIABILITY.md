@@ -109,9 +109,17 @@ validation juridique (activité réglementée).
   - Un rejeu compte une réception de plus et est retraité de façon idempotente ; `outcome` garde le
     dernier résultat.
   - Une signature invalide n'écrit rien.
-- **FIN-04** : écritures OHADA générées automatiquement à la validation, à l'annulation et au
-  remboursement des frais de scolarité, dans la même transaction. Le plan de comptes est à valider
-  avec un comptable (prérequis).
+- **FIN-04 (fait le 2026-11-24)** : la scolarité relève du service de comptabilité. Chaque
+  paiement de frais est passé au journal **dans la même transaction**, par écart idempotent
+  (`src/lib/accounting/payment-posting.ts`) :
+  - encaissement = Débit trésorerie / Crédit **70100 Scolarité** ;
+  - annulation d'un paiement validé = contre-passation ; remboursement = écriture inverse ;
+  - trésorerie selon le moyen : **57100 Caisse** (espèces, chèque), **52100 Banque** (virement),
+    **52200 Monnaie électronique** (Mobile Money, en ligne).
+
+  Rien n'est modifié ni supprimé dans le journal. Les paiements antérieurs se rattrapent par
+  `POST /api/accounting/sync-payments` (comptabilité ou direction), qui est idempotent.
+  Évolution possible : un plan de comptes réglable par école.
 
 ## 8. Tests qui font foi
 

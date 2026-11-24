@@ -67,6 +67,7 @@
 | 2026-11-24 | **Bourses** : 1) les frais visés sont choisis **par l'école**, bourse par bourse (par défaut, tous les frais obligatoires) ; 2) une bourse vaut pour **l'année entière**, sans prorata ; 3) sur un échéancier en cours, la réduction s'applique **en partant de la dernière échéance** ; 4) un trop-perçu est **remboursé**, après une alerte à la comptabilité. Détail : `EDUPILOT_FINANCIAL_RELIABILITY.md` §3 |
 | 2026-11-24 | **Un paiement en ligne n'est jamais validé à la main** ; aucun paiement ne revient « en attente ». L'annulation manuelle reste possible, et une confirmation tardive authentique revalide alors le paiement |
 | 2026-07-04 | Le **versement d'une paie** ne génère pas d'écriture de règlement comptable (hors périmètre) |
+| 2026-11-24 | **La scolarité relève du service de comptabilité** : chaque encaissement de frais est passé automatiquement au journal (comptes SYSCOHADA par défaut 70100, 57100, 52100, 52200) |
 | 2026-06-28 | **Paiements MoMo et FedaPay** branchés en réel ; **lien parent–enfant vérifié** par un code à usage unique (14 jours par défaut, réglable) ; **Alumni** et **contrôle d'accès** (points de scan, badges) en modèles réels |
 
 ## 7. Communication, IA, données
@@ -97,6 +98,5 @@
 - Appel **par créneau** ; connexion par téléphone ou SMS ; transferts entre sites ; passage CM2 → 6e ;
   règles DS1/DS2 ; **bulletin retenu si impayé**.
 - Moyenne annuelle (S1 + 2·S2) ÷ 3 si une école l'applique (convention à confirmer).
-- **Plan de comptes OHADA** des encaissements de scolarité (prérequis de FIN-04).
 - **Grille tarifaire publique** et essai gratuit (`EDUPILOT_PRODUCT_STRATEGY.md` §4).
 - Le parent doit-il pouvoir **choisir une tranche** précise (aujourd'hui : imputation chronologique, Q-FIN-02) ?

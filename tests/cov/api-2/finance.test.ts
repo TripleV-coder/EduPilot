@@ -6,6 +6,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, FIXTURES, cuid } from "../../api/test-helpers";
 
+// Écritures comptables (FIN-04) : prouvées sur base réelle
+// (tests/integration-db/accounting-payment-posting.test.ts) ; ici neutralisées.
+vi.mock("@/lib/accounting/payment-posting", () => ({ syncFeeAccounting: vi.fn(async () => 0) }));
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   default: {

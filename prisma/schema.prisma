@@ -3063,6 +3063,11 @@ model JournalEntry {
   entryDate    DateTime
   label        String
   status       JournalEntryStatus @default(POSTED)
+  /// FIN-04 : écriture générée par un paiement de frais (encaissement,
+  /// contre-passation, remboursement). `sourceAmountFcfa` = effet signé sur
+  /// l'encaissé ; la somme par paiement égale son montant encaissé actuel.
+  sourcePaymentId  String?
+  sourceAmountFcfa BigInt?
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
@@ -3070,6 +3075,7 @@ model JournalEntry {
   fiscalYear FiscalYear         @relation(fields: [fiscalYearId], references: [id], onDelete: Cascade)
   lines      JournalEntryLine[]
 
+  @@index([sourcePaymentId])
   @@unique([schoolId, pieceRef])
   @@index([schoolId, entryDate])
   @@map("journal_entries")

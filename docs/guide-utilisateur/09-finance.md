@@ -56,6 +56,7 @@ Le parent paie depuis *Paiements* (*Scolarité et paiements*), **enfant par enfa
 - **Au bout de 24 h sans réponse**, la maintenance quotidienne interroge le fournisseur avec le compte de l'école : payé au bon montant → validé ; échec → annulé ; incertain → reste en attente ; au-delà de 48 h, l'école est alertée.
 - **Sans attendre**, le comptable ou l'administration de l'école peut ouvrir *Finance › Rapprochement* et cliquer sur **Interroger le fournisseur** devant un paiement en ligne en attente, en indiquant un motif (par exemple : la famille présente un débit sur son téléphone). Les règles sont les mêmes : validé seulement si le fournisseur confirme le bon montant, annulé seulement s'il déclare un échec définitif, sinon rien ne change et le montant reste réservé. Le motif, l'auteur et la réponse sont conservés sur le paiement et dans le journal. Il n'existe **aucun moyen de libérer un montant sans réponse du fournisseur**. Un paiement pour lequel le fournisseur n'a jamais donné de numéro de transaction ne peut pas être interrogé : il faut alors vérifier dans l'espace FedaPay de l'école.
 - Un paiement en ligne **ne se valide jamais à la main** : seule la confirmation du fournisseur (ou « Interroger le fournisseur ») le valide. Aucun paiement ne peut non plus revenir « en attente ».
+- Les paiements ne se font **jamais hors connexion**.
 - Le **reçu** PDF n'existe que pour un paiement **confirmé** (validé ou rapproché) ; il ne montre pas les notes internes de l'école.
 - Le **remboursement** d'un paiement en ligne se rend depuis l'espace FedaPay de l'école, puis s'enregistre dans EduPilot (voir 9.8 bis) pour que le reste à payer soit juste.
 
@@ -97,6 +98,7 @@ Une échéance non payée passe automatiquement « en retard ». Les jours sont 
 - *Réconciliation bancaire* : associer les virements reçus aux paiements des élèves.
 - *Rapports financiers* : revenus, impayés, prévisions.
 - *Export financier* : extractions pour la comptabilité. Les contenus dangereux pour un tableur sont neutralisés.
+- ✅ **Les paiements de scolarité arrivent seuls dans la comptabilité** : chaque paiement validé crée son écriture (caisse, banque ou Mobile Money selon le moyen de paiement, face au compte « Scolarité »). Une annulation crée l'écriture inverse, un remboursement aussi ; aucune écriture n'est effacée. Pour les paiements enregistrés avant cette automatisation, le comptable clique une fois sur **Rattraper les paiements** dans *Comptabilité* ; un second clic n'ajoute rien.
 
 ## 9.8 bis Rembourser un paiement ✅
 Pour un départ d'élève, un trop-perçu, une activité annulée…

@@ -3,6 +3,9 @@ import type { Payment, PaymentPlan, InstallmentPayment, Fee, StudentProfile, Par
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 
+// Écritures comptables (FIN-04) : prouvées sur base réelle
+// (tests/integration-db/accounting-payment-posting.test.ts) ; ici neutralisées.
+vi.mock("@/lib/accounting/payment-posting", () => ({ syncFeeAccounting: vi.fn(async () => 0) }));
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 // Verrou élève/frais et solde relu (lot 3b) : leur logique réelle est prouvée
 // contre PostgreSQL (tests/integration-db/payment-collection-guard.test.ts) ;

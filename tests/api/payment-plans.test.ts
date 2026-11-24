@@ -5,6 +5,9 @@ import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
 import { loadScholarshipDiscounts } from "@/lib/finance/scholarships";
 
+// Écritures comptables (FIN-04) : prouvées sur base réelle
+// (tests/integration-db/accounting-payment-posting.test.ts) ; ici neutralisées.
+vi.mock("@/lib/accounting/payment-posting", () => ({ syncFeeAccounting: vi.fn(async () => 0) }));
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 // Verrou élève/frais et solde relu (lot 3b) : logique réelle prouvée contre
 // PostgreSQL (payment-collection-guard) ; ici solde ouvert.
