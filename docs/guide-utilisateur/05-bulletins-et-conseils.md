@@ -8,7 +8,7 @@ On l'ouvre dans *Notes → Bulletins* : on choisit la classe, la période, puis 
 
 ### Ce que contient le bulletin
 - **En-tête** : nom, adresse, contacts, devise et logo de l'établissement ; code de l'établissement.
-- **L'élève** : nom, prénom, matricule, date de naissance, classe, niveau, année scolaire, période.
+- **L'élève** : nom, prénom, matricule (et matricule EducMaster s'il est renseigné), date de naissance, classe, niveau, année scolaire, période.
 - **Un tableau, une ligne par matière** :
 
   | Colonne | Contenu |

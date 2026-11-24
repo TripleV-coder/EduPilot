@@ -106,7 +106,11 @@ export function EduTopBar() {
         <button
             type="button"
             onClick={openPalette}
-            aria-label="Ouvrir la palette de commandes"
+            // Pas d'aria-label : le nom accessible est le texte visible
+            // (« Rechercher… »), comme l'exige WCAG 2.5.3 (axe 4.14,
+            // label-content-name-mismatch) ; la commande vocale « Rechercher »
+            // l'active. L'ouverture de la palette (dialogue) est annoncée.
+            aria-haspopup="dialog"
             className={cn(
                 "flex items-center gap-2.5 rounded-input border border-transparent bg-[var(--eduflow-surface-sunken)] px-3 transition-colors hover:border-[var(--eduflow-border-default)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/50",
                 "h-10 min-w-0 flex-1 md:max-w-[380px]"

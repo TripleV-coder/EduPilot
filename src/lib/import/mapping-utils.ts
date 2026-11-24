@@ -36,6 +36,8 @@ export const STUDENT_FIELDS: FieldDefinition[] = [
     { key: "className", label: "Classe", required: false, type: "string" },
     // N50 : pas de champ « Email parent » — le rattachement passe par l'import « Parents ».
     { key: "matricule", label: "Matricule", required: false, type: "string" },
+    // INT-01 : identifiant national, pour rapprocher les listes EducMaster
+    { key: "educmasterMatricule", label: "Matricule EducMaster", required: false, type: "string" },
 ];
 
 /**
@@ -133,6 +135,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
     address: ["adresse", "address", "domicile"],
     className: ["classe", "class", "nom de classe"],
     matricule: ["matricule", "student id", "id", "numéro"],
+    educmasterMatricule: ["matricule educmaster", "matricule national", "n° educmaster", "numero educmaster", "educmaster"],
     subjects: ["matières", "matieres", "subjects", "subject"],
     level: ["niveau", "level", "grade"],
     capacity: ["capacité", "capacite", "capacity", "effectif"],

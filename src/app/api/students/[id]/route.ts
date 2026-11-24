@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "@/lib/auth/password";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { educmasterMatriculeSchema } from "@/lib/validations/user";
 import { isZodError } from "@/lib/is-zod-error";
 import { strongPasswordSchema } from "@/lib/validations/auth";
 import { createApiHandler, translateError } from "@/lib/api/api-helpers";
@@ -40,6 +41,7 @@ const studentUpdateSchema = z.object({
   address: z.string().optional().nullable(),
   classId: z.string().cuid().optional(),
   matricule: z.string().min(1).optional(),
+  educmasterMatricule: educmasterMatriculeSchema,
   isActive: z.boolean().optional(),
 });
 
@@ -182,6 +184,17 @@ export const PATCH = createApiHandler(
       throw error;
     }
 
+    // Matricule EducMaster : unique dans l'école (élèves non supprimés), message clair
+    if (validatedData.educmasterMatricule) {
+      const taken = await prisma.studentProfile.findFirst({
+        where: { schoolId: student.user.schoolId ?? undefined, educmasterMatricule: validatedData.educmasterMatricule, deletedAt: null, NOT: { id } },
+        select: { id: true },
+      });
+      if (taken) {
+        return NextResponse.json({ error: "Ce matricule EducMaster est déjà attribué à un autre élève de l'établissement." }, { status: 409 });
+      }
+    }
+
     if (validatedData.classId) {
       const targetClass = await prisma.class.findUnique({
         where: { id: validatedData.classId },
@@ -238,6 +251,7 @@ export const PATCH = createApiHandler(
       if (validatedData.nationality !== undefined) profileData.nationality = validatedData.nationality;
       if (validatedData.address !== undefined) profileData.address = validatedData.address;
       if (validatedData.matricule !== undefined) profileData.matricule = validatedData.matricule;
+      if (validatedData.educmasterMatricule !== undefined) profileData.educmasterMatricule = validatedData.educmasterMatricule;
 
       const updatedStudent = await tx.studentProfile.update({
         where: { id },

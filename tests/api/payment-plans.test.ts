@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import type { PaymentPlan, InstallmentPayment, StudentProfile, Fee, Payment, Scholarship } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { makeRequest, makeSession, cuid, FIXTURES } from "./test-helpers";
+import { loadScholarshipDiscounts } from "@/lib/finance/scholarships";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 // Verrou élève/frais et solde relu (lot 3b) : logique réelle prouvée contre
@@ -12,6 +13,9 @@ vi.mock("@/lib/finance/online-payments", async (importOriginal) => ({
   lockStudentFee: vi.fn(async () => {}),
   getFeeBalance: vi.fn(async () => ({ billed: 1_000_000, settled: 0, reserved: 0, remaining: 1_000_000, available: 1_000_000 })),
 }));
+// Bourses (FIN-01) : règles prouvées par tests/lib/finance/scholarships.test.ts
+// et tests/integration-db/scholarships-due.test.ts ; ici, remise imposée.
+vi.mock("@/lib/finance/scholarships", () => ({ loadScholarshipDiscounts: vi.fn(async () => new Map()) }));
 vi.mock("@/lib/prisma", () => {
   const prismaMock: Record<string, unknown> = {
     paymentPlan: {
@@ -194,10 +198,8 @@ describe("POST /api/payment-plans", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockStudentAndFee(120000);
     vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue(null);
-    // Bourse active de 25% → total dû = 90 000, soit 22 500 par échéance
-    vi.mocked(prisma.scholarship.findMany).mockResolvedValue([
-      { percentage: 25, amount: null },
-    ] as unknown as Scholarship[]);
+    // Bourse active de 25% → remise 30 000, total dû = 90 000, soit 22 500 par échéance
+    vi.mocked(loadScholarshipDiscounts).mockResolvedValueOnce(new Map([[FIXTURES.feeA, 30000]]));
     vi.mocked(prisma.paymentPlan.create).mockImplementation(async (args: Prisma.PaymentPlanCreateArgs) => ({
       id: planId,
       ...args.data,
@@ -247,9 +249,7 @@ describe("POST /api/payment-plans", () => {
     vi.mocked(auth).mockResolvedValue(makeSession("ACCOUNTANT"));
     mockStudentAndFee(120000);
     vi.mocked(prisma.paymentPlan.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.scholarship.findMany).mockResolvedValue([
-      { percentage: 100, amount: null },
-    ] as unknown as Scholarship[]);
+    vi.mocked(loadScholarshipDiscounts).mockResolvedValueOnce(new Map([[FIXTURES.feeA, 120000]]));
 
     const response = await POST(
       makeRequest("http://localhost:3000/api/payment-plans", { method: "POST", body: validBody })

@@ -1,4 +1,6 @@
 import prisma from "@/lib/prisma";
+import { CURRENT_PLAN_ORDER } from "@/lib/finance/helpers";
+import { loadScholarshipDiscountsFor } from "@/lib/finance/scholarships";
 
 /**
  * Avis de paiement groupés (TD-017).
@@ -118,6 +120,20 @@ export async function buildNoticeBatch(params: {
   }
 
   const due = Number(fee.amount);
+  // Dû par élève, même règle que getFeeBalance (FIN-01) : total de l'échéancier
+  // en vigueur s'il existe (bourses incluses), sinon frais moins bourses.
+  const [plans, discounts] = await Promise.all([
+    studentIds.length
+      ? prisma.paymentPlan.findMany({
+          where: { feeId: fee.id, studentId: { in: studentIds }, status: { not: "CANCELLED" } },
+          orderBy: CURRENT_PLAN_ORDER,
+          select: { studentId: true, totalAmount: true },
+        })
+      : [],
+    loadScholarshipDiscountsFor(prisma, studentIds),
+  ]);
+  const planTotal = new Map<string, number>();
+  for (const plan of plans) if (!planTotal.has(plan.studentId)) planTotal.set(plan.studentId, Number(plan.totalAmount));
   const seen = new Set<string>();
   const rows: NoticeRow[] = [];
   for (const enrollment of enrollments) {
@@ -125,16 +141,19 @@ export async function buildNoticeBatch(params: {
     if (seen.has(enrollment.studentId)) continue;
     seen.add(enrollment.studentId);
     const paid = paidBy.get(enrollment.studentId) ?? 0;
+    const studentDue =
+      planTotal.get(enrollment.studentId) ??
+      Math.max(0, due - (discounts.get(enrollment.studentId)?.get(fee.id) ?? 0));
     rows.push({
       studentId: enrollment.studentId,
       firstName: enrollment.student.user.firstName,
       lastName: enrollment.student.user.lastName,
       matricule: enrollment.student.matricule,
       className: enrollment.class.name,
-      due,
+      due: studentDue,
       paid,
       pending: pendingBy.get(enrollment.studentId) ?? 0,
-      remaining: Math.max(0, due - paid),
+      remaining: Math.max(0, studentDue - paid),
     });
   }
   rows.sort((a, b) => a.className.localeCompare(b.className, "fr") || a.lastName.localeCompare(b.lastName, "fr"));

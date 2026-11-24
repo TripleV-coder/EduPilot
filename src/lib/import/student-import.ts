@@ -39,6 +39,7 @@ type PreparedRow = {
     lastName: string;
     email: string;
     matricule?: string;
+    educmasterMatricule?: string;
     dateOfBirth?: Date;
     gender?: Gender;
     birthPlace?: string;
@@ -96,6 +97,7 @@ export async function importStudentsAllOrNothing(schoolId: string, rawRows: unkn
             lastName: parsed.data.lastName,
             email: parsed.data.email,
             matricule: parsed.data.matricule || undefined,
+            educmasterMatricule: parsed.data.educmasterMatricule ?? undefined,
             dateOfBirth: date.date,
             gender: parsed.data.gender ? GENDERS[parsed.data.gender] : undefined,
             birthPlace: parsed.data.birthPlace || undefined,
@@ -106,7 +108,7 @@ export async function importStudentsAllOrNothing(schoolId: string, rawRows: unkn
     });
 
     // 2. Doublons dans le fichier (email sans casse, matricule) : toutes les lignes concernées.
-    const flagDuplicates = (field: "email" | "matricule", label: string) => {
+    const flagDuplicates = (field: "email" | "matricule" | "educmasterMatricule", label: string) => {
         const byValue = new Map<string, number[]>();
         for (const item of prepared) {
             const value = item[field];
@@ -122,11 +124,13 @@ export async function importStudentsAllOrNothing(schoolId: string, rawRows: unkn
     };
     flagDuplicates("email", "Email");
     flagDuplicates("matricule", "Matricule");
+    flagDuplicates("educmasterMatricule", "Matricule EducMaster");
 
     // 3. Doublons en base, classes et année en cours : une requête chacun.
     const emails = [...new Set(prepared.map((item) => item.email))];
     const matricules = [...new Set(prepared.map((item) => item.matricule).filter((m): m is string => Boolean(m)))];
-    const [existingUsers, existingMatricules, classes, currentYear] = await Promise.all([
+    const educmasterIds = [...new Set(prepared.map((item) => item.educmasterMatricule).filter((m): m is string => Boolean(m)))];
+    const [existingUsers, existingMatricules, classes, currentYear, existingEducmaster] = await Promise.all([
         emails.length
             ? prisma.user.findMany({
                   where: { OR: emails.map((email) => ({ email: { equals: email, mode: "insensitive" as const } })) },
@@ -139,7 +143,14 @@ export async function importStudentsAllOrNothing(schoolId: string, rawRows: unkn
         // Classes de l'établissement : liste bornée par nature.
         prisma.class.findMany({ where: { schoolId }, select: { id: true, name: true } }),
         prisma.academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } }),
+        educmasterIds.length
+            ? prisma.studentProfile.findMany({
+                  where: { schoolId, deletedAt: null, educmasterMatricule: { in: educmasterIds } },
+                  select: { educmasterMatricule: true },
+              })
+            : Promise.resolve([]),
     ]);
+    const takenEducmaster = new Set(existingEducmaster.map((profile) => profile.educmasterMatricule));
     const takenEmails = new Set(existingUsers.map((user) => user.email.toLowerCase()));
     const takenMatricules = new Set(existingMatricules.map((profile) => profile.matricule));
     const classByName = new Map(classes.map((klass) => [klass.name.trim().toLowerCase(), klass.id]));
@@ -150,6 +161,9 @@ export async function importStudentsAllOrNothing(schoolId: string, rawRows: unkn
         }
         if (item.matricule && takenMatricules.has(item.matricule)) {
             errors.push({ row: item.row, field: "matricule", message: `Le matricule « ${item.matricule} » existe déjà dans l'établissement` });
+        }
+        if (item.educmasterMatricule && takenEducmaster.has(item.educmasterMatricule)) {
+            errors.push({ row: item.row, field: "educmasterMatricule", message: `Le matricule EducMaster « ${item.educmasterMatricule} » est déjà attribué dans l'établissement` });
         }
         if (item.classId) {
             const name = item.classId.slice(1);
@@ -196,6 +210,7 @@ export async function importStudentsAllOrNothing(schoolId: string, rawRows: unkn
                             gender: item.gender,
                             birthPlace: item.birthPlace,
                             address: item.address,
+                            educmasterMatricule: item.educmasterMatricule,
                         },
                         select: { id: true },
                     });

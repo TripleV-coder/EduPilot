@@ -448,7 +448,8 @@ function RollCallPage() {
                         ) : (
                             <div className="overflow-x-auto">
                                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                    <thead>
+                                    {/* Mobile : en-tête masqué, chaque ligne se lit nom → statuts. */}
+                                    <thead className="hidden md:table-header-group">
                                         <tr
                                             style={{
                                                 background: "var(--eduflow-surface-sunken)",
@@ -471,6 +472,48 @@ function RollCallPage() {
                                             const isDirty =
                                                 rec.status !== initialAttendanceData[id]?.status ||
                                                 rec.notes !== (initialAttendanceData[id]?.notes ?? "");
+                                            const statusButtons = STATUS_BUTTONS.map((b) => (
+                                                <StatusButton
+                                                    key={b.key}
+                                                    active={rec.status === b.key}
+                                                    letter={b.letter}
+                                                    label={b.label}
+                                                    bg={b.bg}
+                                                    glow={b.glow}
+                                                    onClick={() => handleStatusChange(id, b.key)}
+                                                    who={rec.studentName}
+                                                />
+                                            ));
+                                            const observation = (
+                                                <input
+                                                    aria-label={`Observation pour ${rec.studentName}`}
+                                                    value={rec.notes}
+                                                    onChange={(e) =>
+                                                        setAttendanceData((p) => ({
+                                                            ...p,
+                                                            [id]: {
+                                                                ...p[id],
+                                                                notes: e.target.value,
+                                                            },
+                                                        }))
+                                                    }
+                                                    placeholder="Justificatif…"
+                                                    style={{
+                                                        width: "100%",
+                                                        height: 32,
+                                                        padding: "0 10px",
+                                                        border:
+                                                            "1px solid var(--eduflow-border-default)",
+                                                        borderRadius: 8,
+                                                        background:
+                                                            "var(--eduflow-surface-card)",
+                                                        fontFamily: "inherit",
+                                                        fontSize: 12,
+                                                        color: "var(--eduflow-text-primary)",
+                                                        outline: "none",
+                                                    }}
+                                                />
+                                            );
                                             return (
                                                 <tr
                                                     key={id}
@@ -484,7 +527,7 @@ function RollCallPage() {
                                                             "background var(--eduflow-motion-fast) var(--eduflow-ease-out)",
                                                     }}
                                                 >
-                                                    <td style={{ padding: "12px 20px" }}>
+                                                    <td className="px-4 py-3 md:px-5" style={{ verticalAlign: "top" }}>
                                                         <div className="flex items-center gap-3">
                                                             <span
                                                                 className="eduflow-mono"
@@ -519,54 +562,19 @@ function RollCallPage() {
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        {/* Mobile : statuts sous le nom (le tableau défilait à l'horizontale
+                                                            et masquait le nom de l'élève qu'on venait de marquer). */}
+                                                        <div className="mt-2 flex items-center gap-2 md:hidden">{statusButtons}</div>
+                                                        {!isFocusMode && (rec.status !== "PRESENT" || rec.notes) ? (
+                                                            <div className="mt-2 md:hidden">{observation}</div>
+                                                        ) : null}
                                                     </td>
-                                                    <td style={{ padding: "12px 20px" }}>
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            {STATUS_BUTTONS.map((b) => (
-                                                                <StatusButton
-                                                                    key={b.key}
-                                                                    active={rec.status === b.key}
-                                                                    letter={b.letter}
-                                                                    label={b.label}
-                                                                    bg={b.bg}
-                                                                    glow={b.glow}
-                                                                    onClick={() =>
-                                                                        handleStatusChange(id, b.key)
-                                                                    }
-                                                                />
-                                                            ))}
-                                                        </div>
+                                                    <td className="hidden md:table-cell" style={{ padding: "12px 20px" }}>
+                                                        <div className="flex items-center justify-center gap-2">{statusButtons}</div>
                                                     </td>
                                                     {!isFocusMode ? (
-                                                        <td style={{ padding: "12px 20px" }}>
-                                                            <input
-                                                                aria-label={`Observation pour ${rec.studentName}`}
-                                                                value={rec.notes}
-                                                                onChange={(e) =>
-                                                                    setAttendanceData((p) => ({
-                                                                        ...p,
-                                                                        [id]: {
-                                                                            ...p[id],
-                                                                            notes: e.target.value,
-                                                                        },
-                                                                    }))
-                                                                }
-                                                                placeholder="Justificatif…"
-                                                                style={{
-                                                                    width: "100%",
-                                                                    height: 32,
-                                                                    padding: "0 10px",
-                                                                    border:
-                                                                        "1px solid var(--eduflow-border-default)",
-                                                                    borderRadius: 8,
-                                                                    background:
-                                                                        "var(--eduflow-surface-card)",
-                                                                    fontFamily: "inherit",
-                                                                    fontSize: 12,
-                                                                    color: "var(--eduflow-text-primary)",
-                                                                    outline: "none",
-                                                                }}
-                                                            />
+                                                        <td className="hidden md:table-cell" style={{ padding: "12px 20px" }}>
+                                                            {observation}
                                                         </td>
                                                     ) : null}
                                                 </tr>
@@ -583,7 +591,7 @@ function RollCallPage() {
                 {selectedClassId && filteredIds.length > 0 ? (
                     <div
                         className="fixed left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4"
-                        style={{ bottom: "calc(1.5rem + var(--consent-banner-h, 0px))", pointerEvents: saving ? "none" : "auto" }}
+                        style={{ bottom: "calc(1rem + var(--mobile-nav-h, 0px) + var(--consent-banner-h, 0px))", pointerEvents: saving ? "none" : "auto" }}
                     >
                         <button
                             type="button"
@@ -641,6 +649,7 @@ function StatusButton({
     bg,
     glow,
     onClick,
+    who,
 }: {
     active: boolean;
     letter: string;
@@ -648,13 +657,15 @@ function StatusButton({
     bg: string;
     glow: string;
     onClick: () => void;
+    /** Nom de l'élève : sans lui, un lecteur d'écran entend « Absent » 30 fois. */
+    who?: string;
 }) {
     return (
         <button
             type="button"
             onClick={onClick}
             title={label}
-            aria-label={label}
+            aria-label={who ? `${label} : ${who}` : label}
             aria-pressed={active}
             className="touch-target flex items-center justify-center"
             style={{

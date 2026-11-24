@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { loadScholarshipDiscounts, loadScholarshipDiscountsFor } from "@/lib/finance/scholarships";
 import type { FinanceDateRange } from "@/lib/finance/helpers";
 
 /**
@@ -100,6 +101,8 @@ export async function computePlanlessExpected(params: {
     paidBy.set(`${row.feeId}:${row.studentId}`, Number(row._sum.amount ?? 0));
   }
 
+  // Bourses (FIN-01) : seuls les élèves boursiers coûtent une requête
+  const discounts = await loadScholarshipDiscountsFor(prisma, [...new Set(enrollments.map((e) => e.studentId))]);
   let expected = 0;
   let pending = 0;
   const overdue: PlanlessExpected["overdue"] = new Map();
@@ -119,8 +122,9 @@ export async function computePlanlessExpected(params: {
       seen.add(enrollment.studentId);
       const key = `${fee.id}:${enrollment.studentId}`;
       if (plannedKeys.has(key)) continue;
-      const remaining = Math.max(0, due - (paidBy.get(key) ?? 0));
-      expected += due;
+      const studentDue = Math.max(0, due - (discounts.get(enrollment.studentId)?.get(fee.id) ?? 0));
+      const remaining = Math.max(0, studentDue - (paidBy.get(key) ?? 0));
+      expected += studentDue;
       pending += remaining;
       if (isPastDue && remaining > 0) {
         const { firstName, lastName } = enrollment.student.user;
@@ -243,6 +247,7 @@ export async function computeStudentFeeDues(studentIds: string[]): Promise<Stude
     }),
   ]);
   const planned = new Set(plans.map((plan) => `${plan.feeId}:${plan.studentId}`));
+  const discounts = await loadScholarshipDiscountsFor(prisma, studentIds);
   const paidBy = new Map(settled.map((row) => [`${row.feeId}:${row.studentId}`, Number(row._sum.amount ?? 0)]));
 
   const dues: StudentFeeDue[] = [];
@@ -258,7 +263,8 @@ export async function computeStudentFeeDues(studentIds: string[]): Promise<Stude
       if (fee.classLevelCode && fee.classLevelCode !== enrollment.class.classLevel.code) continue;
       const key = `${fee.id}:${enrollment.studentId}`;
       if (planned.has(key)) continue;
-      const remaining = Math.max(0, Number(fee.amount) - (paidBy.get(key) ?? 0));
+      const studentDue = Math.max(0, Number(fee.amount) - (discounts.get(enrollment.studentId)?.get(fee.id) ?? 0));
+      const remaining = Math.max(0, studentDue - (paidBy.get(key) ?? 0));
       if (remaining <= 0) continue;
       dues.push({
         studentId: enrollment.studentId,
@@ -336,13 +342,15 @@ export async function computeStudentBalances(studentId: string): Promise<Student
     }),
   ]);
   const planTotal = new Map(plans.map((plan) => [plan.feeId, Number(plan.totalAmount)]));
+  // Sans échéancier : bourses déduites (FIN-01)
+  const discounts = await loadScholarshipDiscounts(prisma, studentId);
   const sumFor = (feeId: string, statuses: readonly string[]) =>
     payments
       .filter((row) => row.feeId === feeId && statuses.includes(row.status))
       .reduce((sum, row) => sum + Number(row._sum.amount ?? 0), 0);
 
   return fees.map((fee) => {
-    const billed = planTotal.get(fee.id) ?? Number(fee.amount);
+    const billed = planTotal.get(fee.id) ?? Math.max(0, Number(fee.amount) - (discounts.get(fee.id) ?? 0));
     const paid = sumFor(fee.id, SETTLED_STATUSES);
     const pending = sumFor(fee.id, ["PENDING"]);
     const remaining = Math.max(0, billed - paid);

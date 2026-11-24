@@ -86,7 +86,10 @@ jobs:
             type=ref,event=tag
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,value=${{ env.DEPLOY_SHA }}
+            # Étiquette lue par le scan et les déploiements : SHA COMPLET déployé.
+            # (type=sha ignore `value` et prenait le SHA court de github.sha,
+            # qui en workflow_run n'est pas le commit testé : image introuvable.)
+            type=raw,value=sha-${{ env.DEPLOY_SHA }}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
@@ -124,10 +127,14 @@ jobs:
         with:
           ref: ${{ env.DEPLOY_SHA }}
 
+      # Une référence d'image Docker est en minuscules (github.repository ne l'est pas)
+      - name: Référence de l'image
+        run: echo "IMAGE_REF=${REGISTRY}/${IMAGE_NAME,,}:sha-${DEPLOY_SHA}" >> "$GITHUB_ENV"
+
       - name: Trivy image scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (épinglé : @master a cassé la CD le 2026-11-18)
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ env.DEPLOY_SHA }}
+          image-ref: ${{ env.IMAGE_REF }}
           format: sarif
           output: trivy-image.sarif
           ignore-unfixed: true
@@ -141,36 +148,10 @@ jobs:
           sarif_file: trivy-image.sarif
           category: trivy-image
 
-  # ─────────────────────────────────────────────────────────────────────────
-  # 3. Lighthouse perf budget on preview / staging
-  # ─────────────────────────────────────────────────────────────────────────
-  lighthouse:
-    name: Lighthouse CI
-    runs-on: ubuntu-24.04
-    needs: [docker]
-    if: >-
-      ${{
-        github.event_name == 'workflow_run' ||
-        github.event.inputs.environment == 'staging'
-      }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.DEPLOY_SHA }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Lighthouse CI (existing workflow keeps detailed config)
-        run: npx --yes @lhci/cli autorun --upload.target=temporary-public-storage
-        env:
-          LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+  # 3. Lighthouse : retiré de la CD (OPS-01, 2026-11-24). Il lançait `lhci
+  #    autorun` sans serveur ni URL (« Failed to automatically determine
+  #    staticDistDir ») ; le budget est vérifié par lighthouse-ci.yml, qui
+  #    construit, démarre et sonde l'application.
 
   # ─────────────────────────────────────────────────────────────────────────
   # 4. Deploy to staging (auto) — production needs manual approval
@@ -200,7 +181,7 @@ jobs:
       - name: Deploy image
         run: |
           set -euo pipefail
-          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ env.DEPLOY_SHA }}"
+          IMAGE="${REGISTRY}/${IMAGE_NAME,,}:sha-${DEPLOY_SHA}"
           if [[ -z "${STAGING_DEPLOY_COMMAND:-}" ]]; then
             echo "::error::STAGING_DEPLOY_COMMAND n'est pas défini"
             exit 1
@@ -252,7 +233,7 @@ jobs:
       - name: Deploy image
         run: |
           set -euo pipefail
-          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ env.DEPLOY_SHA }}"
+          IMAGE="${REGISTRY}/${IMAGE_NAME,,}:sha-${DEPLOY_SHA}"
           if [[ -z "${PRODUCTION_DEPLOY_COMMAND:-}" ]]; then
             echo "::error::PRODUCTION_DEPLOY_COMMAND n'est pas défini"
             exit 1

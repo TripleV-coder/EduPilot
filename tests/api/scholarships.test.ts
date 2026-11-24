@@ -9,8 +9,15 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 // Modèles lus : studentProfile + parentProfile (filtrage par rôle du GET),
 // scholarship (list/detail/CRUD), auditLog + notification (journal & alertes).
 // assertModelAccess (tenant.ts) lit aussi scholarship pour résoudre l'école.
-vi.mock("@/lib/prisma", () => ({
-  default: {
+// Recalcul des échéanciers et contrôle des frais visés (FIN-01) : prouvés sur
+// base réelle (scholarships-due.test.ts) ; ici, aucun échéancier touché.
+vi.mock("@/lib/finance/scholarships", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/finance/scholarships")>()),
+  syncScholarshipPlans: vi.fn(async () => []),
+  invalidScholarshipFeeIds: vi.fn(async () => false),
+}));
+vi.mock("@/lib/prisma", () => {
+  const prismaMock: Record<string, unknown> = {
     studentProfile: { findUnique: vi.fn(), findFirst: vi.fn() },
     parentProfile: { findUnique: vi.fn() },
     scholarship: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
@@ -18,8 +25,11 @@ vi.mock("@/lib/prisma", () => ({
     notification: { create: vi.fn(), createMany: vi.fn() },
     // S6 : école sélectionnée du super-admin vérifiée en base
     school: { findUnique: vi.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id })) },
-  },
-}));
+  };
+  // Écriture de la bourse + recalcul dans une même transaction
+  prismaMock.$transaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prismaMock));
+  return { default: prismaMock };
+});
 
 const SCHOOL_ADMIN = makeSession("SCHOOL_ADMIN");
 const scholarshipId = cuid("schol1");
@@ -396,9 +406,11 @@ describe("PATCH /api/scholarships/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(body.name).toBe("Bourse Révisée");
+    // FIN-01 : passer au pourcentage efface le montant fixe (une seule forme)
     expect(vi.mocked(prisma.scholarship.update).mock.calls[0][0].data).toEqual({
       name: "Bourse Révisée",
       percentage: 25,
+      amount: 0,
     });
     expect(vi.mocked(prisma.auditLog.create).mock.calls[0][0].data).toMatchObject({
       action: "UPDATE",

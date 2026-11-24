@@ -45,6 +45,7 @@ import {
 } from "@/lib/finance/helpers";
 import { createNotifications } from "@/lib/services/notification.service";
 import { INIT_UNCERTAIN_NOTE } from "@/lib/finance/providers/init-error";
+import { loadScholarshipDiscounts } from "@/lib/finance/scholarships";
 
 export const ONLINE_PAYMENT_TTL_MS = 24 * 60 * 60 * 1000;
 export const EXPECTED_CURRENCY = "XOF";
@@ -84,7 +85,11 @@ export async function getFeeBalance(db: Db, studentId: string, feeId: string): P
         }),
     ]);
     if (!fee) return null;
-    const billed = Math.round(Number(plan?.totalAmount ?? fee.amount));
+    // Sans échéancier : montant du frais moins les bourses applicables (FIN-01).
+    // Avec échéancier : son total, tenu aligné sur les bourses (syncScholarshipPlans).
+    const billed = plan
+        ? Math.round(Number(plan.totalAmount))
+        : Math.max(0, Math.round(Number(fee.amount)) - ((await loadScholarshipDiscounts(db, studentId)).get(feeId) ?? 0));
     let settled = 0;
     let reserved = 0;
     for (const p of payments) {
@@ -628,7 +633,7 @@ export async function reconcileStalePayments(verify: VerifyFn, now = new Date(),
 }
 
 /** Alerte aux comptables et à l'administration de l'école (notification de type paiement). */
-async function alertFinanceStaff(schoolId: string, title: string, message: string): Promise<void> {
+export async function alertFinanceStaff(schoolId: string, title: string, message: string): Promise<void> {
     const staff = await prisma.user.findMany({
         where: { schoolId, isActive: true, role: { in: ["ACCOUNTANT", "SCHOOL_ADMIN"] } },
         select: { id: true },

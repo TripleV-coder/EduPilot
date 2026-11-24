@@ -307,6 +307,8 @@ const { searchParams } = new URL(request.url);
       student: {
         id: student.id,
         matricule: student.matricule,
+        // INT-01 : identifiant national, imprimé à côté du matricule interne
+        educmasterMatricule: student.educmasterMatricule ?? null,
         firstName: student.user.firstName,
         lastName: student.user.lastName,
         dateOfBirth: student.dateOfBirth ? student.dateOfBirth.toISOString() : null,

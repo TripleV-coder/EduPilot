@@ -368,7 +368,12 @@ describe("Barre du haut (EduTopBar)", () => {
                 <EduTopBar />
             </CommandPaletteProvider>,
         );
-        fireEvent.click(screen.getByRole("button", { name: "Ouvrir la palette de commandes" }));
+        const search = screen.getByRole("button", { name: /^Rechercher/ });
+        // WCAG 2.5.3 (axe label-content-name-mismatch) : le nom accessible
+        // contient le texte visible ; l'ouverture d'une fenêtre est annoncée.
+        expect(search).not.toHaveAttribute("aria-label");
+        expect(search).toHaveAttribute("aria-haspopup", "dialog");
+        fireEvent.click(search);
         expect(await screen.findByRole("dialog", { name: "Palette de commandes" })).toBeInTheDocument();
     });
 

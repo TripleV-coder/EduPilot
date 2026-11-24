@@ -188,6 +188,43 @@ describe("Lot 7 — FedaPay : initiation → webhook signé → VERIFIED", () =>
   });
 });
 
+describe("FIN-02 — journal des événements fournisseur", () => {
+  const journal = (reference: string) => prisma.paymentProviderEvent.findMany({ where: { provider: "FEDAPAY", reference } });
+
+  it("événement authentifié : journalisé une fois, données minimales, résultat du traitement", async () => {
+    const paymentId = await newPendingPayment();
+    const reference = await initiateFedaPay(paymentId);
+    await deliverWebhook(approvedEvent(reference));
+
+    const rows = await journal(reference);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      eventName: "transaction.approved", schoolId, paymentAccountId: account.id, transactionId: "4242",
+      amount: 50000, providerStatus: "approved", receivedCount: 1, outcome: "CONFIRMED",
+    });
+  });
+
+  it("rejeu : la même ligne compte deux réceptions, le paiement n'est validé qu'une fois", async () => {
+    const paymentId = await newPendingPayment();
+    const reference = await initiateFedaPay(paymentId);
+    await deliverWebhook(approvedEvent(reference));
+    await deliverWebhook(approvedEvent(reference));
+
+    const rows = await journal(reference);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].receivedCount).toBe(2);
+    expect(rows[0].outcome).not.toBe("CONFIRMED");
+    expect(rows[0].lastReceivedAt.getTime()).toBeGreaterThanOrEqual(rows[0].firstReceivedAt.getTime());
+  });
+
+  it("signature forgée : rien n'est journalisé", async () => {
+    const paymentId = await newPendingPayment();
+    const reference = await initiateFedaPay(paymentId);
+    expect((await deliverWebhook(approvedEvent(reference), "mauvais-secret")).status).toBe(401);
+    expect(await journal(reference)).toHaveLength(0);
+  });
+});
+
 describe("Lot 7 (règle 11) — aucune activation d'argent réel par inadvertance", () => {
   it("d'anciennes variables de paiement globales « live » oubliées n'ont aucun effet : compte bac à sable de l'école", async () => {
     // Variables retirées le 2026-11-08 : plus lues. Seul PAYMENTS_LIVE_ENABLED

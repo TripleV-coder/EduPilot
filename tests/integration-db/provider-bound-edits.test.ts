@@ -52,6 +52,37 @@ describe("Paiement confié à un fournisseur : montant, référence et moyen fig
         expect((await prisma.payment.findUniqueOrThrow({ where: { id: p.id } })).reference).toBe(p.reference);
     });
 
+    // FIN-03 (2026-11-24) : seul le fournisseur (webhook signé, réconciliation,
+    // « Interroger le fournisseur ») confirme un paiement en ligne. Le valider
+    // à la main encaissait un argent dont rien ne prouvait la réception.
+    it("PUT : valider ou rapprocher à la main un paiement en ligne non confirmé est refusé (409)", async () => {
+        actAs(sessionFor("ACCOUNTANT", schoolId, accountantId));
+        for (const status of ["VERIFIED", "RECONCILED"]) {
+            const p = await payment({ provider: "FEDAPAY", providerTransactionId: uniqueCode("TX") });
+            const res = await put(p.id, { status });
+            expect(res.status, status).toBe(409);
+            expect((await prisma.payment.findUniqueOrThrow({ where: { id: p.id } })).status).toBe("PENDING");
+        }
+        for (const from of ["EXPIRED", "CANCELLED"] as const) {
+            const p = await payment({ provider: "FEDAPAY", providerTransactionId: uniqueCode("TX"), status: from });
+            expect((await put(p.id, { status: "VERIFIED" })).status, from).toBe(409);
+        }
+    });
+
+    it("PUT : aucun paiement ne revient « en attente » ; statut inconnu de la base → 400 (pas 500)", async () => {
+        actAs(sessionFor("ACCOUNTANT", schoolId, accountantId));
+        const cancelled = await payment({ status: "CANCELLED", method: "CASH" });
+        expect((await put(cancelled.id, { status: "PENDING" })).status).toBe(409);
+        const cash = await payment({ method: "CASH" });
+        expect((await put(cash.id, { status: "COMPLETED" })).status).toBe(400);
+    });
+
+    it("garde-fou en base : même une écriture directe ne remet pas un paiement « en attente »", async () => {
+        const verified = await payment({ status: "VERIFIED", method: "CASH" });
+        await expect(prisma.payment.update({ where: { id: verified.id }, data: { status: "PENDING" } })).rejects.toThrow(/PENDING/);
+        expect((await prisma.payment.findUniqueOrThrow({ where: { id: verified.id } })).status).toBe("VERIFIED");
+    });
+
     it("paiement sans fournisseur (déclaré au guichet) : toujours modifiable", async () => {
         actAs(sessionFor("ACCOUNTANT", schoolId, accountantId));
         const p = await payment({ method: "BANK_TRANSFER" });

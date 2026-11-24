@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Bourses (FIN-01) : prouvées par scholarships.test.ts et scholarships-due.test.ts ;
+// ici aucun élève boursier.
+vi.mock("@/lib/finance/scholarships", () => ({
+    loadScholarshipDiscounts: vi.fn(async () => new Map()),
+    loadScholarshipDiscountsFor: vi.fn(async () => new Map()),
+}));
 vi.mock("@/lib/prisma", () => ({
   default: {
     fee: { findMany: vi.fn() },

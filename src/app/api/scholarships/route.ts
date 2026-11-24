@@ -8,6 +8,8 @@ import { logger } from "@/lib/utils/logger";
 import { getActiveSchoolId } from "@/lib/api/tenant-isolation";
 import { resolveFinanceSchool, superAdminTargetOutOfScope } from "@/lib/finance/finance-scope";
 import { roleSatisfies } from "@/lib/rbac/permissions";
+import { invalidScholarshipFeeIds, overpaymentMessage, syncScholarshipPlans } from "@/lib/finance/scholarships";
+import { alertFinanceStaff } from "@/lib/finance/online-payments";
 import { createApiHandler } from "@/lib/api/api-helpers";
 
 const createScholarshipSchema = z.object({
@@ -20,8 +22,10 @@ const createScholarshipSchema = z.object({
   endDate: z.string().datetime().optional(),
   isActive: z.boolean().default(true),
   notes: z.string().optional(),
-}).refine(data => data.amount !== undefined || data.percentage !== undefined, {
-  message: "Either amount or percentage must be provided",
+  /** Frais visés (choix de l'école) ; vide = tous les frais obligatoires. */
+  feeIds: z.array(z.string().cuid()).max(50).default([]),
+}).refine(data => (data.amount !== undefined) !== (data.percentage !== undefined), {
+  message: "Indiquez soit un montant, soit un pourcentage (pas les deux)",
 });
 
 // GET /api/scholarships - List scholarships
@@ -160,19 +164,33 @@ export const POST = createApiHandler(
       const outOfScope = await superAdminTargetOutOfScope(session, student.schoolId, "scholarships:create");
       if (outOfScope) return outOfScope;
 
-      const scholarship = await prisma.scholarship.create({
-        data: {
-          studentId: validatedData.studentId,
-          name: validatedData.name,
-          type: validatedData.type,
-          amount: validatedData.amount || 0,
-          percentage: validatedData.percentage,
-          startDate: new Date(validatedData.startDate),
-          endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
-          isActive: validatedData.isActive,
-          notes: validatedData.notes,
-        },
+      if (await invalidScholarshipFeeIds(prisma, student.schoolId, validatedData.feeIds)) {
+        return NextResponse.json({ error: "Frais visés invalides : choisissez des frais de l'établissement de l'élève." }, { status: 400 });
+      }
+
+      // Création et recalcul des échéanciers de l'élève dans la même transaction
+      // (FIN-01 : le dû suit la bourse partout, tout de suite)
+      const { scholarship, adjustments } = await prisma.$transaction(async (tx) => {
+        const created = await tx.scholarship.create({
+          data: {
+            studentId: validatedData.studentId,
+            name: validatedData.name,
+            type: validatedData.type,
+            amount: validatedData.amount || 0,
+            percentage: validatedData.percentage,
+            startDate: new Date(validatedData.startDate),
+            endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
+            isActive: validatedData.isActive,
+            notes: validatedData.notes,
+            feeIds: [...new Set(validatedData.feeIds)],
+          },
+        });
+        return { scholarship: created, adjustments: await syncScholarshipPlans(tx, validatedData.studentId) };
       });
+      const studentName = `${student.user.firstName} ${student.user.lastName}`;
+      for (const adjustment of adjustments.filter((a) => a.overpaid > 0)) {
+        await alertFinanceStaff(student.schoolId, "Trop-perçu à rembourser", overpaymentMessage(studentName, adjustment));
+      }
 
       // Log audit
       await prisma.auditLog.create({
@@ -208,7 +226,7 @@ export const POST = createApiHandler(
         });
       }
 
-      return NextResponse.json(scholarship, { status: 201 });
+      return NextResponse.json({ ...scholarship, planAdjustments: adjustments }, { status: 201 });
     } catch (error) {
       if (isZodError(error)) {
         return NextResponse.json({ error: "Données invalides", details: error.issues }, { status: 400 });

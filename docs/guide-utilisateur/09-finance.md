@@ -55,12 +55,13 @@ Le parent paie depuis *Paiements* (*Scolarité et paiements*), **enfant par enfa
 - La confirmation du fournisseur est **vérifiée** : authenticité (secret du compte de l'école), **montant exact** et **devise (franc CFA)**. Sinon rien n'est validé et le paiement est marqué « À rapprocher ». Une confirmation n'est comptée qu'**une fois**.
 - **Au bout de 24 h sans réponse**, la maintenance quotidienne interroge le fournisseur avec le compte de l'école : payé au bon montant → validé ; échec → annulé ; incertain → reste en attente ; au-delà de 48 h, l'école est alertée.
 - **Sans attendre**, le comptable ou l'administration de l'école peut ouvrir *Finance › Rapprochement* et cliquer sur **Interroger le fournisseur** devant un paiement en ligne en attente, en indiquant un motif (par exemple : la famille présente un débit sur son téléphone). Les règles sont les mêmes : validé seulement si le fournisseur confirme le bon montant, annulé seulement s'il déclare un échec définitif, sinon rien ne change et le montant reste réservé. Le motif, l'auteur et la réponse sont conservés sur le paiement et dans le journal. Il n'existe **aucun moyen de libérer un montant sans réponse du fournisseur**. Un paiement pour lequel le fournisseur n'a jamais donné de numéro de transaction ne peut pas être interrogé : il faut alors vérifier dans l'espace FedaPay de l'école.
+- Un paiement en ligne **ne se valide jamais à la main** : seule la confirmation du fournisseur (ou « Interroger le fournisseur ») le valide. Aucun paiement ne peut non plus revenir « en attente ».
 - Le **reçu** PDF n'existe que pour un paiement **confirmé** (validé ou rapproché) ; il ne montre pas les notes internes de l'école.
 - Le **remboursement** d'un paiement en ligne se rend depuis l'espace FedaPay de l'école, puis s'enregistre dans EduPilot (voir 9.8 bis) pour que le reste à payer soit juste.
 
 ## 9.4 Plans de paiement (échéancier) ✅
 Un frais peut être payé en **2 à 12 mensualités**.
-- Les **bourses actives** de l'élève sont déduites avant le découpage.
+- Les **bourses actives** de l'élève sont déduites avant le découpage (voir 9.6 : elles restent à jour ensuite).
 - Le total est découpé en **mensualités entières dont la somme tombe juste**. Par exemple, 100 000 FCFA en 3 donne 33 334 + 33 333 + 33 333.
 - Les échéances tombent le même jour chaque mois. Si ce jour n'existe pas dans le mois, l'échéance tombe le **dernier jour** du mois (le 31 janvier est suivi du 28 ou 29 février, pas du 3 mars).
 - Le plan est soldé quand toutes les mensualités sont payées.
@@ -78,13 +79,19 @@ Pour chaque échéance, la famille reçoit au plus une relance par étape :
 Une échéance non payée passe automatiquement « en retard ». Les jours sont comptés de manière identique, quel que soit le serveur.
 
 ## 9.6 Bourses et aides ✅
-*Bourses & aides scolaires* : une bourse est soit un **montant**, soit un **pourcentage** (de 1 à 100 %), avec une date de début et, au besoin, une date de fin.
+*Bourses & aides scolaires* : une bourse est soit un **montant**, soit un **pourcentage** (de 1 à 100 %), jamais les deux, avec une date de début et, au besoin, une date de fin.
 - Types : mérite, sur critères sociaux, sportive, partielle, totale, autre.
+- **Frais concernés** : c'est l'école qui choisit, bourse par bourse. Par défaut, **tous les frais obligatoires** de l'élève ; on peut aussi cocher seulement certains frais (par exemple la cantine seule).
+- **La bourse vaut pour l'année entière**, même accordée en cours d'année : elle s'applique au montant annuel du frais, sans calcul au prorata.
+- Le **reste à payer change tout de suite partout** : espace parent, guichet, relances, avis de paiement. Il n'y a rien à refaire.
+- **Échéancier déjà en cours** : la réduction est retirée des échéances **en partant de la dernière**. Les échéances déjà payées ne bougent pas, et une échéance ramenée à 0 est annulée. Si la bourse est retirée, le montant revient sur la dernière échéance.
+- Un **montant fixe** (par exemple 20 000 F) n'est déduit **qu'une fois**, réparti sur les frais concernés en commençant par l'échéance la plus proche.
+- **Trop-perçu** : si la famille a déjà payé plus que ce qu'elle doit après la bourse, la direction et la comptabilité reçoivent une alerte avec le montant **à rembourser**. Le remboursement se fait ensuite comme au 9.8 bis. Aucun paiement n'est effacé.
 - La famille est prévenue de l'attribution.
 - Plusieurs bourses actives s'additionnent. Le reste à payer ne descend jamais sous 0.
 
 ## 9.7 Avis de paiement ✅
-*Finance → Avis de paiement* : pour un frais et un niveau, l'application calcule le **reste à payer** de chaque élève (montant du frais moins ses paiements validés) et prépare les avis à remettre aux familles.
+*Finance → Avis de paiement* : pour un frais et un niveau, l'application calcule le **reste à payer** de chaque élève (son échéancier, ou le montant du frais moins ses bourses, moins ses paiements validés) et prépare les avis à remettre aux familles.
 
 ## 9.8 Rapprochement, rapports, exports ✅
 - *Réconciliation bancaire* : associer les virements reçus aux paiements des élèves.

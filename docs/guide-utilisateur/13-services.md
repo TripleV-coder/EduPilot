@@ -38,4 +38,4 @@ Signature des documents et attestations par les personnes habilitées. Chaque si
 *Réseau Alumni* : annuaire et suivi des anciens élèves.
 
 ## 13.9 Inscriptions
-*Nouvelle inscription* : dossier de l'élève, responsables légaux, classe. Le **matricule** est unique dans l'établissement. Un parent peut relier son compte à son enfant avec un **code de liaison** fourni par l'école ; ce lien est vérifié. Le code est valable 14 jours par défaut (réglable dans les paramètres de l'établissement).
+*Nouvelle inscription* : dossier de l'élève, responsables légaux, classe. Le **matricule** est unique dans l'établissement. ✅ Le **matricule EducMaster** (identifiant national imprimé sur le bulletin officiel) se saisit sur la fiche de l'élève (*Modifier*) ou par la colonne « Matricule EducMaster » de l'import ; il est unique dans l'établissement et sert à rapprocher les listes avec EducMaster. Un parent peut relier son compte à son enfant avec un **code de liaison** fourni par l'école ; ce lien est vérifié. Le code est valable 14 jours par défaut (réglable dans les paramètres de l'établissement).

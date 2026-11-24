@@ -10,6 +10,7 @@ import { resolveFinanceSchool, superAdminTargetOutOfScope } from "@/lib/finance/
 import { roleSatisfies } from "@/lib/rbac/permissions";
 import { createApiHandler } from "@/lib/api/api-helpers";
 import { addMonthsClamped, roundFcfa, splitInstallments } from "@/lib/finance/money";
+import { loadScholarshipDiscounts } from "@/lib/finance/scholarships";
 import { refuse, runFeeMutation } from "@/lib/finance/collection";
 
 const createPaymentPlanSchema = z.object({
@@ -159,33 +160,11 @@ export const POST = createApiHandler(
         return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
       }
 
-      // Check for active scholarships
-      const scholarships = await prisma.scholarship.findMany({
-        where: {
-          studentId: validatedData.studentId,
-          isActive: true,
-          startDate: { lte: new Date() },
-          OR: [
-            { endDate: null },
-            { endDate: { gte: new Date() } },
-          ],
-        },
-      });
-
-      // Calculate total discount
-      let totalAmount = new Decimal(fee.amount.toString());
-      let discountAmount = new Decimal(0);
-
-      for (const scholarship of scholarships) {
-        if (scholarship.percentage) {
-          const discount = totalAmount.mul(scholarship.percentage).div(100);
-          discountAmount = discountAmount.add(discount);
-        } else {
-          discountAmount = discountAmount.add(new Decimal(scholarship.amount.toString()));
-        }
-      }
-
-      totalAmount = totalAmount.sub(discountAmount);
+      // Bourses : même règle que tous les calculs du dû (FIN-01,
+      // src/lib/finance/scholarships.ts) — frais visés par l'école, enveloppe
+      // d'un montant fixe jamais déduite deux fois.
+      const discounts = await loadScholarshipDiscounts(prisma, validatedData.studentId);
+      let totalAmount = new Decimal(fee.amount.toString()).sub(discounts.get(fee.id) ?? 0);
       if (totalAmount.lessThan(0)) {
         totalAmount = new Decimal(0);
       }

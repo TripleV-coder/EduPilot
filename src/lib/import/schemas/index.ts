@@ -1,3 +1,4 @@
+import { educmasterMatriculeSchema } from "@/lib/validations/user";
 import { z } from "zod";
 
 // Shared Schemas
@@ -54,6 +55,7 @@ export const importStudentSchema = z.object({
     className: z.string().optional(), // To link to a Class
     parentEmail: z.string().email().optional().or(z.literal("")), // To link to a Parent
     matricule: z.string().optional(), // If providing custom matricule
+    educmasterMatricule: educmasterMatriculeSchema, // INT-01 : identifiant national
 });
 
 export type ImportStudent = z.infer<typeof importStudentSchema>;

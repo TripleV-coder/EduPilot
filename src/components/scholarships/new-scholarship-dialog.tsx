@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 type StudentHit = { id: string; matricule?: string | null; user: { firstName: string; lastName: string } };
+type FeeOption = { id: string; name: string; amount: number | string; isRequired: boolean };
 
 const TYPES: { value: string; label: string }[] = [
     { value: "MERIT", label: "Mérite" },
@@ -43,6 +44,11 @@ export function NewScholarshipDialog({
     const [endDate, setEndDate] = useState("");
     const [notes, setNotes] = useState("");
     const [saving, setSaving] = useState(false);
+    // Frais concernés : décision de l'école, bourse par bourse (FIN-01)
+    const [fees, setFees] = useState<FeeOption[] | null>(null);
+    const [feesError, setFeesError] = useState(false);
+    const [scope, setScope] = useState<"required" | "custom">("required");
+    const [selectedFees, setSelectedFees] = useState<string[]>([]);
 
     useEffect(() => {
         if (!open) {
@@ -56,8 +62,28 @@ export function NewScholarshipDialog({
             setStartDate(today());
             setEndDate("");
             setNotes("");
+            setScope("required");
+            setSelectedFees([]);
         }
     }, [open]);
+
+    useEffect(() => {
+        if (!open || fees !== null) return;
+        const controller = new AbortController();
+        fetch("/api/fees", { signal: controller.signal })
+            .then(async (res) => {
+                if (!res.ok) throw new Error(String(res.status));
+                const body = await res.json();
+                setFees(Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : []);
+            })
+            .catch((err) => {
+                if ((err as Error).name !== "AbortError") setFeesError(true);
+            });
+        return () => controller.abort();
+    }, [open, fees]);
+
+    const toggleFee = (id: string) =>
+        setSelectedFees((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
 
     useEffect(() => {
         if (student || search.trim().length < 2) {
@@ -84,7 +110,8 @@ export function NewScholarshipDialog({
         Number.isFinite(numeric) &&
         numeric > 0 &&
         (mode === "amount" || (Number.isInteger(numeric) && numeric <= 100)) &&
-        (!endDate || endDate >= startDate);
+        (!endDate || endDate >= startDate) &&
+        (scope === "required" || selectedFees.length > 0);
 
     const submit = async () => {
         if (!student) return;
@@ -101,11 +128,21 @@ export function NewScholarshipDialog({
                     startDate: new Date(`${startDate}T00:00:00.000Z`).toISOString(),
                     ...(endDate && { endDate: new Date(`${endDate}T00:00:00.000Z`).toISOString() }),
                     ...(notes.trim() && { notes: notes.trim() }),
+                    feeIds: scope === "custom" ? selectedFees : [],
                 }),
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "La bourse n'a pas été enregistrée.");
-            toast({ title: "Bourse attribuée", description: `${student.user.firstName} ${student.user.lastName} et sa famille sont notifiés.` });
+            const overpaid = Array.isArray(body.planAdjustments)
+                ? body.planAdjustments.reduce((sum: number, a: { overpaid?: number }) => sum + (a.overpaid ?? 0), 0)
+                : 0;
+            toast({
+                title: "Bourse attribuée",
+                description:
+                    overpaid > 0
+                        ? `Échéancier recalculé. La famille a déjà trop versé ${overpaid.toLocaleString("fr-FR")} F : la comptabilité est prévenue pour le remboursement.`
+                        : `${student.user.firstName} ${student.user.lastName} et sa famille sont notifiés ; le reste à payer est recalculé.`,
+            });
             onOpenChange(false);
             await onCreated();
         } catch (err) {
@@ -202,6 +239,40 @@ export function NewScholarshipDialog({
                         <Label htmlFor="scholarship-value">{mode === "amount" ? "Montant (FCFA)" : "Pourcentage (1 à 100)"}</Label>
                         <Input id="scholarship-value" type="number" min={1} max={mode === "amount" ? undefined : 100} value={value} onChange={(e) => setValue(e.target.value)} />
                     </div>
+
+                    <fieldset className="space-y-2">
+                        <legend className="text-sm font-medium">Frais concernés</legend>
+                        <label className="flex items-center gap-2 text-sm">
+                            <input type="radio" name="scholarship-scope" checked={scope === "required"} onChange={() => setScope("required")} />
+                            Tous les frais obligatoires
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                            <input type="radio" name="scholarship-scope" checked={scope === "custom"} onChange={() => setScope("custom")} />
+                            Seulement certains frais
+                        </label>
+                        {scope === "custom" ? (
+                            feesError ? (
+                                <p role="alert" className="text-sm text-destructive">Impossible de charger les frais de l&apos;établissement. Réessayez.</p>
+                            ) : fees === null ? (
+                                <p className="text-sm text-muted-foreground">Chargement des frais…</p>
+                            ) : fees.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">Aucun frais défini pour l&apos;établissement.</p>
+                            ) : (
+                                <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
+                                    {fees.map((fee) => (
+                                        <label key={fee.id} className="flex items-center gap-2 text-sm">
+                                            <input type="checkbox" checked={selectedFees.includes(fee.id)} onChange={() => toggleFee(fee.id)} />
+                                            <span className="flex-1">{fee.name}{fee.isRequired ? "" : " (facultatif)"}</span>
+                                            <span className="tabular-nums text-muted-foreground">{Number(fee.amount).toLocaleString("fr-FR")} F</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )
+                        ) : null}
+                        <p className="text-xs text-muted-foreground">
+                            La bourse vaut pour l&apos;année entière. Un échéancier en cours est réduit à partir de sa dernière échéance ; un trop-versé est signalé pour remboursement.
+                        </p>
+                    </fieldset>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
